@@ -1,0 +1,2 @@
+# Keep files byte-exact — no CRLF conversion on checkouts or in blobs.
+* -text
