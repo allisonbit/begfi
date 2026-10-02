@@ -54,19 +54,40 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
  * which mechanism applies is unresolved. A zero address disables the pull path
  * cleanly, which is the honest setting for a launch whose fees arrive by push.
  *
- * *** THE ONE THING STILL UNCONFIRMED, AND THE THING TO CHECK FIRST ***
+ * *** CONFIRMED: A CONTRACT MAY BE THE CREATOR-FEE RECIPIENT ***
  *
- * Whether Pons permits a CONTRACT as the creator payout address. Their docs
- * describe `feeRedirects(address token) returns (address)` and resolve the
- * payout as `redirect == zeroAddress ? deployer : redirect` — nothing there
- * restricts it to an externally-owned account, but nothing states a contract is
- * allowed either, and the docs do not address the question.
+ * Read from Pons' own V2 factory source (ponsdotdev/ponsfamily, MIT,
+ * contractsV2/src/v2/PonsV2LaunchFactory.sol) on 2026-10-02. There is NO
+ * `code.length == 0` test on the recipient anywhere in it — the only code-length
+ * check in that file applies to the quote asset, not to the recipient. Any
+ * non-zero address is accepted, contracts included. The assignment is:
  *
- * If it is not allowed, this splitter cannot sit in Pons' payout path at all and
- * the fee split has to happen some other way (a payout wallet that forwards, or
- * manual distribution). Confirm it against a real launch before relying on any
- * of this. Everything below is correct about how THIS contract behaves; what is
- * unknown is whether Pons will ever send it anything.
+ *     params.creatorFeeRecipient == address(0) ? originalDeployer : params.creatorFeeRecipient
+ *
+ * so a zero recipient falls back to the launcher, and later updates reject zero
+ * with `ZeroAddress()`. A transfer of the recipient requires
+ * `msg.sender == launch.creatorFeeRecipient`, so once this splitter is set it is
+ * also the only thing that can hand the role on.
+ *
+ *** ONE STEP BEFORE THE ESCROW: FEES MUST BE SWEPT ***
+ *
+ * Discovered in Pons' docs and NOT modelled here, because it may be the
+ * protocol's job rather than ours. Fees do not reach the escrow on their own:
+ *
+ *   - pre-graduation, `sweepFees(minBuybackTokensOut)` on the bonding curve
+ *   - post-graduation, `sweepPoolFees(poolId, minConversionQuoteOut, minBuybackTokensOut)`
+ *     on the meme hook
+ *
+ * Both are callable by "the protocol's sweep operator or the creator", and a
+ * creator's own call reverts `InternalSwapRequiresOperator` when an internal
+ * swap is needed. Until a sweep runs, the money sits in `quoteFeeBalance` /
+ * `creatorTaxBalance` (curve) or `pendingFees` / `pendingCreatorTax` (hook) and
+ * the escrow reports zero.
+ *
+ * So the full path is: trade → sweep → escrow → `pullFromEscrow()` → `claim()`.
+ * This contract covers the last two. If Pons' operator sweeps on a schedule, the
+ * first is theirs and nothing here needs to change. If it is left to the
+ * creator, a sweep has to be triggered separately before any of this sees money.
  */
 contract BegSplitter is Initializable {
     /// @notice Genesis mode is the $BEG launch itself: everything to the dev
@@ -362,21 +383,27 @@ contract BegSplitter is Initializable {
      *
      * CONTROLLER ONLY, AND UNAVAILABLE UNTIL CONFIGURED.
      *
-     * The interface below is Uniswap V3's `SwapRouter.exactInputSingle`, which is
-     * the router this chain's launches route through: Pons V1 seeds each token
-     * into a Uniswap V3 1% pool, so a buyback is a V3 swap on that same pool.
-     * (The first version of this file assumed Uniswap V2's router — it was
-     * written before that was established, and it was wrong.)
+     * The interface below is Uniswap V3's `SwapRouter.exactInputSingle`. That is
+     * the right shape for a **V1** launch, which seeds each token into a Uniswap
+     * V3 1% pool. It is probably the WRONG shape for a V2 launch, which trades on
+     * a bonding curve and graduates into a Uniswap V4 pool with a meme hook — V4
+     * swaps go through the hook, not a V3 router.
+     *
+     * Worth knowing before building any of this: Pons V2 already runs its own
+     * buyback. `getLaunchFeePolicy(token)` returns a `FeePolicy` with a
+     * `buybackBurnBps` share, and there is a protocol buyback vault at
+     * 0x42df2a798f82289E177311362e8f5ccC45c1219c. A BegFi-run buyback on top of
+     * that may be redundant, and a growth fund that can simply be withdrawn may
+     * be the better design. Spec §9.3 asks for a buyback function; this is it,
+     * configured off, and whether to use it is a decision rather than a default.
      *
      * Because `swapRouter`, `begToken` and `weth` all start at zero and this
      * reverts while any is unset, the function cannot do anything at all until
-     * somebody deliberately supplies real addresses. Confirming the router
-     * address and the pool fee tier on-chain is a decision, not a default.
+     * somebody deliberately supplies real addresses for the version in use.
      *
      * The tokens bought are sent to this contract. Spending or burning them is a
-     * separate, controller-only act (`withdrawGrowthFund` can move ETH; moving
-     * $BEG would need its own function) — spec §9.3 leaves that open, and adding
-     * a destination here without deciding it would be inventing policy.
+     * separate, controller-only act — spec §9.3 leaves that open, and adding a
+     * destination here without deciding it would be inventing policy.
      */
     function executeBuyback(uint256 amountIn, uint256 minAmountOut) external onlyController {
         if (swapRouter == address(0) || begToken == address(0) || weth == address(0)) {
