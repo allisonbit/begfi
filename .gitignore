@@ -14,6 +14,9 @@ web/.next/
 web/out/
 web/next-env.d.ts
 
+# TypeScript incremental build state. Changes on every build, belongs to nobody.
+*.tsbuildinfo
+
 # Hardhat
 artifacts/
 cache/

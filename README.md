@@ -35,37 +35,27 @@ cp .env.example .env.local  # then fill in Supabase keys
 npm run dev
 ```
 
-### Testing for real, on testnet
+### Testing the whole flow, for free
 
-The way to exercise the whole product — real wallet, real transactions, real signatures — without
-any money involved. **chainId 46630**, where ETH comes free from a faucet.
+There is no testnet build. `npx hardhat node` runs at **chainId 4663 — the same chain id as
+mainnet** — so a local run exercises the identical code path with the identical addresses, rather
+than a parallel network that has to be kept in step with the real one.
 
 ```sh
-# 1. Fund a deployer. Any wallet; testnet ETH has no value.
-#    https://faucet.quicknode.com/robinhood/testnet
-export BEG_DEPLOYER_KEY=0x...
+npx hardhat node                    # terminal 1 — leave running
+npm run deploy:local                # terminal 2 — prints the TestToken address
 
-# 2. Deploys the splitter factory and a stand-in $BEG. Prints addresses at the end.
-npm run deploy:testnet
-
-# 3. Point the app at it. web/.env.local:
-#      NEXT_PUBLIC_CHAIN="testnet"
-#      NEXT_PUBLIC_BEG_TOKEN_ADDRESS="<the TestToken address it printed>"
+# web/.env.local:
+#   NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8545"
+#   NEXT_PUBLIC_BEG_TOKEN_ADDRESS="<the TestToken address it printed>"
 cd web && npm run dev
 ```
 
-The site prints a lime banner on every page while it is on testnet. That is deliberate: on testnet
-every flow works and every token is worthless, so an unlabelled build is indistinguishable from a
-working product.
+Then connect a wallet, claim a username, open `/[username]` from a second wallet, send, and watch
+the total appear. Real transactions, real signatures, no money.
 
 `TestToken` has an open `mint` — it is a faucet, and it must never exist on a chain where it could
 be mistaken for $BEG. The deploy script refuses to deploy it to mainnet.
-
-### Developing with no network at all
-
-`npx hardhat node` at the repo root runs at **chainId 4663 — the same as mainnet**. Deploy to it,
-then set `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545` and `NEXT_PUBLIC_BEG_TOKEN_ADDRESS`. The whole
-send flow then runs in a browser with no code changes.
 
 ### Deploying for real
 

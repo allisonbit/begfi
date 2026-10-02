@@ -1,22 +1,16 @@
 import { defineChain, type Address } from "viem";
 
 /**
- * Robinhood Chain — the Arbitrum Orbit L2 that BegFi lives on, and its testnet.
+ * Robinhood Chain — the Arbitrum Orbit L2 that BegFi lives on.
  *
- * Both are defined, and `NEXT_PUBLIC_CHAIN` picks which one the app runs against.
- * That switch exists so the whole product can be exercised honestly before any
- * real money is involved: same wallets, same contracts, same code path, free gas.
+ * chainId 4663, native asset ETH, ~100ms blocks. Verified against Robinhood's
+ * own docs; the explorer is Blockscout.
  *
- *   NEXT_PUBLIC_CHAIN=testnet   -> chainId 46630, testnet RPC and explorer
- *   unset                       -> chainId 4663, mainnet (the default, deliberately)
- *
- * The default is mainnet because a misconfigured production deploy that silently
- * pointed at a testnet would be worse than one that points at mainnet: on the
- * testnet everything appears to work while nothing is real, and someone would
- * send coins that do not exist.
+ * One chain, and no testnet. The RPC is overridable because `npx hardhat node`
+ * in this repo runs at the SAME chainId (4663) as mainnet — so pointing
+ * NEXT_PUBLIC_RPC_URL at http://127.0.0.1:8545 runs the entire send flow against
+ * a local chain with no code change and no separate network to keep in step.
  */
-const USE_TESTNET = process.env.NEXT_PUBLIC_CHAIN?.trim().toLowerCase() === "testnet";
-
 /**
  * `||`, NOT `??`, and that distinction is load-bearing. A .env file that writes
  * `NEXT_PUBLIC_RPC_URL=""` produces an empty STRING, and `??` only falls back on
@@ -26,37 +20,19 @@ const USE_TESTNET = process.env.NEXT_PUBLIC_CHAIN?.trim().toLowerCase() === "tes
  * the production build dies inside a package that has nothing to do with the env
  * file. Treating a blank value as unset is the only safe reading.
  */
-const MAINNET_RPC =
-  process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com";
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com";
 
-const TESTNET_RPC =
-  process.env.NEXT_PUBLIC_TESTNET_RPC_URL?.trim() || "https://rpc.testnet.chain.robinhood.com";
-
-export const robinhoodMainnet = defineChain({
+export const robinhoodChain = defineChain({
   id: 4663,
   name: "Robinhood Chain",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [MAINNET_RPC] } },
+  rpcUrls: {
+    default: { http: [RPC_URL] },
+  },
   blockExplorers: {
     default: { name: "Blockscout", url: "https://robinhoodchain.blockscout.com" },
   },
 });
-
-export const robinhoodTestnet = defineChain({
-  id: 46630,
-  name: "Robinhood Chain Testnet",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [TESTNET_RPC] } },
-  blockExplorers: {
-    default: { name: "Blockscout", url: "https://explorer.testnet.chain.robinhood.com" },
-  },
-  testnet: true,
-});
-
-/** The chain this build runs against. */
-export const robinhoodChain = USE_TESTNET ? robinhoodTestnet : robinhoodMainnet;
-
-export const IS_TESTNET = USE_TESTNET;
 
 /**
  * One chain only. $BEG is a single-chain token, and a link that could resolve on

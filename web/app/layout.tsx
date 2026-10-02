@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-import { IS_TESTNET } from "@/lib/chains";
 import { SITE_URL } from "@/lib/config";
 
 /**
@@ -36,21 +35,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={bricolage.variable}>
       <body className="antialiased">
-        {/*
-          On testnet the site says so, on every page, as the first thing in the
-          document. This is a safety control, not decoration: on the testnet
-          every flow works and every token is worthless, so an unlabelled test
-          build looks exactly like a working product. Someone who sent coins
-          they believed were real, or believed they had received real coins,
-          needs the page to have told them plainly.
-        */}
-        {IS_TESTNET ? (
-          <div className="safe-top bg-beg-lime text-center text-[13px] font-bold text-beg-bg">
-            <div className="px-4 py-2">
-              Testnet — the tokens here are not real and have no value.
-            </div>
-          </div>
-        ) : null}
         <Providers>{children}</Providers>
       </body>
     </html>

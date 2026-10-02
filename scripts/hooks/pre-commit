@@ -1,0 +1,95 @@
+#!/bin/sh
+#
+# Refuse any commit that would put a secret in the repository.
+#
+# Installed by `npm run hooks:install`, which points git's core.hooksPath here so
+# the hook lives in the repo and is version-controlled rather than buried in
+# .git/hooks where nobody sees it.
+#
+# This exists because "never push the key" is a promise that is easy to make and
+# easy to break at 2am with `git add -A`. A hook is the version of that promise
+# that does not depend on anyone remembering.
+#
+# It checks three things, in increasing order of how easy they are to miss:
+#   1. the FILENAME          (.env, .pem, .key, id_rsa, ...)
+#   2. the CONTENT'S SHAPE   (PEM blocks, assigned secrets, JWT-shaped strings)
+#   3. a BARE 64-HEX VALUE   which is what a raw private key looks like
+#
+# The third will occasionally catch an innocent transaction hash. That is the
+# deliberate trade: in a repository that deploys contracts, a false positive
+# costs one `--no-verify`, and a false negative costs the wallet.
+
+set -u
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+status=0
+
+block() {
+  printf '\n  BLOCKED  %s\n           %s\n' "$1" "$2" >&2
+  status=1
+}
+
+for f in $staged; do
+  # The one env file that is supposed to be committed. It is a template with no
+  # values, and it is how anyone else learns which variables exist.
+  case "$f" in
+    *.env.example) continue ;;
+  esac
+
+  case "$f" in
+    .env|.env.*|*/.env|*/.env.*)
+      block "$f" "an environment file. Only .env.example may be committed." ; continue ;;
+    *.pem|*.key|*.p12|*.pfx|*.jks|*.keystore)
+      block "$f" "a key or certificate file." ; continue ;;
+    id_rsa*|id_ed25519*|id_ecdsa*|*.ppk)
+      block "$f" "a private key file." ; continue ;;
+    *.tsbuildinfo)
+      block "$f" "a build artifact. It changes on every build and pollutes every diff." ; continue ;;
+  esac
+
+  content=$(git show ":$f" 2>/dev/null) || continue
+
+  if printf '%s' "$content" | grep -qE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----'; then
+    block "$f" "it contains a PEM private key."
+  fi
+
+  # NAME=value where NAME says secret and value is long enough to be one.
+  # Deliberately tolerant of quotes, colons and spaces, because the thing being
+  # caught is a mistake, and a mistake rarely has tidy formatting.
+  if printf '%s' "$content" |
+    grep -qE -- '(PRIVATE_KEY|DEPLOYER_KEY|MNEMONIC|SEED_PHRASE|RECOVERY_PHRASE|SERVICE_ROLE_KEY|JWT_SECRET|SECRET_KEY|API_SECRET|WALLET_KEY)[^A-Za-z0-9]{0,6}[=:][[:space:]]*"?[A-Za-z0-9+/=_-]{24,}'; then
+    block "$f" "it assigns a value to something named like a secret."
+  fi
+
+  # A Supabase service-role key is a JWT: three base64url segments starting eyJ.
+  # Worth catching specifically because it bypasses every RLS policy in the
+  # database, so its blast radius is the whole project, not one file.
+  if printf '%s' "$content" | grep -qE -- '\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}'; then
+    block "$f" "it contains a JWT — an anon or service-role key."
+  fi
+
+  # A raw private key is 32 bytes, so 64 hex characters. A transaction hash is
+  # the same shape, which is the false positive described at the top.
+  if printf '%s' "$content" | grep -qE -- '(^|[^A-Za-z0-9])0x[0-9a-fA-F]{64}([^A-Za-z0-9]|$)'; then
+    block "$f" "it contains a 64-hex value, which is the shape of a private key."
+  fi
+done
+
+if [ "$status" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+Commit refused. Nothing was committed.
+
+If a check above is a false positive — a transaction hash, say — read what it
+flagged, be sure it really is not a key, then commit with:
+
+    git commit --no-verify
+
+That flag skips this hook for one commit. Use it deliberately, not habitually.
+EOF
+  exit 1
+fi
+
+exit 0

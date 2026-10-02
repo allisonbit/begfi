@@ -33,19 +33,6 @@ module.exports = {
       url: process.env.BEG_LOCAL_RPC_URL || "http://127.0.0.1:8545",
       chainId: 4663,
     },
-    /**
-     * Robinhood Chain TESTNET — chainId 46630, i.e. the mainnet id with a zero
-     * appended. Free ETH from a faucet, real transactions, no real money.
-     *
-     * This is where `npm run deploy:testnet` goes, and it is the only way to
-     * exercise the whole product honestly before mainnet: a real wallet, a real
-     * send, a real indexer run. Nothing here can cost anyone anything.
-     */
-    robinhoodTestnet: {
-      url: process.env.BEG_TESTNET_RPC_URL || "https://rpc.testnet.chain.robinhood.com",
-      chainId: 46630,
-      accounts: deployerKey ? [deployerKey] : [],
-    },
     robinhood: {
       url: process.env.BEG_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
       chainId: 4663,

@@ -2,17 +2,22 @@
 /**
  * Deploy BegFi's contracts.
  *
- *   npm run deploy:testnet    Robinhood Chain testnet (46630) — free, safe
- *   npm run deploy:local      an in-process/test node
+ *   npm run deploy:local      an in-process/test node — free, safe
  *   npm run deploy:mainnet    Robinhood Chain mainnet (4663) — REAL MONEY
  *
  * What it deploys:
  *   - BegSplitterFactory, always. It deploys the splitter implementation once and
  *     hands out a clone per launch.
- *   - TestToken, ONLY on testnet or a local node. It is a stand-in for $BEG so the
- *     send flow can be exercised; it has an open mint and must never exist on a
- *     chain where it could be mistaken for the real thing. On mainnet this script
+ *   - TestToken, ONLY against a local node. It is a stand-in for $BEG so the send
+ *     flow can be exercised; it has an open mint and must never exist on a chain
+ *     where it could be mistaken for the real thing. On mainnet this script
  *     refuses to deploy it, and $BEG is launched through Pons instead (spec §9.1).
+ *
+ * HOW TO TEST WITHOUT SPENDING ANYTHING. `npx hardhat node` runs at chainId 4663
+ * — the SAME id as mainnet — so a local run exercises the identical code path
+ * with the identical addresses. Set NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545 and
+ * NEXT_PUBLIC_BEG_TOKEN_ADDRESS to the TestToken address below and the whole
+ * product runs in a browser for free.
  *
  * The deployer key comes from BEG_DEPLOYER_KEY. It is never logged, never
  * written, and never defaulted — with no key the account list is empty and the
@@ -22,7 +27,6 @@ const hre = require("hardhat");
 
 const CHAIN_NAMES = {
   4663: "Robinhood Chain MAINNET",
-  46630: "Robinhood Chain testnet",
   31337: "local node",
 };
 
@@ -48,9 +52,7 @@ async function main() {
     throw new Error(
       isMainnet
         ? "The deployer has no ETH on mainnet. Fund it before deploying — this costs real money."
-        : "The deployer has no ETH. Get testnet ETH from a faucet first:\n" +
-          "  https://faucet.quicknode.com/robinhood/testnet\n" +
-          "  https://faucet.chainstack.com/robinhood-chain-testnet-faucet",
+        : "The deployer has no ETH on the local chain.",
     );
   }
 
@@ -92,10 +94,9 @@ async function main() {
 
   console.log("");
   console.log("Put these in web/.env.local:");
-  console.log("  NEXT_PUBLIC_BEG_TOKEN_ADDRESS=\"" + (tokenAddress ?? "") + "\"");
+  console.log(`  NEXT_PUBLIC_BEG_TOKEN_ADDRESS="${tokenAddress ?? ""}"`);
   if (!isMainnet) {
-    console.log('  NEXT_PUBLIC_CHAIN="testnet"');
-    console.log('  NEXT_PUBLIC_RPC_URL="' + hre.network.config.url + '"');
+    console.log(`  NEXT_PUBLIC_RPC_URL="${hre.network.config.url}"`);
   }
 }
 
