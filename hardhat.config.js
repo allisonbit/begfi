@@ -1,6 +1,20 @@
 require("@nomicfoundation/hardhat-toolbox");
 
 /**
+ * Load `.env` from the repo root if it exists.
+ *
+ * This is where BEG_DEPLOYER_KEY belongs. `.env` is gitignored by name and the
+ * pre-commit hook refuses it by name, so the key never reaches a commit; and
+ * because this reads a file rather than the shell, the key does not end up in
+ * shell history, in a process listing, or in the scrollback of whatever terminal
+ * ran the deploy.
+ *
+ * Silent when the file is absent, which is the normal case: nothing here needs a
+ * key except a deploy.
+ */
+require("dotenv").config({ path: require("node:path").join(__dirname, ".env"), quiet: true });
+
+/**
  * BegFi contracts. Robinhood Chain (mainnet): chain id 4663, native asset ETH.
  *
  * Mirrors bug-protocol's config, including the trick that makes local testing

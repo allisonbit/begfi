@@ -25,18 +25,26 @@
  */
 const hre = require("hardhat");
 
-const CHAIN_NAMES = {
-  4663: "Robinhood Chain MAINNET",
-  31337: "local node",
-};
-
 async function main() {
   const network = hre.network.name;
   const chainId = (await hre.ethers.provider.getNetwork()).chainId;
   const [deployer] = await hre.ethers.getSigners();
 
-  const label = CHAIN_NAMES[Number(chainId)] ?? `unknown chain ${chainId}`;
-  const isMainnet = Number(chainId) === 4663;
+  /**
+   * Mainnet is decided by the NETWORK NAME, never by the chain id.
+   *
+   * The local node deliberately runs at chainId 4663 — the same id as mainnet —
+   * because that is what makes local testing worth anything: the app resolves
+   * addresses identically either way. So a `chainId === 4663` test calls every
+   * local run a mainnet deploy. It did exactly that, printing the mainnet warning
+   * on a local deploy and then refusing to provide a TestToken, which left the
+   * send flow with nothing to send. The name is the only thing that distinguishes
+   * the two, so the name is what this reads.
+   */
+  const isMainnet = network === "robinhood";
+  const label = isMainnet
+    ? "Robinhood Chain MAINNET"
+    : `${network} — chainId ${chainId}, deliberately the same id as mainnet`;
 
   console.log(`network   ${network}  (${label})`);
   console.log(`deployer  ${deployer ? deployer.address : "NO ACCOUNT — set BEG_DEPLOYER_KEY"}`);
@@ -52,7 +60,7 @@ async function main() {
     throw new Error(
       isMainnet
         ? "The deployer has no ETH on mainnet. Fund it before deploying — this costs real money."
-        : "The deployer has no ETH on the local chain.",
+        : "The deployer has no ETH on the local chain. The hardhat node funds its own accounts.",
     );
   }
 
