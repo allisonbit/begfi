@@ -18,8 +18,11 @@ web/                    Next.js 16 app — Vercel Root Directory points here
 contracts/              BegSplitter, its clone factory, and a local-only TestToken
 test/                   Hardhat tests for the splitter
 supabase/migrations/    schema, RLS and seed data for the `begfi` schema
-index.html              the original static landing page (removed at cutover)
+scripts/                migrate.js (applies migrations), push-env.js (Vercel env)
 ```
+
+`index.html` — the original static landing page — was removed at cutover. It is recoverable from
+git history (last present in `718b12f`).
 
 ## Running it
 
