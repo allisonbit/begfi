@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/**
+ * BegFi design tokens (spec §3). Robinhood neon lime on near-black; no stock
+ * "crypto gradient", no cardboard. These are the only colours in the product —
+ * a surface that needs a shade reaches for one of these rather than inventing
+ * a new one.
+ */
+@theme {
+  --color-beg-bg: #07080a;
+  --color-beg-card: #111418;
+  --color-beg-line: #232830;
+  --color-beg-ink: #f4f7ee;
+  --color-beg-dim: #8b93a0;
+  --color-beg-lime: #ccff00;
+
+  --font-display: var(--font-bricolage), system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  /* Anchor jumps must clear the notch, not slide under it. */
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+  margin: 0;
+  background: var(--color-beg-bg);
+  color: var(--color-beg-ink);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/**
+ * Safe areas, applied at the page shell rather than per-component. The app is
+ * mobile-first (spec §3): everything has to be usable one-handed at 360px, and
+ * on a notched phone the top nav and the bottom action button are exactly the
+ * two things that would otherwise sit under the hardware.
+ */
+.safe-x {
+  padding-left: max(20px, env(safe-area-inset-left, 0px));
+  padding-right: max(20px, env(safe-area-inset-right, 0px));
+}
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Visible keyboard focus everywhere (spec §3). Lime is the one colour that
+   reads against both the near-black page and the lime buttons. */
+:focus-visible {
+  outline: 3px solid var(--color-beg-lime);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

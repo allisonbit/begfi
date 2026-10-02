@@ -1,1 +1,28 @@
+# Secrets. .env.local holds the Supabase service role key, which bypasses RLS —
+# committing it would expose every row in the BegFi schema and the auth users.
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Dependencies
+node_modules/
+
+# Next.js
+web/.next/
+web/out/
+web/next-env.d.ts
+
+# Hardhat
+artifacts/
+cache/
+typechain-types/
+
+# Vercel
 .vercel
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.log
