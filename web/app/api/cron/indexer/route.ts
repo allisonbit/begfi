@@ -28,6 +28,21 @@ export const maxDuration = 60;
  * bound; instead the token's logs for the window are fetched and matched against
  * the current wallet set in memory. That is one request per run regardless of
  * how many users there are.
+ *
+ *** HOW OFTEN THIS ACTUALLY RUNS ***
+ *
+ * vercel.json schedules it once a day, at 03:17. That is not a design choice —
+ * Vercel's Hobby plan rejects any cron that runs more than once per day, and a
+ * deploy with a `*​/5 * * * *` schedule fails outright with "Hobby accounts are
+ * limited to daily cron jobs". The build compiles, then the deploy is refused.
+ *
+ * So on Hobby this endpoint is a once-daily safety net, and a transfer can take
+ * up to 24 hours to appear in a total. For a payment page that is too slow, and
+ * there are two honest ways out: Vercel Pro (per-minute crons), or any external
+ * scheduler calling this URL with the CRON_SECRET bearer token — the route does
+ * not care who calls it, only that they are authorised. Until then the indexer
+ * is correct but slow, and the app says totals come from confirmed transfers
+ * without promising how quickly.
  */
 const TRANSFER_EVENT = parseAbiItem(
   "event Transfer(address indexed from, address indexed to, uint256 value)",
