@@ -37,18 +37,34 @@ export async function getProfileByUsername(rawUsername: string): Promise<Profile
 
   if (!profile) return null;
 
-  const { data: stats } = await sb
+  const stats = await getStats(profile.id);
+
+  return { profile, stats };
+}
+
+/**
+ * Totals for one profile, from the aggregate view.
+ *
+ * Separate from `getRecentTransfers` on purpose. Summing a page of recent
+ * transfers gives the total of *that page*, which looks right on a new account
+ * and is wrong on a busy one — the sort of bug that only shows up once somebody
+ * has real traffic, i.e. when it matters. The view sums everything.
+ */
+export async function getStats(profileId: string): Promise<ProfileStats> {
+  if (!SUPABASE_CONFIGURED) {
+    return { profile_id: profileId, total_received: "0", supporters: 0 };
+  }
+
+  const sb = await createClient();
+  const { data } = await sb
     .from("profile_stats")
     .select("profile_id, total_received, supporters")
-    .eq("profile_id", profile.id)
+    .eq("profile_id", profileId)
     .maybeSingle<ProfileStats>();
 
-  return {
-    profile,
-    // An account that has received nothing has no row in the view yet, and the
-    // honest reading of that is zero — not a missing total.
-    stats: stats ?? { profile_id: profile.id, total_received: "0", supporters: 0 },
-  };
+  // An account that has received nothing has no row in the view yet, and the
+  // honest reading of that is zero — not a missing total.
+  return data ?? { profile_id: profileId, total_received: "0", supporters: 0 };
 }
 
 /**
