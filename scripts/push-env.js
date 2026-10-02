@@ -21,7 +21,7 @@
  *   node scripts/push-env.js            # push
  *   node scripts/push-env.js --dry-run  # list what would be pushed
  */
-const { readFileSync } = require("node:fs");
+const { readFileSync, writeFileSync } = require("node:fs");
 const { randomBytes } = require("node:crypto");
 const { join } = require("node:path");
 const { homedir } = require("node:os");
@@ -48,6 +48,40 @@ const { projectId, orgId } = JSON.parse(readFileSync(PROJECT_FILE, "utf8"));
 const { token } = JSON.parse(readFileSync(AUTH_FILE, "utf8"));
 
 /**
+ * Generate a secret if .env.local does not already hold a usable one, and write
+ * it back so local development and the deployment share one value.
+ *
+ * Sharing matters for CRON_SECRET in particular: it is what authorises a call to
+ * the indexer, so if the two sides disagreed you could not trigger the deployed
+ * cron from your own machine.
+ *
+ * The length test is a guard against the failure this replaced. Asking the
+ * Vercel API for a variable with `decrypt=true` returns an ENCRYPTED ENVELOPE
+ * rather than the plaintext — a ~1.1 KB blob starting `eyJ2IjoidjIi`, which is
+ * base64 for `{"v":"v2"` — and writing that back as though it were the secret
+ * would silently break both sides.
+ */
+function ensureSecret(env, key) {
+  const current = env[key];
+  const usable = current && current.length >= 16 && current.length <= 200;
+  if (usable) return current;
+
+  const fresh = randomBytes(32).toString("base64url");
+  let raw = readFileSync(ENV_FILE, "utf8");
+  const line = new RegExp("^\\s*" + key + '\\s*=\\s*"?[^"\\r\\n]*"?\\s*$', "m");
+
+  if (line.test(raw)) {
+    raw = raw.replace(line, key + '="' + fresh + '"');
+  } else {
+    raw += "\n" + key + '="' + fresh + '"\n';
+  }
+
+  writeFileSync(ENV_FILE, raw);
+  console.log(`  generated ${key} and wrote it to web/.env.local`);
+  return fresh;
+}
+
+/**
  * What the deployed app actually reads.
  *
  * Deliberately short. `NEXT_PUBLIC_RPC_URL` and `NEXT_PUBLIC_BEG_TOKEN_ADDRESS`
@@ -61,11 +95,11 @@ const vars = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: local.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: local.SUPABASE_SERVICE_ROLE_KEY,
 
-  // Signs the sign-in nonce cookie. Generated, not reused.
-  WALLET_AUTH_SECRET: randomBytes(32).toString("base64url"),
+  // Signs the sign-in nonce cookie.
+  WALLET_AUTH_SECRET: ensureSecret(local, "WALLET_AUTH_SECRET"),
 
-  // Guards /api/cron/indexer. Generated, not reused.
-  CRON_SECRET: randomBytes(32).toString("base64url"),
+  // Guards /api/cron/indexer.
+  CRON_SECRET: ensureSecret(local, "CRON_SECRET"),
 
   // Where the app is served. Used to build absolute Open Graph URLs, so it has
   // to be a real origin or crawlers resolve previews against localhost.
@@ -89,11 +123,22 @@ if (dryRun) {
   process.exit(0);
 }
 
-const api = `https://api.vercel.com/v10/projects/${projectId}/env?teamId=${orgId}`;
+/**
+ * The collection URL and the team scope are kept SEPARATE.
+ *
+ * They cannot be concatenated into one string: a delete targets
+ * `/env/{id}` and the team is a query parameter, so a combined
+ * `.../env?teamId=x` + `/` + id produces `.../env?teamId=x/abc`, where the id
+ * lands inside the query string and every delete 400s. That is exactly how the
+ * first version of this failed — silently, with the conflicts surfacing as
+ * "already exists" on the add that followed.
+ */
+const collection = `https://api.vercel.com/v9/projects/${projectId}/env`;
+const scope = `teamId=${orgId}`;
 const authHeaders = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
 async function listExisting() {
-  const res = await fetch(api.replace("/v10/", "/v9/"), { headers: authHeaders });
+  const res = await fetch(`${collection}?${scope}`, { headers: authHeaders });
   if (!res.ok) throw new Error(`list failed: ${res.status} ${await res.text()}`);
   const body = await res.json();
   return body.envs ?? [];
@@ -107,17 +152,17 @@ async function main() {
     // Upsert by hand: find every entry for this key and replace it. A key can
     // legitimately have one row per target, so they are removed individually.
     for (const entry of existing.filter((e) => e.key === key)) {
-      const res = await fetch(`${api.replace("/v10/", "/v9/")}/${entry.id}`, {
+      const res = await fetch(`${collection}/${entry.id}?${scope}`, {
         method: "DELETE",
         headers: authHeaders,
       });
       if (!res.ok) {
-        console.log(`  FAILED to remove old ${key}: ${res.status}`);
+        console.log(`  FAILED to remove old ${key}: ${res.status} ${(await res.text()).slice(0, 120)}`);
         failures += 1;
       }
     }
 
-    const res = await fetch(api, {
+    const res = await fetch(`${collection}?${scope}`, {
       method: "POST",
       headers: authHeaders,
       body: JSON.stringify({ key, value, type: "encrypted", target: TARGETS }),
