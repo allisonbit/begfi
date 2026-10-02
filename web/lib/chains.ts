@@ -11,14 +11,25 @@ import { defineChain, type Address } from "viem";
  * http://127.0.0.1:8545 runs the entire send flow locally with no code change —
  * which is the only way to exercise it before $BEG is deployed for real.
  */
+/**
+ * The RPC endpoint.
+ *
+ * `||`, NOT `??`, and that distinction is load-bearing. A .env file that writes
+ * `NEXT_PUBLIC_RPC_URL=""` produces an empty STRING, and `??` only falls back on
+ * null/undefined — so the chain ends up with an empty URL, viem builds no usable
+ * transport, and wagmi's `usePublicClient()` resolves to undefined. RainbowKit
+ * reads that client when it mounts its transaction store, dereferences it, and
+ * the production build dies inside a package that has nothing to do with the
+ * env file. Treating a blank value as unset is the only safe reading.
+ */
+const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com";
+
 export const robinhoodChain = defineChain({
   id: 4663,
   name: "Robinhood Chain",
   nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
   rpcUrls: {
-    default: {
-      http: [process.env.NEXT_PUBLIC_RPC_URL ?? "https://rpc.mainnet.chain.robinhood.com"],
-    },
+    default: { http: [RPC_URL] },
   },
   blockExplorers: {
     default: { name: "Blockscout", url: "https://robinhoodchain.blockscout.com" },

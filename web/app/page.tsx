@@ -77,9 +77,8 @@ function LaunchSection() {
       </div>
 
       {/*
-        No launch form. The spec's mock-up had one disabled until Phase 2, but a
-        form that cannot submit is a promise the page cannot keep — and the honest
-        version of "not yet" is a sentence, not a dead input.
+        No launch form. A form that cannot submit is a promise the page cannot
+        keep, and the honest version of "not yet" is a sentence, not a dead input.
       */}
       <p className="mt-3.5 text-[13px] text-beg-dim">
         There is no launch form here yet, because there is nothing it could do.{" "}

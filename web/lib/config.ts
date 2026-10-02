@@ -24,16 +24,25 @@ export const BEG_TOKEN_ADDRESS = addr(process.env.NEXT_PUBLIC_BEG_TOKEN_ADDRESS)
  */
 export const BEG_CONFIGURED = BEG_TOKEN_ADDRESS !== null;
 
-/** Public origin, used to build shareable links and Open Graph URLs. */
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+/**
+ * Public origin, used to build shareable links and Open Graph URLs.
+ *
+ * Blank is treated as unset (`||`, not `??`), because `.env` files routinely
+ * carry `KEY=""` for "not set here" and an empty `metadataBase` would produce
+ * relative Open Graph URLs that no crawler can resolve.
+ */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://localhost:3000").replace(
+  /\/$/,
+  "",
+);
 
 /**
- * The link prefix shown to users. Kept separate from SITE_URL because the
- * product domain (begfi.xyz) is not the deployment URL yet, and copy that
- * claims a domain the app is not served from would be a lie about where the
- * link goes.
+ * The link prefix shown to users and copied to the clipboard. Kept separate from
+ * SITE_URL because the product domain (begfi.xyz) is not the deployment URL yet,
+ * and copy that claims a domain the app is not served from would be a lie about
+ * where the link goes. Blank falls back to SITE_URL.
  */
-export const LINK_ORIGIN = process.env.NEXT_PUBLIC_LINK_ORIGIN ?? SITE_URL;
+export const LINK_ORIGIN = process.env.NEXT_PUBLIC_LINK_ORIGIN?.trim() || SITE_URL;
 
 export const linkFor = (username: string) => `${LINK_ORIGIN}/${username}`;
 

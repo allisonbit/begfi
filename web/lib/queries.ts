@@ -39,9 +39,9 @@ export async function getProfileByUsername(rawUsername: string): Promise<Profile
 
   const { data: stats } = await sb
     .from("profile_stats")
-    .select("total_received, supporters")
+    .select("profile_id, total_received, supporters")
     .eq("profile_id", profile.id)
-    .maybeSingle<{ total_received: string; supporters: number }>();
+    .maybeSingle<ProfileStats>();
 
   return {
     profile,

@@ -126,6 +126,35 @@ create policy transfers_read_involved on begfi.transfers
 
 
 -- ---------------------------------------------------------------------------
+-- app_config
+-- ---------------------------------------------------------------------------
+--
+-- Declared BEFORE profile_stats, because the view reads the $BEG address from
+-- this table. Postgres resolves a view's dependencies when the view is created,
+-- so a definition that names a table declared further down the file fails with
+-- "relation does not exist" — the ordering here is load-bearing, not cosmetic.
+
+create table if not exists begfi.app_config (
+  key text primary key,
+  value text not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table begfi.app_config enable row level security;
+
+-- Public read so the client can discover the $BEG address without a rebuild.
+drop policy if exists app_config_read on begfi.app_config;
+create policy app_config_read on begfi.app_config for select using (true);
+
+-- Seeded empty on purpose. The $BEG row is only given a real value once $BEG has
+-- actually been launched (spec §9.4); until then the empty string is what tells
+-- profile_stats below that there is no token to count yet.
+insert into begfi.app_config (key, value)
+values ('beg_token_address', '')
+on conflict (key) do nothing;
+
+
+-- ---------------------------------------------------------------------------
 -- profile_stats  (the public aggregate)
 -- ---------------------------------------------------------------------------
 
@@ -217,30 +246,6 @@ alter table begfi.launch_blocklist enable row level security;
 
 drop policy if exists launch_blocklist_read on begfi.launch_blocklist;
 create policy launch_blocklist_read on begfi.launch_blocklist for select using (true);
-
-
--- ---------------------------------------------------------------------------
--- app_config
--- ---------------------------------------------------------------------------
-
-create table if not exists begfi.app_config (
-  key text primary key,
-  value text not null,
-  updated_at timestamptz not null default now()
-);
-
-alter table begfi.app_config enable row level security;
-
--- Public read so the client can discover the $BEG address without a rebuild.
-drop policy if exists app_config_read on begfi.app_config;
-create policy app_config_read on begfi.app_config for select using (true);
-
--- Seeded empty on purpose. The $BEG row is inserted only once $BEG has actually
--- been launched (spec §9.4); until then its absence is what tells the app — and
--- profile_stats above — that there is no token to count yet.
-insert into begfi.app_config (key, value)
-values ('beg_token_address', '')
-on conflict (key) do nothing;
 
 
 -- ---------------------------------------------------------------------------
