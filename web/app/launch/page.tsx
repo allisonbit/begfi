@@ -1,49 +1,58 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LaunchForm } from "@/components/launch-form";
 import { SiteNav } from "@/components/site-nav";
 
-export const metadata: Metadata = { title: "Launch a token" };
+export const metadata: Metadata = {
+  title: "Launch a token",
+  description: "Launch a fixed-supply token on Robinhood Chain, paid for and owned by your own wallet.",
+};
 
 /**
- * Not open, and it says so.
+ * The launch page.
  *
- * Spec §9.5 describes this page as a form with three fields and a fee split
- * shown before confirming. None of that can exist yet: there is no audited
- * splitter, no token platform integration, and no $BEG to fund a growth fund
- * with. Rendering the form anyway — greyed out, or filling itself with a
- * simulated split — would be presenting a launchpad that cannot launch.
+ * BegFi is the front end here, not the protocol: the launch goes through Pons'
+ * deployed factory, the launcher's own wallet signs and pays, and BegFi never
+ * touches the fee. That is why there is no "connect to launch" step beyond the
+ * wallet itself — there is nothing for BegFi to hold.
  *
- * Deliberately a static page: there is nothing to personalise and no reason for
- * it to be rendered per request.
+ * The form reads the fee, the creator-tax ceiling and the economics commitment
+ * live from the factory, so this page cannot drift out of step with the
+ * contract it is talking to.
  */
 export default function LaunchPage() {
   return (
     <div className="mx-auto max-w-[1000px] px-5">
       <SiteNav />
-      <main className="grid max-w-[62ch] gap-6 py-11">
-        <h1 className="text-[clamp(36px,8vw,64px)] font-extrabold leading-[.95] tracking-[-.05em]">
-          Launch a token
-        </h1>
 
-        <div className="rounded-3xl border-[1.5px] border-dashed border-beg-line p-6">
-          <p className="text-lg font-bold text-beg-ink">Not open yet.</p>
+      <main className="mx-auto grid max-w-[560px] gap-6 py-10">
+        <header>
+          <h1 className="text-[clamp(36px,8vw,56px)] font-extrabold leading-[.95] tracking-[-.05em]">
+            Launch a token
+          </h1>
           <p className="mt-2 text-beg-dim">
-            Launching needs three things that do not exist yet: the splitter contract has to be audited
-            before it holds anyone&apos;s fees, a launch platform has to be integrated, and $BEG has to
-            exist to be the currency of the thing.
+            Fixed supply, paired against robinhood ETH, owned by your wallet from the first block.
           </p>
-          <p className="mt-3 text-[13px] text-beg-dim">
-            The intended fee split is on the{" "}
-            <Link href="/" className="text-beg-ink underline underline-offset-2">
-              home page
-            </Link>
-            . It is a plan, not terms.
-          </p>
-        </div>
+        </header>
+
+        <LaunchForm />
+
+        {/*
+          Spec §9.5 and §12 both require this, and it is also simply true: BegFi
+          does not vet what anyone launches through it, and a launchpad that
+          implied otherwise would be lending its name to strangers.
+        */}
+        <p className="rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px] text-beg-dim">
+          Anyone can launch a token here. Tokens are not endorsed by BegFi or by Robinhood, and nothing
+          here is financial advice. Check a contract before you trade it — a launch cannot be undone.
+        </p>
 
         <p className="text-[13px] text-beg-dim">
-          Anyone can launch a token on Robinhood Chain through other platforms. Tokens launched there
-          are not affiliated with BegFi, and BegFi endorses nothing.
+          Launches run on Pons&apos; contracts on Robinhood Chain. Read the{" "}
+          <Link href="/terms" className="text-beg-ink underline underline-offset-2">
+            terms
+          </Link>
+          .
         </p>
       </main>
     </div>
