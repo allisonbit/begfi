@@ -35,12 +35,50 @@ cp .env.example .env.local  # then fill in Supabase keys
 npm run dev
 ```
 
-### Developing before `$BEG` exists
+### Testing for real, on testnet
 
-`npx hardhat node` at the repo root runs at **chainId 4663 — the same as Robinhood Chain**. Deploy
-`TestToken` to it, then set `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545` and
-`NEXT_PUBLIC_BEG_TOKEN_ADDRESS` to the local address. The whole send flow then runs in a browser
-with no code changes, which is the only way to exercise it before the real token is deployed.
+The way to exercise the whole product — real wallet, real transactions, real signatures — without
+any money involved. **chainId 46630**, where ETH comes free from a faucet.
+
+```sh
+# 1. Fund a deployer. Any wallet; testnet ETH has no value.
+#    https://faucet.quicknode.com/robinhood/testnet
+export BEG_DEPLOYER_KEY=0x...
+
+# 2. Deploys the splitter factory and a stand-in $BEG. Prints addresses at the end.
+npm run deploy:testnet
+
+# 3. Point the app at it. web/.env.local:
+#      NEXT_PUBLIC_CHAIN="testnet"
+#      NEXT_PUBLIC_BEG_TOKEN_ADDRESS="<the TestToken address it printed>"
+cd web && npm run dev
+```
+
+The site prints a lime banner on every page while it is on testnet. That is deliberate: on testnet
+every flow works and every token is worthless, so an unlabelled build is indistinguishable from a
+working product.
+
+`TestToken` has an open `mint` — it is a faucet, and it must never exist on a chain where it could
+be mistaken for $BEG. The deploy script refuses to deploy it to mainnet.
+
+### Developing with no network at all
+
+`npx hardhat node` at the repo root runs at **chainId 4663 — the same as mainnet**. Deploy to it,
+then set `NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545` and `NEXT_PUBLIC_BEG_TOKEN_ADDRESS`. The whole
+send flow then runs in a browser with no code changes.
+
+### Deploying for real
+
+`npm run deploy:mainnet` spends real ETH and writes a public contract. Nothing in this repo has
+ever been run against mainnet — no token, no splitter, no factory. Two gates sit in front of it:
+
+1. **Spec §13's audit.** The splitter is unaudited and would hold real fee revenue, with no upgrade
+   path and no way to fix a bug after deployment.
+2. **The Pons fee path is unfinished.** Pons V2 holds creator fees in a fee escrow
+   (`0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e`) that the recipient claims from, rather than
+   pushing them to the recipient. `BegSplitter.receive()` may therefore never see a wei. Finishing
+   it needs that contract's ABI. Read the note at the top of `contracts/BegSplitter.sol` before
+   deploying it anywhere that matters.
 
 ## Current state
 
