@@ -26,4 +26,8 @@ Hosted on Vercel. Vercel serves `index.html` as a static file; every push to `ma
 
 ## Note on the UI
 
-The wallet connect, the copy-link button and the "Launch" form are front-end demos. The page says so on screen ("Demo. Nothing is really sent."). No wallet integration, token contract or backend exists yet — the numbers shown in the phone mockup are placeholders, not live data.
+Nothing on this page asserts anything that has not happened. There is no wallet integration, no token contract and no backend.
+
+- The username box and the phone panel are a **labelled preview**. Typing a name updates the illustration; the "Copy" button copies a real URL string, and the page states plainly that the link does not resolve yet.
+- The profile panel shows a **zero empty state** — no balances, no supporter counts, no fabricated wallet address.
+- The token section is marked **planned**. The fee splits are the intended design, not live terms, and there is no launch form.

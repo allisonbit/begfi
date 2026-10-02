@@ -37,11 +37,8 @@ h1 em{color:var(--lime);font-style:normal}
 .who b{font-size:22px;display:block}.who small{color:var(--dim)}
 .big{font-size:44px;font-weight:800;letter-spacing:-.04em;text-align:center;margin:18px 0 2px;color:var(--lime)}
 .cap{text-align:center;color:var(--dim);font-size:13px;margin-bottom:16px}
-.chips{display:flex;gap:8px}
-.chip{flex:1;border:1.5px solid var(--line);background:none;color:var(--ink);border-radius:14px;padding:11px 0;font:700 15px inherit;font-family:inherit;cursor:pointer}
-.chip.on{border-color:var(--lime);color:var(--lime)}
-.phone .pill{width:100%;margin-top:12px;padding:15px;font-size:17px}
 .note{text-align:center;color:var(--dim);font-size:13px;margin-top:10px;min-height:18px}
+.hint{color:var(--dim);font-size:13px;margin:10px 0 0;max-width:46ch}
 h2{font-size:clamp(36px,8vw,64px);letter-spacing:-.05em;line-height:.95;margin:0 0 26px;font-weight:800}
 .sec{padding:30px 0 70px}
 .grid{display:grid;gap:14px}
@@ -54,68 +51,54 @@ h2{font-size:clamp(36px,8vw,64px);letter-spacing:-.05em;line-height:.95;margin:0
 .split i{display:block}
 .leg{display:flex;justify-content:space-between;color:var(--dim);font-size:12px;margin:8px 0 14px}
 .fee{font-size:26px;font-weight:800;letter-spacing:-.03em}.fee small{display:inline;font-size:13px;font-weight:400}
-.mk{background:var(--lime);color:#07080A;border-radius:28px;padding:26px;display:grid;gap:12px;margin-top:14px}
-@media(min-width:760px){.mk{grid-template-columns:1.2fr 1fr 1fr auto;align-items:end}}
-.mk label{font-size:12px;font-weight:700;display:block;margin-bottom:5px}
-.mk input{width:100%;background:#07080A;color:var(--lime);border:0;border-radius:14px;padding:13px;font:700 16px inherit;font-family:inherit}
-.mk .pill{background:#07080A;color:var(--lime)}
-.mk .pill:focus-visible{outline-color:#07080A}
 footer{border-top:1px solid var(--line);padding:30px 0 50px;color:var(--dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translate(-50%,120px);background:var(--lime);color:#07080A;font-weight:700;border-radius:99px;padding:12px 20px;transition:transform .25s;z-index:9}
 .toast.on{transform:translate(-50%,0)}
 @media(prefers-reduced-motion:reduce){.tick div{animation:none}.toast{transition:none}}
 </style></head>
 <body>
-<div class="w"><nav><span class="logo">beg<i>fi</i></span><a class="pill" href="#claim">Get your link</a></nav></div>
+<div class="w"><nav><span class="logo">beg<i>fi</i></span><a class="pill" href="#preview">Preview your link</a></nav></div>
 
 <div class="w">
-<section class="hero" id="claim">
+<section class="hero" id="preview">
  <div>
   <h1>Everyone<br><em>begs.</em></h1>
   <p class="lede">Your link. Their $BEG. Straight to your wallet.</p>
-  <div class="claim"><span>begfi.xyz/</span><input id="u" placeholder="yourname" maxlength="20" aria-label="Pick a username" autocapitalize="off" spellcheck="false"><button class="pill" id="cp" type="button">Copy</button></div>
+  <div class="claim"><span>begfi-rust.vercel.app/</span><input id="u" placeholder="yourname" maxlength="20" aria-label="Pick a username" autocapitalize="off" spellcheck="false"><button class="pill" id="cp" type="button">Copy</button></div>
+  <p class="hint">Preview only. Profiles aren't live yet, so this link doesn't resolve — and nothing here connects to a wallet or moves funds.</p>
  </div>
  <div class="phone">
-  <div class="bar"><span id="url">begfi.xyz/yourname</span><span>Robinhood Chain</span></div>
-  <div class="who"><div class="av" id="av">Y</div><b id="nm">@yourname</b><small>0x…wallet</small></div>
-  <div class="big"><span id="tot">0</span></div>
-  <div class="cap">$BEG received · <span id="sup">0</span> supporters</div>
-  <div class="chips"><button class="chip" data-a="100">100</button><button class="chip on" data-a="1000">1K</button><button class="chip" data-a="10000">10K</button></div>
-  <button class="pill" id="go">Connect wallet</button>
-  <div class="note" id="nt">Demo. Nothing is really sent.</div>
+  <div class="bar"><span>Profile preview</span><span>Robinhood Chain</span></div>
+  <div class="who"><div class="av" id="av">Y</div><b id="nm">@yourname</b><small id="url">begfi-rust.vercel.app/yourname</small></div>
+  <div class="big">0</div>
+  <div class="cap">$BEG received · no supporters yet</div>
+  <div class="note">Illustration only. No account, balance or payment exists behind this.</div>
  </div>
 </section>
 
 <section class="sec">
  <h2>Launch a token.<br>Get paid on every trade.</h2>
+ <p class="hint" style="margin:-14px 0 24px">Planned. No contracts are deployed and no token has been launched. The fee splits below are the intended design, not live terms.</p>
  <div class="grid" style="grid-template-columns:none">
-  <div class="tok"><div class="top"><div class="ic" style="background:#CCFF00">B</div><div><b>$BEG</b><small>First launch on BegFi</small></div></div>
+  <div class="tok"><div class="top"><div class="ic" style="background:#CCFF00">B</div><div><b>$BEG</b><small>Intended first launch on BegFi</small></div></div>
    <div class="split"><i style="width:100%;background:#CCFF00"></i></div>
    <div class="leg"><span>5% trading fee</span><span>100% to the dev wallet</span></div></div>
   <div class="tok"><div class="top"><div class="ic" style="background:#fff">+</div><div><b>Every other launch</b><small>3% trading fee, split three ways</small></div></div>
    <div class="split"><i style="width:33%;background:#CCFF00"></i><i style="width:33%;background:#fff"></i><i style="width:34%;background:#5b6370"></i></div>
    <div class="leg"><span>1% BegFi</span><span>1% $BEG fund</span><span>1% launcher</span></div></div>
  </div>
- <div class="mk">
-  <div><label for="tn">Token name</label><input id="tn" placeholder="Token name"></div>
-  <div><label for="ts">Ticker</label><input id="ts" placeholder="$TICKER"></div>
-  <div><label for="tf">Image</label><input id="tf" placeholder="Upload"></div>
-  <button class="pill" id="lc" type="button">Launch</button>
- </div>
 </section>
-<footer><span class="logo">beg<i>fi</i></span><span>Built on Robinhood Chain · Powered by $BEG</span></footer>
+<footer><span class="logo">beg<i>fi</i></span><span>Built on Robinhood Chain · $BEG not launched yet</span></footer>
 </div>
 <div class="toast" id="ts_" role="status"></div>
 <script>
-const $=i=>document.getElementById(i);let on=false,tot=0,sup=0,amt=1000;
-const f=n=>n.toLocaleString('en-GB');
+const $=i=>document.getElementById(i);
+const DOMAIN='begfi-rust.vercel.app';
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9_]/g,'');
+const who=()=>slug($('u').value)||'yourname';
 const toast=t=>{$('ts_').textContent=t;$('ts_').classList.add('on');setTimeout(()=>$('ts_').classList.remove('on'),2200)};
-$('u').oninput=e=>{const v=e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'')||'yourname';e.target.value=e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,'');
- $('url').textContent='begfi.xyz/'+v;$('nm').textContent='@'+v;$('av').textContent=v[0].toUpperCase()};
-$('cp').onclick=()=>{const t='begfi.xyz/'+($('u').value||'yourname');try{navigator.clipboard.writeText(t)}catch(e){}toast('Copied '+t)};
-document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');amt=+c.dataset.a;if(on)$('go').textContent='Send '+f(amt)+' $BEG'});
-$('go').onclick=()=>{if(!on){on=true;$('go').textContent='Send '+f(amt)+' $BEG';$('nt').textContent='Wallet connected: 0xd41…b8e2';return}
- tot+=Math.floor(amt*.99);sup++;$('tot').textContent=f(tot);$('sup').textContent=sup;$('nt').textContent='Sent. It went straight to the wallet.';toast('Sent '+f(amt)+' $BEG')};
-$('lc').onclick=()=>toast('Demo. Launch contracts come next.');
+$('u').oninput=e=>{e.target.value=slug(e.target.value);
+ const v=who();$('url').textContent=DOMAIN+'/'+v;$('nm').textContent='@'+v;$('av').textContent=v[0].toUpperCase()};
+$('cp').onclick=()=>{const u='https://'+DOMAIN+'/'+who();try{navigator.clipboard.writeText(u)}catch(e){}toast('Copied '+u)};
 </script>
 </body></html>
