@@ -9,41 +9,64 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
  *         their own share, when they choose. Spec §9.3.
  *
  * SHAPE. One contract per launch, deployed as a minimal clone of a single
- * implementation, and set as the token's creator-tax recipient. It receives ETH
+ * implementation, and set as the token's creator-fee recipient. It receives ETH
  * and splits it three ways in standard mode, or hands all of it to the dev
  * wallet in genesis mode.
  *
- * WHAT THIS CONTRACT IS NOT. No upgrade proxy, no owner, no pause, no sweep.
- * The split percentages are `constant`s. There is no function anywhere in this
- * file that can change them, move another party's share, or stop a claim. That
- * is the point: a launcher's and the treasury's money must not depend on the
- * good behaviour of whoever holds a key, and a deployed contract with no
- * upgrade path means the audit at the end of Phase 2 is the only chance to be
- * right — which is why that audit is a hard gate and not a nice-to-have.
+ * WHAT THIS CONTRACT IS NOT. No upgrade proxy, no owner, no pause, no sweep. The
+ * split percentages are `constant`s. There is no function anywhere in this file
+ * that can change them, move another party's share, or stop a claim. That is the
+ * point: a launcher's and the treasury's money must not depend on the good
+ * behaviour of whoever holds a key, and a deployed contract with no upgrade path
+ * means the audit at the end of Phase 2 is the only chance to be right — which is
+ * why that audit is a hard gate and not a nice-to-have.
  *
- * PULL, NOT PUSH. Nothing here sends money anywhere on its own. Fees accumulate
- * as credits and each party calls `claim()`. Spec §9.3 is explicit about this,
- * and it is also the safer shape: a push that reverts because one recipient's
- * wallet is a contract that rejects ETH would block everyone else's share.
+ * PULL, NOT PUSH. Nothing here sends a party their share on its own. Fees
+ * accumulate as credits and each party calls `claim()`. Spec §9.3 is explicit
+ * about this, and it is also the safer shape: a push that reverts because one
+ * recipient's wallet is a contract that rejects ETH would block everyone else's
+ * share.
  *
- *** THE PONS ASSUMPTION — READ BEFORE DEPLOYING ***
+ *** HOW THE MONEY ACTUALLY ARRIVES — researched 2026-10-02 ***
  *
- * Spec §9.3 assumes this contract is set as the creator-tax recipient and that
- * proceeds then arrive here. Verification on 2026-10-02 found this is only half
- * confirmed:
+ * There are TWO mechanisms, and which one applies is not settled for a given
+ * launch. Both are handled here, and `receive()` is indifferent to which was
+ * used, so the split arithmetic is identical either way.
  *
- *   - Pons V2 pays creators in ETH by default. Confirmed.
- *   - Whether a CONTRACT may be the recipient is NOT confirmed.
- *   - More importantly, Pons does not appear to push creator fees at all. It
- *     accumulates them as a claimable balance inside a Pons "fee escrow
- *     contract", and the recipient pulls from there.
+ *   1. PUSH. Pons' own documentation says creator rewards accrue in the token's
+ *      locked position and that "pons automation may claim and route them to the
+ *      creator payout wallet". If the payout wallet is this splitter, the ETH
+ *      simply arrives through `receive()`. Nothing else is needed.
  *
- * So `receive()` alone may never see a single wei. If Pons is pull-based, this
- * contract needs one more function — a call into Pons' escrow that claims into
- * `address(this)` — and that needs Pons' escrow ABI, which we do not have.
- * `receive()` is implemented and correct either way, and the accounting below
- * is agnostic to how the ETH arrives. But DO NOT DEPLOY THIS expecting fees to
- * appear until that mechanism is settled against Pons' real contracts.
+ *   2. PULL. The escrow at 0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e exposes,
+ *      verified on-chain:
+ *
+ *          balanceOf(address recipient) view
+ *          claim()                      nonpayable -> uint256
+ *          claim(uint256 amount)        nonpayable -> uint256
+ *          credit(address recipient)    payable
+ *
+ *      `claim()` takes NO recipient — the caller IS the recipient. So if fees
+ *      land there addressed to this splitter, somebody has to call it, which is
+ *      what `pullFromEscrow()` below is for.
+ *
+ * `escrow` is a PER-LAUNCH PARAMETER rather than a constant precisely because
+ * which mechanism applies is unresolved. A zero address disables the pull path
+ * cleanly, which is the honest setting for a launch whose fees arrive by push.
+ *
+ * *** THE ONE THING STILL UNCONFIRMED, AND THE THING TO CHECK FIRST ***
+ *
+ * Whether Pons permits a CONTRACT as the creator payout address. Their docs
+ * describe `feeRedirects(address token) returns (address)` and resolve the
+ * payout as `redirect == zeroAddress ? deployer : redirect` — nothing there
+ * restricts it to an externally-owned account, but nothing states a contract is
+ * allowed either, and the docs do not address the question.
+ *
+ * If it is not allowed, this splitter cannot sit in Pons' payout path at all and
+ * the fee split has to happen some other way (a payout wallet that forwards, or
+ * manual distribution). Confirm it against a real launch before relying on any
+ * of this. Everything below is correct about how THIS contract behaves; what is
+ * unknown is whether Pons will ever send it anything.
  */
 contract BegSplitter is Initializable {
     /// @notice Genesis mode is the $BEG launch itself: everything to the dev
@@ -65,8 +88,19 @@ contract BegSplitter is Initializable {
     address public launcher;
     address public controller;
     address public begToken;
-    address public buybackRouter;
+
+    /// @notice Pons' fee escrow, where creator fees accumulate until claimed.
+    address public escrow;
+
+    /// @notice Uniswap V3 SwapRouter, used only by `executeBuyback`.
+    address public swapRouter;
+
+    /// @notice Wrapped ETH, the input side of a buyback swap.
     address public weth;
+
+    /// @notice The pool fee tier for the $BEG/WETH pool, in hundredths of a bip.
+    ///         Pons V1 launches into a 1% pool, so the default is 10_000.
+    uint24 public poolFee;
 
     /// @notice Cumulative ETH that has arrived, counted at `msg.value` — never
     ///         at `address(this).balance`.
@@ -87,8 +121,8 @@ contract BegSplitter is Initializable {
     event Claimed(address indexed account, uint256 amount);
     event GrowthFundWithdrawn(address indexed to, uint256 amount);
     event BuybackExecuted(uint256 amountIn, uint256 amountOut);
+    event EscrowPulled(uint256 amount);
 
-    error AlreadyInitialized();
     error ZeroAddress();
     error NotEntitled(address caller);
     error NothingToClaim();
@@ -113,18 +147,20 @@ contract BegSplitter is Initializable {
     /**
      * @notice Configure one launch's splitter. Called once, on the clone.
      *
-     * @param mode_           Genesis for $BEG itself, Standard for everything else.
-     * @param treasury_       BegFi's wallet. Receives a third in standard mode.
-     * @param launcher_       The launcher's payout wallet. In genesis mode this is
-     *                        the dev wallet and receives everything.
-     * @param controller_     The only address that may spend the growth fund. A
-     *                        multisig (spec §9.3) — with a single hot wallet this
-     *                        is the whole fund's security model.
-     * @param begToken_       $BEG, the asset a buyback buys. Zero until it exists.
-     * @param buybackRouter_  Router used by `executeBuyback`. Zero until a DEX is
-     *                        chosen and its interface confirmed — see the note on
-     *                        `executeBuyback`.
-     * @param weth_           Wrapped ETH for the swap path. Zero until then.
+     * @param mode_        Genesis for $BEG itself, Standard for everything else.
+     * @param treasury_    BegFi's wallet. Receives a third in standard mode.
+     * @param launcher_    The launcher's payout wallet. In genesis mode this is
+     *                     the dev wallet and receives everything.
+     * @param controller_  The only address that may spend the growth fund and
+     *                     run a buyback. A multisig (spec §9.3) — with a single
+     *                     hot wallet this is the whole fund's security model.
+     * @param begToken_    $BEG, the asset a buyback buys.
+     * @param escrow_      Pons' fee escrow. Zero disables `pullFromEscrow`, which
+     *                     is the honest setting for a chain where fees arrive by
+     *                     some other route.
+     * @param swapRouter_  Uniswap V3 SwapRouter. Zero leaves buybacks unavailable.
+     * @param weth_        Wrapped ETH, the swap's input token.
+     * @param poolFee_     The $BEG/WETH pool fee tier.
      */
     function initialize(
         Mode mode_,
@@ -132,8 +168,10 @@ contract BegSplitter is Initializable {
         address launcher_,
         address controller_,
         address begToken_,
-        address buybackRouter_,
-        address weth_
+        address escrow_,
+        address swapRouter_,
+        address weth_,
+        uint24 poolFee_
     ) external initializer {
         if (treasury_ == address(0) || launcher_ == address(0) || controller_ == address(0)) {
             revert ZeroAddress();
@@ -144,8 +182,10 @@ contract BegSplitter is Initializable {
         launcher = launcher_;
         controller = controller_;
         begToken = begToken_;
-        buybackRouter = buybackRouter_;
+        escrow = escrow_;
+        swapRouter = swapRouter_;
         weth = weth_;
+        poolFee = poolFee_;
     }
 
     /**
@@ -162,6 +202,43 @@ contract BegSplitter is Initializable {
      */
     receive() external payable {
         totalReceived += msg.value;
+    }
+
+    /**
+     * @notice Pull this splitter's accumulated creator fees out of Pons' escrow.
+     *
+     * PERMISSIONLESS, and it has to be — the escrow's `claim()` pays its caller,
+     * so somebody has to call it, and there is no reason for that somebody to be
+     * the controller. Anyone may run it; the money lands here and is split by the
+     * same arithmetic regardless of who triggered it, so no caller can gain by
+     * choosing the moment.
+     *
+     * The claimed ETH arrives through `receive()` and is counted there, so this
+     * function deliberately does not touch the accounting itself.
+     *
+     * @return claimed the amount the escrow reported paying out.
+     */
+    function pullFromEscrow() external returns (uint256 claimed) {
+        if (escrow == address(0)) return 0;
+
+        // Check before claiming. Pons' escrow REVERTS with `NoBalance()` when the
+        // caller has nothing to collect, and this function is permissionless —
+        // meant to be called by a keeper, a cron, or whichever party wants their
+        // money first. A blind call that simply has nothing to do should be a
+        // no-op, not a failed transaction: reverting would make every scheduled
+        // run fail on every quiet day, and a monitor that always shows red is a
+        // monitor nobody reads.
+        if (IPonsFeeEscrow(escrow).balanceOf(address(this)) == 0) return 0;
+
+        claimed = IPonsFeeEscrow(escrow).claim();
+
+        if (claimed > 0) emit EscrowPulled(claimed);
+    }
+
+    /// @notice What Pons' escrow is currently holding for this splitter.
+    function escrowBalance() external view returns (uint256) {
+        if (escrow == address(0)) return 0;
+        return IPonsFeeEscrow(escrow).balanceOf(address(this));
     }
 
     /**
@@ -283,23 +360,26 @@ contract BegSplitter is Initializable {
     /**
      * @notice Buy $BEG with part of the growth fund.
      *
-     * CONTROLLER ONLY, AND UNCONFIGURED BY DEFAULT.
+     * CONTROLLER ONLY, AND UNAVAILABLE UNTIL CONFIGURED.
      *
-     * The router interface below is Uniswap V2's `swapExactETHForTokens`. Pons
-     * V2 on Robinhood Chain is built around Uniswap V4 hooks, so this signature
-     * is a GUESS and must be checked against whatever router is actually used
-     * before `buybackRouter` is set to a non-zero address. Because both
-     * `buybackRouter` and `begToken` start at zero and this reverts while either
-     * is unset, the function cannot do anything wrong until someone deliberately
-     * configures it — and configuring it is a decision requiring the real
-     * router's ABI, not a silent default.
+     * The interface below is Uniswap V3's `SwapRouter.exactInputSingle`, which is
+     * the router this chain's launches route through: Pons V1 seeds each token
+     * into a Uniswap V3 1% pool, so a buyback is a V3 swap on that same pool.
+     * (The first version of this file assumed Uniswap V2's router — it was
+     * written before that was established, and it was wrong.)
      *
-     * If the chain's DEX turns out not to be V2-shaped, replace this body; the
-     * accounting around it (`spentGrowthFund`) is what matters and does not
-     * change.
+     * Because `swapRouter`, `begToken` and `weth` all start at zero and this
+     * reverts while any is unset, the function cannot do anything at all until
+     * somebody deliberately supplies real addresses. Confirming the router
+     * address and the pool fee tier on-chain is a decision, not a default.
+     *
+     * The tokens bought are sent to this contract. Spending or burning them is a
+     * separate, controller-only act (`withdrawGrowthFund` can move ETH; moving
+     * $BEG would need its own function) — spec §9.3 leaves that open, and adding
+     * a destination here without deciding it would be inventing policy.
      */
     function executeBuyback(uint256 amountIn, uint256 minAmountOut) external onlyController {
-        if (buybackRouter == address(0) || begToken == address(0) || weth == address(0)) {
+        if (swapRouter == address(0) || begToken == address(0) || weth == address(0)) {
             revert BuybackNotConfigured();
         }
 
@@ -308,18 +388,20 @@ contract BegSplitter is Initializable {
 
         spentGrowthFund += amountIn;
 
-        address[] memory path = new address[](2);
-        path[0] = weth;
-        path[1] = begToken;
-
-        uint256[] memory amounts = IBegBuybackRouter(buybackRouter).swapExactETHForTokens{ value: amountIn }(
-            minAmountOut,
-            path,
-            address(this),
-            block.timestamp
+        uint256 amountOut = ISwapRouterV3(swapRouter).exactInputSingle{ value: amountIn }(
+            ISwapRouterV3.ExactInputSingleParams({
+                tokenIn: weth,
+                tokenOut: begToken,
+                fee: poolFee,
+                recipient: address(this),
+                deadline: block.timestamp,
+                amountIn: amountIn,
+                amountOutMinimum: minAmountOut,
+                sqrtPriceLimitX96: 0
+            })
         );
 
-        emit BuybackExecuted(amountIn, amounts[amounts.length - 1]);
+        emit BuybackExecuted(amountIn, amountOut);
     }
 
     /**
@@ -329,6 +411,9 @@ contract BegSplitter is Initializable {
      *      and controller are meant to be. Reverting on failure rather than
      *      swallowing it keeps a failed payout from being silently marked as
      *      claimed.
+     *
+     *      Callers update their accounting before calling this (checks-effects-
+     *      interactions), so a reentrant call finds nothing left to take.
      */
     function _send(address to, uint256 amount) private {
         (bool ok, ) = payable(to).call{ value: amount }("");
@@ -337,14 +422,35 @@ contract BegSplitter is Initializable {
 }
 
 /**
- * @dev The one external call this contract makes. Deliberately minimal, and
- *      deliberately the only place a router's shape is assumed.
+ * @dev Pons' fee escrow, as verified on-chain (Sourcify, 2026-10-02). Only the
+ *      two members this contract uses are declared.
+ *
+ *      `claim()` takes no recipient: the caller is the recipient. That is the
+ *      single fact that shapes `pullFromEscrow` above.
  */
-interface IBegBuybackRouter {
-    function swapExactETHForTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable returns (uint256[] memory amounts);
+interface IPonsFeeEscrow {
+    function balanceOf(address recipient) external view returns (uint256);
+    function claim() external returns (uint256);
+}
+
+/**
+ * @dev Uniswap V3 SwapRouter. `exactInputSingle` is the whole of the swap; the
+ *      struct is nested because that is how the router declares it.
+ */
+interface ISwapRouterV3 {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    function exactInputSingle(ExactInputSingleParams calldata params)
+        external
+        payable
+        returns (uint256 amountOut);
 }

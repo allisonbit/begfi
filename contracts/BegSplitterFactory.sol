@@ -38,6 +38,12 @@ contract BegSplitterFactory {
      *      cannot do is make a launcher's splitter pay them, because `launcher`
      *      and `treasury` are fixed at initialisation and there is no setter.
      *      Gating this would only add a key to lose.
+     *
+     *      The four trailing parameters configure where fees come FROM and what a
+     *      buyback swaps on. They are passed per launch rather than hardcoded
+     *      because the escrow is a third party's contract and the router is a
+     *      choice; a zero address is a valid, honest setting that simply
+     *      disables that path.
      */
     function createSplitter(
         BegSplitter.Mode mode,
@@ -45,8 +51,10 @@ contract BegSplitterFactory {
         address launcher,
         address controller,
         address begToken,
-        address buybackRouter,
-        address weth
+        address escrow,
+        address swapRouter,
+        address weth,
+        uint24 poolFee
     ) external returns (address splitter) {
         splitter = implementation.clone();
 
@@ -56,8 +64,10 @@ contract BegSplitterFactory {
             launcher,
             controller,
             begToken,
-            buybackRouter,
-            weth
+            escrow,
+            swapRouter,
+            weth,
+            poolFee
         );
 
         emit SplitterCreated(splitter, launcher, mode);

@@ -10,6 +10,13 @@ const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
  * launcher cannot reach the treasury's share, that a non-controller cannot touch
  * the growth fund, that rounding never strands a wei, and that there is no path
  * anywhere in the ABI that changes the split.
+ *
+ * The escrow tests matter for a second reason. Pons does not push creator fees;
+ * it holds them and pays whoever calls `claim()`. If `pullFromEscrow` were wrong,
+ * nothing would arrive and every share would read as zero — silently, because
+ * there is no error to see. So the pull is exercised against a mock that
+ * reproduces the real interface exactly, including the fact that `claim()` takes
+ * no recipient and pays its caller.
  */
 
 const Mode = { Standard: 0, Genesis: 1 };
@@ -23,15 +30,21 @@ async function deployFixture() {
   const factory = await Factory.deploy();
   await factory.waitForDeployment();
 
-  async function create(mode) {
+  const Escrow = await ethers.getContractFactory("MockPonsEscrow");
+  const escrow = await Escrow.deploy();
+  await escrow.waitForDeployment();
+
+  async function create(mode, escrowAddress) {
     const tx = await factory.createSplitter(
       mode,
       treasury.address,
       launcher.address,
       controller.address,
-      ethers.ZeroAddress, // begToken — unset, so buybacks are unconfigured
-      ethers.ZeroAddress, // buybackRouter
-      ethers.ZeroAddress, // weth
+      ethers.ZeroAddress, // begToken — unset, so buybacks stay unavailable
+      escrowAddress ?? ethers.ZeroAddress, // Pons escrow
+      ethers.ZeroAddress, // swapRouter — unset
+      ethers.ZeroAddress, // weth — unset
+      0, // poolFee
     );
     const receipt = await tx.wait();
 
@@ -48,25 +61,32 @@ async function deployFixture() {
     return ethers.getContractAt("BegSplitter", created.args.splitter);
   }
 
-  const standard = await create(Mode.Standard);
-  const genesis = await create(Mode.Genesis);
+  const standard = await create(Mode.Standard, await escrow.getAddress());
+  const genesis = await create(Mode.Genesis, await escrow.getAddress());
+  const noEscrow = await create(Mode.Standard, ethers.ZeroAddress);
 
-  return { factory, standard, genesis, deployer, treasury, launcher, controller, outsider };
+  return { factory, escrow, standard, genesis, noEscrow, deployer, treasury, launcher, controller, outsider };
 }
 
 const fund = async (splitter, from, amount) => {
   await from.sendTransaction({ to: await splitter.getAddress(), value: amount });
 };
 
+/** Simulate Pons crediting fees to a recipient, then nobody claiming them. */
+const creditInEscrow = async (escrow, splitter, from, amount) => {
+  await escrow.connect(from).credit(await splitter.getAddress(), { value: amount });
+};
+
 describe("BegSplitter", () => {
   describe("initialisation", () => {
-    it("records the parties and the mode", async () => {
-      const { standard, treasury, launcher, controller } = await loadFixture(deployFixture);
+    it("records the parties, the mode and the escrow", async () => {
+      const { standard, escrow, treasury, launcher, controller } = await loadFixture(deployFixture);
 
       expect(await standard.mode()).to.equal(Mode.Standard);
       expect(await standard.treasury()).to.equal(treasury.address);
       expect(await standard.launcher()).to.equal(launcher.address);
       expect(await standard.controller()).to.equal(controller.address);
+      expect(await standard.escrow()).to.equal(await escrow.getAddress());
     });
 
     it("refuses a zero treasury, launcher or controller", async () => {
@@ -76,24 +96,36 @@ describe("BegSplitter", () => {
       // it, so the matcher has to be given the splitter's ABI to decode it.
       const impl = await ethers.getContractAt("BegSplitter", await factory.implementation());
 
-      await expect(
-        factory.createSplitter(Mode.Standard, ethers.ZeroAddress, launcher.address, controller.address, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress),
-      ).to.be.revertedWithCustomError(impl, "ZeroAddress");
+      // createSplitter takes nine arguments: mode, the three parties, then
+      // begToken, escrow, swapRouter, weth and poolFee.
+      const tail = [ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress, 0];
+      const args = (t, l, c) => [Mode.Standard, t, l, c, ...tail];
 
-      await expect(
-        factory.createSplitter(Mode.Standard, treasury.address, ethers.ZeroAddress, controller.address, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress),
-      ).to.be.revertedWithCustomError(impl, "ZeroAddress");
+      await expect(factory.createSplitter(...args(ethers.ZeroAddress, launcher.address, controller.address)))
+        .to.be.revertedWithCustomError(impl, "ZeroAddress");
 
-      await expect(
-        factory.createSplitter(Mode.Standard, treasury.address, launcher.address, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress),
-      ).to.be.revertedWithCustomError(impl, "ZeroAddress");
+      await expect(factory.createSplitter(...args(treasury.address, ethers.ZeroAddress, controller.address)))
+        .to.be.revertedWithCustomError(impl, "ZeroAddress");
+
+      await expect(factory.createSplitter(...args(treasury.address, launcher.address, ethers.ZeroAddress)))
+        .to.be.revertedWithCustomError(impl, "ZeroAddress");
     });
 
     it("cannot be initialised a second time", async () => {
       const { standard, treasury, launcher, controller } = await loadFixture(deployFixture);
 
       await expect(
-        standard.initialize(Mode.Genesis, treasury.address, launcher.address, controller.address, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress),
+        standard.initialize(
+          Mode.Genesis,
+          treasury.address,
+          launcher.address,
+          controller.address,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          0,
+        ),
       ).to.be.revertedWithCustomError(standard, "InvalidInitialization");
     });
 
@@ -104,7 +136,17 @@ describe("BegSplitter", () => {
       // The implementation's constructor sealed it, so nobody can initialise it
       // and take over the address every clone delegates to.
       await expect(
-        impl.initialize(Mode.Standard, treasury.address, launcher.address, controller.address, ethers.ZeroAddress, ethers.ZeroAddress, ethers.ZeroAddress),
+        impl.initialize(
+          Mode.Standard,
+          treasury.address,
+          launcher.address,
+          controller.address,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          ethers.ZeroAddress,
+          0,
+        ),
       ).to.be.revertedWithCustomError(impl, "InvalidInitialization");
     });
   });
@@ -117,6 +159,82 @@ describe("BegSplitter", () => {
 
       expect(await standard.totalReceived()).to.equal(1_000_000n);
       expect(await standard.totalCredited()).to.equal(0n);
+    });
+  });
+
+  describe("pullFromEscrow", () => {
+    it("reports what Pons is holding for this splitter", async () => {
+      const { escrow, standard, deployer } = await loadFixture(deployFixture);
+
+      expect(await standard.escrowBalance()).to.equal(0n);
+
+      await creditInEscrow(escrow, standard, deployer, 50_000n);
+
+      expect(await standard.escrowBalance()).to.equal(50_000n);
+    });
+
+    it("pulls the fees in, and they are then split like any other arrival", async () => {
+      const { escrow, standard, deployer } = await loadFixture(deployFixture);
+
+      await creditInEscrow(escrow, standard, deployer, 10_000n);
+
+      // Nothing has arrived yet — it is sitting in Pons, not here.
+      expect(await standard.totalReceived()).to.equal(0n);
+      expect(await standard.claimableLauncher()).to.equal(0n);
+
+      await standard.pullFromEscrow();
+
+      expect(await standard.totalReceived()).to.equal(10_000n);
+      expect(await standard.escrowBalance()).to.equal(0n);
+      expect(await standard.claimableLauncher()).to.equal(3_333n);
+      expect(await standard.claimableTreasury()).to.equal(3_333n);
+      expect(await standard.growthFundAvailable()).to.equal(3_334n);
+    });
+
+    it("is permissionless — a stranger can trigger it for the recipient's benefit", async () => {
+      const { escrow, standard, outsider, launcher } = await loadFixture(deployFixture);
+
+      await creditInEscrow(escrow, standard, launcher, 10_000n);
+
+      // The outsider gains nothing and cannot redirect anything; the money lands
+      // in the splitter and is divided by arithmetic, not by who called.
+      await standard.connect(outsider).pullFromEscrow();
+
+      expect(await standard.claimableLauncher()).to.equal(3_333n);
+      await expect(standard.connect(outsider).claim()).to.be.revertedWithCustomError(
+        standard,
+        "NotEntitled",
+      );
+    });
+
+    it("does nothing when the escrow has no balance", async () => {
+      const { standard } = await loadFixture(deployFixture);
+
+      await expect(standard.pullFromEscrow()).to.not.be.reverted;
+      expect(await standard.totalReceived()).to.equal(0n);
+    });
+
+    it("is inert when no escrow is configured", async () => {
+      const { noEscrow } = await loadFixture(deployFixture);
+
+      expect(await noEscrow.escrowBalance()).to.equal(0n);
+      await expect(noEscrow.pullFromEscrow()).to.not.be.reverted;
+      expect(await noEscrow.totalReceived()).to.equal(0n);
+    });
+
+    it("pulling twice does not double-count", async () => {
+      const { escrow, standard, deployer } = await loadFixture(deployFixture);
+
+      await creditInEscrow(escrow, standard, deployer, 10_000n);
+      await standard.pullFromEscrow();
+
+      // The escrow reverts on an empty balance, so the second pull must not
+      // reach it — it checks first and returns 0. A keeper running this on a
+      // quiet day gets a no-op, not a failed transaction.
+      await expect(standard.pullFromEscrow()).to.not.be.reverted;
+
+      expect(await standard.totalReceived()).to.equal(10_000n);
+      expect(await standard.escrowBalance()).to.equal(0n);
     });
   });
 
@@ -185,10 +303,7 @@ describe("BegSplitter", () => {
       await fund(standard, deployer, 10_000n);
       await standard.sync();
 
-      await expect(standard.connect(launcher).claim()).to.changeEtherBalances(
-        [launcher],
-        [3_333n],
-      );
+      await expect(standard.connect(launcher).claim()).to.changeEtherBalances([launcher], [3_333n]);
     });
 
     it("pays the treasury its share", async () => {
@@ -337,8 +452,9 @@ describe("BegSplitter", () => {
 
       await fund(standard, deployer, 10_000n);
 
-      // The interface in the contract is a guess at the chain's DEX. Refusing
-      // while unconfigured is what keeps that guess from ever executing.
+      // The interface is a real one — Uniswap V3's SwapRouter — but the address
+      // is not set, and refusing while unconfigured is what keeps an unconfirmed
+      // router from ever being called.
       await expect(
         standard.connect(controller).executeBuyback(1n, 0n),
       ).to.be.revertedWithCustomError(standard, "BuybackNotConfigured");
@@ -368,8 +484,8 @@ describe("BegSplitter", () => {
         .filter((f) => f.type === "function" && f.stateMutability !== "view" && f.stateMutability !== "pure")
         .map((f) => f.name);
 
-      expect(mutators.sort()).to.deep.equal(
-        ["claim", "executeBuyback", "initialize", "sync", "withdrawGrowthFund"].sort(),
+      expect([...new Set(mutators)].sort()).to.deep.equal(
+        ["claim", "executeBuyback", "initialize", "pullFromEscrow", "sync", "withdrawGrowthFund"].sort(),
       );
     });
   });
