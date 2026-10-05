@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { NeedsSignIn, NeedsUsername } from "@/components/needs-sign-in";
 import { shortAddress, txUrl } from "@/lib/chains";
 import { formatAmount } from "@/lib/erc20";
 import { getRecentTransfers } from "@/lib/queries";
-import { getProfile, getSession } from "@/lib/session";
+import { getProfile } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Activity" };
 export const dynamic = "force-dynamic";
@@ -19,21 +17,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function ActivityPage() {
   const profile = await getProfile();
-
-  if (!profile) {
-    const { signedIn } = await getSession();
-    return signedIn ? <NeedsUsername /> : <NeedsSignIn what="your activity" />;
-  }
+  if (!profile) return null;
 
   const transfers = await getRecentTransfers(profile.wallet_address, 200);
 
   return (
-    <div className="mx-auto grid max-w-[1000px] gap-6 px-5 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">Activity</h1>
-        <Link href="/dashboard" className="text-[13px] text-beg-dim underline underline-offset-2">
-          Back to dashboard
-        </Link>
+    <>
+      <header>
+        <h1 className="text-[clamp(28px,6vw,40px)] font-extrabold tracking-[-.05em]">Activity</h1>
+        <p className="mt-1 text-beg-dim">
+          Every $BEG that has reached your wallet, read from the chain.
+        </p>
       </header>
 
       {transfers.length === 0 ? (
@@ -63,6 +57,6 @@ export default async function ActivityPage() {
           ))}
         </ul>
       )}
-    </div>
+    </>
   );
 }

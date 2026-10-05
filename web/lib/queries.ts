@@ -83,6 +83,36 @@ export async function getStats(profileId: string): Promise<ProfileStats> {
 }
 
 /**
+ * How much a wallet has received since a moment in time.
+ *
+ * This is what makes a beg's progress mean something. A beg's total is not the
+ * wallet's lifetime total — it is what arrived after the beg was written, so a
+ * second beg starts at zero rather than inheriting the first one's donations.
+ *
+ * Read from `transfers`, which the indexer fills only from confirmed on-chain
+ * events, so the number on a shared page cannot be inflated by anything a browser
+ * claims. Totals are computed in SQL rather than by fetching rows and adding them
+ * up here, because the client would have to pull the whole history to be right.
+ */
+export async function getReceivedSince(walletAddress: string, since: string): Promise<bigint> {
+  if (!SUPABASE_CONFIGURED) return 0n;
+
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from("transfers")
+    .select("amount")
+    .eq("to_address", walletAddress.toLowerCase())
+    .gt("block_time", since);
+
+  // `error` is read, not caught. supabase-js returns errors rather than throwing,
+  // so a failing query would otherwise sum to zero — which on a beg page reads as
+  // "nobody has given anything", the most misleading answer available.
+  if (error) return 0n;
+
+  return (data ?? []).reduce((sum, row) => sum + BigInt((row as { amount: string }).amount), 0n);
+}
+
+/**
  * A recipient's recent transfers, for their own dashboard.
  *
  * Only ever called for the signed-in user's own profile: the RLS policy on
