@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 
 export const runtime = "nodejs";
@@ -12,20 +12,38 @@ export const contentType = "image/png";
  *
  * This is what makes a beg a beg rather than a bare link: when the URL is posted
  * to X, Telegram or WhatsApp, the crawler fetches this and gets a picture of the
- * words. Next generates it from the route convention, so nothing has to be
- * uploaded or stored — the image is a rendering of the row.
+ * words. Next generates it from the route convention, so nothing is uploaded or
+ * stored — the image is a rendering of the row.
+ *
+ *** EVERY ELEMENT CARRIES AN EXPLICIT `display`. ***
+ *
+ * Satori, which renders this, refuses any element with more than one child unless
+ * its display is stated outright — `display: flex`, `contents` or `none`. It does
+ * not apply the browser's block default. The failure it produces is a 500 with NO
+ * error in Vercel's logs (`logs: []`), so the page simply says "something went
+ * wrong" and nothing anywhere says why.
+ *
+ * The rule that cost real time here is that it applies to elements you would not
+ * think of as containers: a div holding a single string, a div holding two spans,
+ * anything with a JSX comment beside it. Every one of them gets a display here.
+ * When adding to this file, add one to yours too.
+ *
+ * NO SESSION, DELIBERATELY. This reads with the service role rather than the
+ * caller's client, because a beg is public: whoever holds the link is meant to
+ * see it, including a crawler that has never visited the site. The session client
+ * would call `cookies()`, which an image route has no request scope for.
  *
  * Colours are the design tokens from globals.css, hardcoded because this is not
- * rendered into the document and Tailwind classes do not apply to it. If the
- * palette changes, this file is a second place to change — which is worth knowing
- * and is why the values are named here rather than sprinkled.
+ * rendered into the document and Tailwind classes do not apply to it.
  */
 const BG = "#07080A";
-const CARD = "#111418";
 const LINE = "#232830";
 const INK = "#F4F7EE";
 const DIM = "#8B93A0";
 const LIME = "#CCFF00";
+
+/** A ready-made display value, so no element in this file can forget one. */
+const F = "flex" as const;
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -36,7 +54,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
 
   if (SUPABASE_CONFIGURED && /^[0-9a-f-]{36}$/i.test(id)) {
     try {
-      const sb = await createClient();
+      const sb = createAdminClient();
       const { data, error } = await sb
         .from("begs")
         .select("body, profiles!inner(username, display_name)")
@@ -52,21 +70,19 @@ export default async function Image({ params }: { params: Promise<{ id: string }
         displayName = data.profiles.display_name ?? `@${data.profiles.username}`;
       }
     } catch {
-      /* falls through to the not-found card below */
+      /* the card below covers it */
     }
   }
 
-  // A beg that does not exist still gets an image, rather than a broken preview
-  // in someone's feed. A 404 image shows as a grey box, which reads as a broken
-  // link on the post itself.
+  // A beg that does not exist still gets an image rather than a broken preview.
   if (!body || !username) {
     return new ImageResponse(
       (
         <div
           style={{
+            display: F,
             width: "100%",
             height: "100%",
-            display: "flex",
             alignItems: "center",
             justifyContent: "center",
             background: BG,
@@ -81,71 +97,42 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     );
   }
 
+  const initial = (displayName ?? "?")[0].toUpperCase();
+  const who = displayName ?? "";
+  const handle = `@${username}`;
+  const askSize = body.length > 120 ? 46 : body.length > 70 ? 56 : 68;
+
   return new ImageResponse(
     (
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
+          display: F,
           flexDirection: "column",
           justifyContent: "space-between",
+          width: "100%",
+          height: "100%",
           background: BG,
           padding: 72,
         }}
       >
-        {/* The ask, sized to dominate. Long begs shrink rather than overflow. */}
-        <div
-          style={{
-            display: "flex",
-            flex: 1,
-            alignItems: "center",
-            color: INK,
-            fontSize: body.length > 120 ? 46 : body.length > 70 ? 56 : 68,
-            fontWeight: 700,
-            lineHeight: 1.15,
-            letterSpacing: "-0.03em",
-          }}
-        >
+        <div style={{ display: F, alignItems: "center", flex: 1, color: INK, fontSize: askSize, fontWeight: 700, lineHeight: 1.15, letterSpacing: "-0.03em" }}>
           {body}
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            borderTop: `2px solid ${LINE}`,
-            paddingTop: 32,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                background: LIME,
-                color: BG,
-                fontSize: 34,
-                fontWeight: 700,
-              }}
-            >
-              {(displayName ?? "?")[0].toUpperCase()}
+        <div style={{ display: F, alignItems: "center", justifyContent: "space-between", borderTop: `2px solid ${LINE}`, paddingTop: 32 }}>
+          <div style={{ display: F, alignItems: "center" }}>
+            <div style={{ display: F, alignItems: "center", justifyContent: "center", width: 72, height: 72, borderRadius: 36, background: LIME, color: BG, fontSize: 34, fontWeight: 700, marginRight: 20 }}>
+              {initial}
             </div>
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              <div style={{ color: INK, fontSize: 32, fontWeight: 700 }}>{displayName}</div>
-              <div style={{ color: DIM, fontSize: 26 }}>@{username}</div>
+            <div style={{ display: F, flexDirection: "column" }}>
+              <div style={{ display: F, color: INK, fontSize: 32, fontWeight: 700 }}>{who}</div>
+              <div style={{ display: F, color: DIM, fontSize: 26 }}>{handle}</div>
             </div>
           </div>
 
-          {/* The brand, so a shared image says where it came from. */}
-          <div style={{ display: "flex", fontSize: 40, fontWeight: 700, letterSpacing: "-0.04em" }}>
-            <span style={{ color: INK }}>beg</span>
-            <span style={{ color: LIME }}>fi</span>
+          <div style={{ display: F, fontSize: 40, fontWeight: 700, letterSpacing: "-0.04em" }}>
+            <span style={{ display: F, color: INK }}>beg</span>
+            <span style={{ display: F, color: LIME }}>fi</span>
           </div>
         </div>
       </div>
