@@ -46,6 +46,16 @@ export const LINK_ORIGIN = process.env.NEXT_PUBLIC_LINK_ORIGIN?.trim() || SITE_U
 
 export const linkFor = (username: string) => `${LINK_ORIGIN}/${username}`;
 
+/**
+ * An absolute URL on the deployment site.
+ *
+ * Distinct from `linkFor`, which uses LINK_ORIGIN — the address people are told
+ * their link lives at, which may be a domain the app is not yet served from.
+ * This one has to be genuinely reachable, because it goes to a crawler: an Open
+ * Graph image URL that 404s produces a blank card on the post itself.
+ */
+export const publicUrl = (path: string) => `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+
 /** Username rules (spec §8). One definition, used by client and server. */
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;

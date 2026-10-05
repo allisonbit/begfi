@@ -1,25 +1,32 @@
 "use client";
 
 import { useState } from "react";
+import { ImageUpload } from "@/components/image-upload";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/types";
 
 /**
  * Edit display name, bio and avatar (spec §4, §7.4).
  *
- * The bio is plain text and nothing here renders it as anything else. Spec §12:
- * a bio that could carry links or markup turns every profile page into a place
- * to phish from, and the fix is that the field cannot contain them — not that
- * the page escapes them carefully.
+ * WHAT CANNOT BE CHANGED, AND WHY. The username is permanent. A link that could
+ * be renamed is a link that can be renamed out from under everyone holding it —
+ * and in a product whose main risk is impersonation, a name that changes identity
+ * after the fact is worse than one that was taken. The form says so rather than
+ * showing a disabled input, because a greyed-out field invites people to try.
  *
- * The write goes through the browser client with the anon key, so RLS is what
- * actually enforces that a person can only edit their own row. There is no
- * server route here doing an authorisation check, and none is needed: the policy
- * `profiles_update_self` is the check.
+ * The bio is plain text and nothing here renders it as anything else. Spec §12: a
+ * bio that could carry links or markup turns every profile page into a place to
+ * phish from, and the fix is that the field cannot contain them — not that each
+ * renderer escapes them carefully.
+ *
+ * Writes go through the browser client with the anon key, so RLS is what actually
+ * enforces that a person can only edit their own row. There is no authorisation
+ * check in this file, and none is needed: `profiles_update_self` is the check.
  */
 export function ProfileForm({ profile }: { profile: Profile }) {
   const [displayName, setDisplayName] = useState(profile.display_name ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +41,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         .update({
           display_name: displayName.trim() || null,
           bio: bio.trim() || null,
+          avatar_url: avatarUrl,
         })
         .eq("id", profile.id);
 
@@ -53,6 +61,21 @@ export function ProfileForm({ profile }: { profile: Profile }) {
 
   return (
     <div className="grid max-w-[560px] gap-4">
+      {/*
+        The avatar uploads immediately and the URL is saved with the rest, rather
+        than the file being held until Save. Uploading and saving are different
+        actions with different failure modes, and bundling them would mean a
+        failed save losing the picture too.
+      */}
+      <ImageUpload
+        bucket="avatars"
+        userId={profile.id}
+        value={avatarUrl}
+        onChange={setAvatarUrl}
+        label="Avatar"
+        round
+      />
+
       <label className="grid gap-1.5">
         <span className="text-[13px] text-beg-dim">Display name</span>
         <input
@@ -78,9 +101,11 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         <span className="text-right text-[12px] text-beg-dim">{bio.length}/160</span>
       </label>
 
-      <p className="text-[13px] text-beg-dim">
-        Your username is <span className="text-beg-ink">@{profile.username}</span> and cannot be
-        changed — a link that could be renamed could be renamed out from under everyone holding it.
+      <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-[13px] text-beg-dim">
+        Your username is <span className="text-beg-ink">@{profile.username}</span> and{" "}
+        <span className="text-beg-ink">cannot be changed</span>. It is permanently attached to every
+        link you have already shared, and a name that could move would be a way to impersonate the
+        person who used to hold it.
       </p>
 
       {error ? <p className="text-[13px] text-beg-ink">{error}</p> : null}
@@ -93,10 +118,6 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       >
         {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Save"}
       </button>
-
-      <p className="text-[13px] text-beg-dim">
-        Avatar upload is not built yet — it needs a storage bucket. Set on the roadmap, not here.
-      </p>
     </div>
   );
 }

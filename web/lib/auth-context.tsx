@@ -27,6 +27,15 @@ import type { Profile } from "@/lib/types";
 type AuthValue = {
   /** A Supabase session exists. */
   signedIn: boolean;
+  /**
+   * The session's user id.
+   *
+   * Needed by uploads, and it has to come from here rather than from the profile:
+   * storage paths begin with this id because that is what the bucket policy
+   * compares against `auth.uid()`. A launcher who has signed in but not claimed a
+   * username has no profile, and would otherwise have no id to upload under.
+   */
+  userId: string | null;
   /** A username has been claimed. Null when signed in without one. */
   profile: Profile | null;
   loading: boolean;
@@ -36,6 +45,7 @@ type AuthValue = {
 
 const AuthContext = createContext<AuthValue>({
   signedIn: false,
+  userId: null,
   profile: null,
   loading: true,
   refresh: async () => {},
@@ -44,12 +54,14 @@ const AuthContext = createContext<AuthValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(SUPABASE_CONFIGURED);
 
   const refresh = useCallback(async () => {
     if (!SUPABASE_CONFIGURED) {
       setSignedIn(false);
+      setUserId(null);
       setProfile(null);
       setLoading(false);
       return;
@@ -63,17 +75,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!user) {
         setSignedIn(false);
+        setUserId(null);
         setProfile(null);
         return;
       }
 
       // Signed in. Whether there is a profile is a second, separate question.
       setSignedIn(true);
+      setUserId(user.id);
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
       setProfile((data as Profile | null) ?? null);
     } catch {
       // No session is the common case here, not an error worth surfacing.
       setSignedIn(false);
+      setUserId(null);
       setProfile(null);
     } finally {
       setLoading(false);
@@ -93,11 +108,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setSignedIn(false);
+    setUserId(null);
     setProfile(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ signedIn, profile, loading, refresh, signOut }}>
+    <AuthContext.Provider value={{ signedIn, userId, profile, loading, refresh, signOut }}>
       {children}
     </AuthContext.Provider>
   );

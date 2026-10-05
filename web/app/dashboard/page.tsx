@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BegComposer } from "@/components/beg-composer";
 import { CopyLink } from "@/components/copy-link";
 import { NeedsSignIn, NeedsUsername } from "@/components/needs-sign-in";
 import { shortAddress } from "@/lib/chains";
@@ -63,6 +64,15 @@ export default async function DashboardPage() {
       </header>
 
       <CopyLink url={linkFor(profile.username)} />
+
+      {/*
+        The composer sits above the stats deliberately. Writing a beg is the thing
+        a person comes here to do; the totals are what they check afterwards.
+      */}
+      <section className="grid gap-3">
+        <h2 className="text-xl font-extrabold tracking-[-.03em]">Write a beg</h2>
+        <BegComposer />
+      </section>
 
       <section className="grid gap-3.5 sm:grid-cols-2">
         <Stat label="$BEG received" value={formatAmount(BigInt(stats.total_received))} />

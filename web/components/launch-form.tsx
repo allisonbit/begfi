@@ -13,7 +13,9 @@ import {
 } from "wagmi";
 import { decodeEventLog } from "viem";
 import { injected } from "wagmi/connectors";
+import { ImageUpload } from "@/components/image-upload";
 import { DEFAULT_CHAIN_ID, robinhoodChain, txUrl } from "@/lib/chains";
+import { useAuth } from "@/lib/auth-context";
 import {
   GENESIS_CREATOR_TAX_BPS,
   LAUNCH_CONFIG_ID,
@@ -51,6 +53,7 @@ export function LaunchForm() {
   const [error, setError] = useState<string | null>(null);
 
   const { address, isConnected } = useAccount();
+  const { userId } = useAuth();
   const chainId = useChainId();
   const { connectAsync } = useConnect();
   const { switchChainAsync } = useSwitchChain();
@@ -326,13 +329,37 @@ export function LaunchForm() {
         />
       </label>
 
-      <label className="grid gap-1.5">
-        <span className="text-[13px] text-beg-dim">Logo URL</span>
-        <input value={logo} onChange={(e) => setLogo(e.target.value)} className={field} placeholder="https://…" />
-        <span className="text-[12px] text-beg-dim">
-          Upload is not built yet — it needs a storage bucket. Paste a link for now.
-        </span>
-      </label>
+      {/*
+        Upload when there is a session, a plain URL field when there is not.
+        Uploads are scoped to a signed-in account — the storage path begins with
+        the user id — so offering the picker to someone with no session would
+        produce a failure after they had chosen a file, which is the worst moment
+        to be told to sign in. A URL still works for anyone with the image hosted
+        somewhere already.
+      */}
+      {userId ? (
+        <ImageUpload
+          bucket="token-logos"
+          userId={userId}
+          value={logo || null}
+          onChange={(url) => setLogo(url ?? "")}
+          label="Logo"
+          hint="Shown beside your token everywhere it is listed. PNG, JPG, WebP or GIF, up to 2MB."
+        />
+      ) : (
+        <label className="grid gap-1.5">
+          <span className="text-[13px] text-beg-dim">Logo URL</span>
+          <input
+            value={logo}
+            onChange={(e) => setLogo(e.target.value)}
+            className={field}
+            placeholder="https://…"
+          />
+          <span className="text-[12px] text-beg-dim">
+            Sign in to upload an image instead of pasting a link.
+          </span>
+        </label>
+      )}
 
       <details className="rounded-2xl border-[1.5px] border-beg-line p-3">
         <summary className="cursor-pointer text-[13px] text-beg-dim">Socials (optional)</summary>
