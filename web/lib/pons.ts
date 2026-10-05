@@ -106,3 +106,22 @@ export const ponsFactoryAbi = parseAbi([
 
   "event TokenLaunched(address indexed token, address indexed curve, address indexed deployer, address pairToken, uint256 launchConfigId, uint256 graduationThreshold)",
 ]);
+
+/**
+ * Pons' fee escrow, where creator fees accumulate until claimed.
+ *
+ * Read the address from `ponsFactory.feeEscrow()` rather than hardcoding it —
+ * the docs warn that reading a creator balance from the wrong escrow silently
+ * reports zero, which is the worst kind of wrong number.
+ *
+ * `claim()` takes NO recipient: the caller IS the recipient. So a creator's
+ * claim has to be sent from the address the fees are credited to, and this ABI
+ * is only ever used with the connected wallet as the caller.
+ */
+export const ponsEscrowAbi = parseAbi([
+  "function balanceOf(address recipient) view returns (uint256)",
+  "function balanceOfToken(address recipient, address token) view returns (uint256)",
+  "function claim() returns (uint256)",
+  "function claimToken(address token) returns (uint256)",
+]);
+

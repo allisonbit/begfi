@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createPublicClient, http, isAddress } from "viem";
 import { BuyPanel } from "@/components/buy-panel";
-import { SiteNav } from "@/components/site-nav";
 import { addressUrl, robinhoodChain, shortAddress } from "@/lib/chains";
 import { erc20Abi } from "@/lib/erc20";
 import { PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
@@ -84,7 +83,6 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
 
   return (
     <div className="mx-auto max-w-[1000px] px-5">
-      <SiteNav />
 
       <main className="mx-auto grid max-w-[560px] gap-6 py-10">
         <header className="text-center">

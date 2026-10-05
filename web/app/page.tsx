@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeHero } from "@/components/home-hero";
-import { SiteNav } from "@/components/site-nav";
 import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -94,7 +93,6 @@ function LaunchSection() {
 export default function HomePage() {
   return (
     <div className="mx-auto max-w-[1000px] px-5">
-      <SiteNav />
       <main>
         <HomeHero />
         <LaunchSection />

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LaunchForm } from "@/components/launch-form";
-import { SiteNav } from "@/components/site-nav";
 
 export const metadata: Metadata = {
   title: "Launch a token",
@@ -23,7 +22,6 @@ export const metadata: Metadata = {
 export default function LaunchPage() {
   return (
     <div className="mx-auto max-w-[1000px] px-5">
-      <SiteNav />
 
       <main className="mx-auto grid max-w-[560px] gap-6 py-10">
         <header>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SiteNav } from "@/components/site-nav";
 
 export const metadata: Metadata = { title: "Terms" };
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = { title: "Terms" };
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-[1000px] px-5">
-      <SiteNav />
 
       <main className="max-w-[62ch] py-11">
         <h1 className="mb-6 text-[clamp(36px,8vw,56px)] font-extrabold leading-[.95] tracking-[-.05em]">

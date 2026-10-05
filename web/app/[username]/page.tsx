@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SendPanel } from "@/components/send-panel";
-import { SiteNav } from "@/components/site-nav";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, USERNAME_PATTERN, isReserved } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
@@ -62,7 +61,6 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
 
   return (
     <div className="mx-auto max-w-[1000px] px-5">
-      <SiteNav />
 
       <main className="mx-auto grid max-w-[560px] gap-8 py-10">
         <header className="text-center">
