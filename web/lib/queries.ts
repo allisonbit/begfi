@@ -29,11 +29,26 @@ export async function getProfileByUsername(rawUsername: string): Promise<Profile
 
   const sb = await createClient();
 
-  const { data: profile } = await sb
+  const { data: profile, error } = await sb
     .from("profiles")
     .select("id, username, display_name, bio, avatar_url, wallet_address, created_at")
     .eq("username", username)
     .maybeSingle<ProfileRow>();
+
+  /*
+   * `error` is read, not caught. supabase-js returns errors rather than throwing
+   * them, so a failing query and a genuinely missing row both arrive as
+   * `data === null` — and this function returns null for either, which the page
+   * turns into a 404. That is right for a row that does not exist and wrong for a
+   * database that is unreachable, but the two cannot be told apart downstream
+   * unless the error is at least looked at.
+   *
+   * A 404 is the safer of the two failures here — it hides a page rather than
+   * showing a broken one — so this returns null either way and is deliberately
+   * quiet. The point is that the decision is made, rather than the error being
+   * dropped in a catch that never fires.
+   */
+  if (error) return null;
 
   if (!profile) return null;
 
