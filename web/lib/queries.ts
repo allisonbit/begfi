@@ -14,7 +14,7 @@ import type { ProfileStats, PublicProfile, Transfer } from "@/lib/types";
  * 404s, without the page needing to know that hiding exists.
  */
 
-type ProfileRow = PublicProfile & { id: string };
+type ProfileRow = PublicProfile & { id: string; x_handle: string | null };
 
 export type ProfileLookup = {
   profile: ProfileRow;
@@ -31,7 +31,7 @@ export async function getProfileByUsername(rawUsername: string): Promise<Profile
 
   const { data: profile, error } = await sb
     .from("profiles")
-    .select("id, username, display_name, bio, avatar_url, wallet_address, created_at")
+    .select("id, username, display_name, bio, avatar_url, wallet_address, x_handle, created_at")
     .eq("username", username)
     .maybeSingle<ProfileRow>();
 
@@ -110,6 +110,89 @@ export async function getReceivedSince(walletAddress: string, since: string): Pr
   if (error) return 0n;
 
   return (data ?? []).reduce((sum, row) => sum + BigInt((row as { amount: string }).amount), 0n);
+}
+
+/** A beg as the public feed shows it: the ask, who asked, and how far along. */
+export type PublicBeg = {
+  id: string;
+  body: string;
+  goal: string | null;
+  created_at: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  x_handle: string | null;
+  raised: string;
+};
+
+/**
+ * The public feed of begs, newest first.
+ *
+ * Progress is fetched one beg at a time through `received_since`, because that is
+ * the only way to read it: the RLS policy on `transfers` allows a row to the two
+ * addresses involved and nobody else, so a signed-out visitor summing transfers
+ * would get a confident zero for every beg on the page. The function is the
+ * aggregate that makes a public progress figure possible at all.
+ *
+ * N calls rather than one is a deliberate trade. A single query would need either
+ * a per-request SQL function taking a list, or a materialised column the indexer
+ * maintains; both are more moving parts than a feed of thirty begs on a page that
+ * is cached. If this ever gets slow, that is the shape to change.
+ */
+export async function getRecentBegs(limit = 30): Promise<PublicBeg[]> {
+  if (!SUPABASE_CONFIGURED) return [];
+
+  const sb = await createClient();
+  const { data, error } = await sb
+    .from("begs")
+    .select("id, body, goal, created_at, profiles!inner(username, display_name, avatar_url, x_handle, wallet_address)")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  // `error` is read, not caught: supabase-js returns rather than throws, so a
+  // failure here would otherwise render as "no begs have been written", which
+  // looks like an empty product rather than a broken query.
+  if (error || !data) return [];
+
+  const rows = data as unknown as (Omit<PublicBeg, "raised" | "username" | "display_name" | "avatar_url" | "x_handle"> & {
+    profiles: {
+      username: string;
+      display_name: string | null;
+      avatar_url: string | null;
+      x_handle: string | null;
+      wallet_address: string;
+    };
+  })[];
+
+  // Only begs with a target have progress worth fetching. An open-ended beg has
+  // nothing to be a fraction of.
+  const progress = await Promise.all(
+    rows.map(async (row) => {
+      if (!row.goal) return "0";
+      try {
+        const { data: sum, error: sumError } = await sb.rpc("received_since", {
+          p_wallet: row.profiles.wallet_address,
+          p_since: row.created_at,
+        });
+        if (sumError || sum === null || sum === undefined) return "0";
+        return String(sum);
+      } catch {
+        return "0";
+      }
+    }),
+  );
+
+  return rows.map((row, i) => ({
+    id: row.id,
+    body: row.body,
+    goal: row.goal,
+    created_at: row.created_at,
+    username: row.profiles.username,
+    display_name: row.profiles.display_name,
+    avatar_url: row.profiles.avatar_url,
+    x_handle: row.profiles.x_handle,
+    raised: progress[i],
+  }));
 }
 
 /**

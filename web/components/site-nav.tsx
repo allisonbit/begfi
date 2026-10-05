@@ -20,7 +20,8 @@ import { useAuth } from "@/lib/auth-context";
  * account to manage.
  */
 const LINKS = [
-  { href: "/explore", label: "Explore" },
+  { href: "/begs", label: "Begs" },
+  { href: "/explore", label: "Tokens" },
   { href: "/launch", label: "Launch" },
 ];
 

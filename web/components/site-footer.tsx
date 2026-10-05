@@ -12,6 +12,7 @@ const COLUMNS = [
     title: "BegFi",
     links: [
       { href: "/", label: "Home" },
+      { href: "/begs", label: "Begs" },
       { href: "/explore", label: "Explore tokens" },
       { href: "/launch", label: "Launch a token" },
     ],

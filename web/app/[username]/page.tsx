@@ -58,6 +58,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
   const { profile, stats } = found;
   const displayName = profile.display_name ?? `@${profile.username}`;
   const initial = (profile.display_name ?? profile.username)[0]?.toUpperCase() ?? "?";
+  const xHandle = profile.x_handle;
 
   return (
     <div className="mx-auto max-w-[1000px] px-5">
@@ -93,6 +94,23 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
           </p>
 
           {profile.bio ? <p className="mx-auto mt-4 max-w-[46ch] text-beg-dim">{profile.bio}</p> : null}
+
+          {/*
+            The X handle, as a link out. It is the one place a visitor can check
+            that this is a real person with a history, which matters more here than
+            on most sites: they are about to send money to an address, and a name
+            alone proves nothing.
+          */}
+          {xHandle ? (
+            <a
+              href={`https://x.com/${xHandle}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="mt-3 inline-block text-[13px] text-beg-dim underline underline-offset-2 hover:text-beg-ink"
+            >
+              @{xHandle} on X
+            </a>
+          ) : null}
         </header>
 
         <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-6">
