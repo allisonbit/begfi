@@ -35,7 +35,7 @@ export function HomeHero() {
   const [claimed, setClaimed] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const { profile, refresh } = useAuth();
+  const { profile, signedIn, refresh } = useAuth();
   const { isConnected } = useAccount();
   const { signIn, busy: signingIn } = useWalletSignIn();
 
@@ -120,9 +120,20 @@ export function HomeHero() {
       return;
     }
 
-    // Signed out: establish the session, then come back to finish the claim.
-    if (!profile) {
-      const { error } = await signIn({ next: `/#claim` });
+    /*
+     * `signedIn`, NOT `profile`.
+     *
+     * This is the loop that made usernames unclaimable. Claiming a username
+     * creates the profile row, so a visitor who has signed in but not yet claimed
+     * has `profile === null` — and testing that here read as "signed out", so the
+     * button started a fresh sign-in instead of claiming. Every press signed in
+     * again and the username was never taken.
+     *
+     * The question being asked is "is there a session?", and the session is what
+     * `signedIn` reports.
+     */
+    if (!signedIn) {
+      const { error } = await signIn({ next: "/#claim" });
       if (error) setClaimError(error);
       return;
     }
@@ -222,7 +233,13 @@ export function HomeHero() {
             disabled={claiming || signingIn || availability.state === "taken" || availability.state === "reserved"}
             className="rounded-full bg-beg-lime px-5 py-3 text-[15px] font-bold text-beg-bg disabled:opacity-40"
           >
-            {claiming ? "Claiming…" : signingIn ? "Check your wallet…" : isConnected ? "Get your link" : "Connect wallet"}
+            {claiming
+              ? "Claiming…"
+              : signingIn
+                ? "Check your wallet…"
+                : signedIn
+                  ? "Get your link"
+                  : "Sign in"}
           </button>
         </div>
 

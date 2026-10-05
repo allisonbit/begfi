@@ -25,7 +25,7 @@ const LINKS = [
 ];
 
 export function SiteNav() {
-  const { profile } = useAuth();
+  const { profile, signedIn } = useAuth();
   const pathname = usePathname();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
@@ -84,7 +84,27 @@ export function SiteNav() {
               >
                 @{profile.username}
               </Link>
-              {/* Signed in: the wallet chip is for switching accounts and networks. */}
+              {/* Signed in with a username: the wallet chip manages the account. */}
+              <ConnectButton
+                showBalance={false}
+                chainStatus="icon"
+                accountStatus={{ smallScreen: "avatar", largeScreen: "address" }}
+              />
+            </>
+          ) : signedIn ? (
+            /*
+             * Signed in, no username yet. A real state, and it needs its own
+             * action: "Sign in" here would be a lie and would start a second
+             * sign-in for someone already signed in — which is the loop that made
+             * usernames impossible to claim.
+             */
+            <>
+              <Link
+                href="/#claim"
+                className="rounded-full bg-beg-lime px-4 py-2.5 text-[14px] font-bold text-beg-bg"
+              >
+                Claim your link
+              </Link>
               <ConnectButton
                 showBalance={false}
                 chainStatus="icon"
