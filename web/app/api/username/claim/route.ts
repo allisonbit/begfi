@@ -55,16 +55,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This deployment isn't configured yet." }, { status: 503 });
   }
 
-  const { data: allowed } = await admin.rpc("check_rate_limit", {
-    p_bucket: "username_claim",
-    p_subject: user.id,
-    p_max: 5,
-    p_window: "1 hour",
-  });
-
-  if (allowed === false) {
-    return NextResponse.json({ error: "Too many attempts. Try again later." }, { status: 429 });
-  }
+  /*
+   * NO RATE LIMIT HERE, DELIBERATELY.
+   *
+   * This route used to allow five claims an hour, and that was wrong twice over.
+   *
+   * It protected nothing. A claim inserts a row keyed by the caller's auth user
+   * id, which is the primary key of `profiles` — so an account can hold exactly
+   * one username, and a second attempt fails on a primary-key violation before
+   * any counter is consulted. The limit was guarding a door that is welded shut.
+   *
+   * And it cost real users. Someone who mistyped, or who signed in and out while
+   * deciding, could be locked out of claiming the one name they came for — while
+   * the abuse it imagined is not reachable by pressing the button more often.
+   *
+   * Rate limits belong where repetition genuinely multiplies harm: spam that
+   * other people have to look at. That is beg creation, not claiming a single
+   * permanent name.
+   */
 
   const { data, error } = await admin.rpc("claim_username", {
     p_user: user.id,
