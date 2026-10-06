@@ -82,7 +82,9 @@ export async function GET(request: Request) {
 
   const client = createPublicClient({
     chain: robinhoodChain,
-    transport: http(process.env.NEXT_PUBLIC_RPC_URL?.trim() || undefined),
+    transport: http(
+      process.env.ALCHEMY_RPC_URL?.trim() || process.env.NEXT_PUBLIC_RPC_URL?.trim() || undefined,
+    ),
   });
 
   try {

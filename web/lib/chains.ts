@@ -8,7 +8,7 @@ import { defineChain, type Address } from "viem";
  *
  * One chain, and no testnet. The RPC is overridable because `npx hardhat node`
  * in this repo runs at the SAME chainId (4663) as mainnet — so pointing
- * NEXT_PUBLIC_RPC_URL at http://127.0.0.1:8545 runs the entire send flow against
+ * ALCHEMY_RPC_URL or NEXT_PUBLIC_RPC_URL at http://127.0.0.1:8545 runs the entire send flow against
  * a local chain with no code change and no separate network to keep in step.
  */
 /**
@@ -20,7 +20,10 @@ import { defineChain, type Address } from "viem";
  * the production build dies inside a package that has nothing to do with the env
  * file. Treating a blank value as unset is the only safe reading.
  */
-const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com";
+const RPC_URL =
+  process.env.ALCHEMY_RPC_URL?.trim() ||
+  process.env.NEXT_PUBLIC_RPC_URL?.trim() ||
+  "https://rpc.mainnet.chain.robinhood.com";
 
 export const robinhoodChain = defineChain({
   id: 4663,
