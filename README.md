@@ -90,8 +90,8 @@ ever been run against mainnet — no token, no splitter, no factory. Two gates s
 
 **Not built yet**
 
-- Nothing in the app tree — the blockers that remain are outside the code: `$BEG` itself is not
-  deployed, Supabase migrations have not been applied to a live project, and the audit gate.
+- Nothing in the app tree, and the database is now live. The remaining blockers are outside the
+  code: `$BEG` itself is not deployed, and the audit gate.
 
 **Blocked on things outside the code**
 
@@ -102,9 +102,12 @@ ever been run against mainnet — no token, no splitter, no factory. Two gates s
    `BegSplitter.receive()` may never see a wei on its own and the contract needs a call into Pons'
    escrow — whose ABI we do not have. **Do not deploy the splitter expecting fees to arrive until
    this is settled against Pons' real contracts.**
-3. **The Supabase schema has not been applied.** The migrations are written but never run; the
-   `begfi` schema must also be added to Exposed schemas in the dashboard.
-4. **An audit is a hard gate** before any mainnet deployment (spec §13).
+3. **The Supabase schema has been applied** (2026-10-06, via `scripts/migrate.js` over the
+   session pooler; all seven migrations, verified anon-readable from the REST API with
+   `received_since` answering through `Content-Profile: begfi`). What is still open: none —
+   the `begfi` schema is exposed in the API settings via migration 0003's
+   `app.settings.exposed_schemas`.
+4. An audit is a hard gate before any mainnet deployment of the *splitter* (spec §13).
 
 ## Conventions worth knowing
 
