@@ -20,7 +20,11 @@ export const metadata: Metadata = {
  */
 function LaunchSection() {
   return (
-    <section className="py-8 pb-16">
+    <section className="animate-wobble py-8 pb-16">
+      <span className="mb-5 inline-block rounded-full border-2 border-beg-ink bg-beg-yellow px-3 py-1 text-[11px] font-bold uppercase tracking-[.06em]">
+        Planned, not live
+      </span>
+
       <h2 className="mb-6 text-[clamp(36px,8vw,64px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
         Launch a token.
         <br />
@@ -33,9 +37,9 @@ function LaunchSection() {
       </p>
 
       <div className="grid gap-3.5 md:grid-cols-2">
-        <div className="card p-6">
+        <div className="card p-6 max-md:first:rotate-[-1deg] md:first:-rotate-1">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-[46px] place-items-center rounded-2xl bg-beg-lime font-extrabold text-beg-bg shadow-glow">
+            <div className="grid size-[46px] place-items-center rounded-xl border-2 border-beg-ink bg-beg-lime font-extrabold text-white shadow-glow">
               B
             </div>
             <div>
@@ -43,26 +47,31 @@ function LaunchSection() {
               <small className="block text-beg-dim">Intended first launch on BegFi</small>
             </div>
           </div>
-          <div className="flex h-3 gap-[3px] overflow-hidden rounded-full">
-            <i className="block w-full bg-beg-lime" />
+          <div className="flex items-baseline gap-2">
+            <span className="text-[64px] font-extrabold leading-none tracking-[-.04em]">5%</span>
+            <span className="text-[13px] font-bold text-beg-dim">trading fee</span>
           </div>
-          <div className="mb-3.5 mt-2 flex justify-between text-xs text-beg-dim">
-            <span>5% trading fee</span>
+          <div className="mt-4 flex h-3 gap-[3px] overflow-hidden rounded-full border-2 border-beg-ink bg-beg-card">
+            <i className="block w-full bg-beg-lime" />
           </div>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-6 max-md:last:rotate-[1deg] md:last:rotate-1">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-[46px] place-items-center rounded-2xl bg-beg-ink font-extrabold text-beg-bg">
+            <div className="grid size-[46px] place-items-center rounded-xl border-2 border-beg-ink bg-beg-yellow font-extrabold text-beg-ink">
               +
             </div>
             <div>
               <b className="text-[19px]">Every other launch</b>
-              <small className="block text-beg-dim">3% trading fee</small>
+              <small className="block text-beg-dim">Anyone can launch a token</small>
             </div>
           </div>
-          <div className="flex h-3 gap-[3px] overflow-hidden rounded-full">
-            <i className="block w-full bg-white" />
+          <div className="flex items-baseline gap-2">
+            <span className="text-[64px] font-extrabold leading-none tracking-[-.04em]">3%</span>
+            <span className="text-[13px] font-bold text-beg-dim">trading fee</span>
+          </div>
+          <div className="mt-4 flex h-3 gap-[3px] overflow-hidden rounded-full border-2 border-beg-ink bg-beg-card">
+            <i className="block w-full bg-beg-yellow" />
           </div>
         </div>
       </div>
@@ -90,9 +99,9 @@ export default function HomePage() {
         <LaunchSection />
       </main>
 
-      <footer className="flex flex-wrap justify-between gap-2.5 border-t border-beg-line py-7 pb-12 text-beg-dim">
+      <footer className="flex flex-wrap justify-between gap-2.5 border-t-[3px] border-beg-ink py-7 pb-12 text-beg-dim">
         <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
-          beg<span className="text-beg-lime">fi</span>
+          beg<span className="text-beg-blue">fi</span>
         </span>
         <span className="text-sm">
           Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}

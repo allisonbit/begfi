@@ -36,11 +36,11 @@ const COLUMNS = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-beg-line">
+    <footer className="mt-auto border-t-[3px] border-beg-ink">
       <div className="safe-x mx-auto grid max-w-[1000px] gap-8 py-10 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
-            beg<span className="text-beg-lime">fi</span>
+            beg<span className="text-beg-blue">fi</span>
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
             Non-custodial $BEG payment links and token launches on Robinhood Chain.

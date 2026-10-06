@@ -4,7 +4,7 @@ import "@rainbow-me/rainbowkit/styles.css";
 
 import { WagmiProvider, createConfig, http } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { RainbowKitProvider, darkTheme, connectorsForWallets, type Theme } from "@rainbow-me/rainbowkit";
+import { RainbowKitProvider, lightTheme, connectorsForWallets, type Theme } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Chain } from "viem";
@@ -84,10 +84,11 @@ const config = createConfig({
 
 /** RainbowKit's accent, matched to the design system rather than left at the
  *  library default, so the modal reads as part of the site instead of a widget
- *  bolted onto it. Lime is the button fill everywhere else here. */
-const WALLET_THEME: Theme = darkTheme({
-  accentColor: "#CCFF00",
-  accentColorForeground: "#07080A",
+ *  bolted onto it. The light base matches the cream sticker sheet; the accent
+ *  is the same Robinhood green as every button fill on the site. */
+const WALLET_THEME: Theme = lightTheme({
+  accentColor: "#00CC6D",
+  accentColorForeground: "#FFFFFF",
   borderRadius: "large",
   overlayBlur: "small",
   fontStack: "system",

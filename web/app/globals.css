@@ -1,28 +1,36 @@
 @import "tailwindcss";
 
 /**
- * BegFi design tokens (spec §3). Robinhood neon lime on near-black; no stock
- * "crypto gradient", no cardboard. These are the only colours in the product —
- * a surface that needs a shade reaches for one of these rather than inventing
- * a new one. What has been added since the first pass is derived *modifiers*
- * of the palette: glow shadows made from the same lime, so the one-sentence
- * palette rule still holds.
+ * BegFi design tokens — "Sticker Pop" edition.
+ *
+ * The product sits on a cream sticker sheet with a faint ink polka-dot grid.
+ * Every surface is a sticker: near-white card stock, a thick ink border and a
+ * hard offset shadow (no blur anywhere). The accent is Robinhood green — the
+ * token keeps its historical `lime` name so the palette swap stays a one-file
+ * diff, and `blue`/`yellow` join it as the sticker secondaries. A surface that
+ * needs a colour reaches for one of these rather than inventing a new one.
  */
 @theme {
-  --color-beg-bg: #07080a;
-  --color-beg-card: #111418;
-  --color-beg-line: #232830;
-  --color-beg-ink: #f4f7ee;
-  --color-beg-dim: #8b93a0;
-  --color-beg-lime: #ccff00;
+  --color-beg-bg: #fff3d6; /* the sticker sheet */
+  --color-beg-card: #fffcf2; /* card stock */
+  --color-beg-line: #161616; /* borders are ink */
+  --color-beg-ink: #161616; /* text */
+  --color-beg-dim: #59626f; /* secondary text, legible on cream */
+  --color-beg-lime: #00a651; /* THE accent: Robinhood green */
+  --color-beg-blue: #3b6bff; /* sticker secondary */
+  --color-beg-yellow: #ffd21f; /* sticker secondary */
 
   --font-display: var(--font-bricolage), system-ui, sans-serif;
 
-  /* The page's ambient light: the phone preview's glow, systematised. */
-  --shadow-glow: 0 0 24px rgb(204 255 0 / 0.32), 0 0 6px rgb(204 255 0 / 0.25);
-  --shadow-glow-strong: 0 0 90px rgb(204 255 0 / 0.12);
+  /* Sticker shadows: hard ink offsets, zero blur. The old glow names survive
+     so every existing `shadow-glow` call site becomes a sticker for free. */
+  --shadow-glow: 4px 4px 0 0 var(--color-beg-ink);
+  --shadow-glow-strong: 7px 7px 0 0 var(--color-beg-ink);
 
   --animate-fade-rise: fade-rise 0.5s cubic-bezier(0.22, 0.7, 0.35, 1) both;
+  --animate-pop-in: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  --animate-wobble: wobble 3.4s ease-in-out infinite;
+  --animate-hop: hop 2.6s ease-in-out infinite;
   --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
   --animate-shimmer: shimmer 2.6s linear infinite;
   --animate-blink: blink 1.1s step-end infinite;
@@ -35,6 +43,42 @@
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+
+  /* Cards arrive with a springy overshoot. `backwards` (not `both`) so the
+     finished animation releases transform back to hover transitions. */
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.94) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* A slow sticker wiggle. The rotation lives here, not in a utility class,
+     so animated elements must not also carry static rotate-* classes. */
+  @keyframes wobble {
+    0%,
+    100% {
+      transform: rotate(-1.6deg);
+    }
+    50% {
+      transform: rotate(1.2deg);
+    }
+  }
+
+  /* The active dock icon breathes, the way app icons do. */
+  @keyframes hop {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
     }
   }
 
@@ -63,7 +107,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html {
@@ -75,7 +119,10 @@ html {
 
 body {
   margin: 0;
-  background: var(--color-beg-bg);
+  background-color: var(--color-beg-bg);
+  /* The polka-dot sheet: faint ink dots, 22px apart. */
+  background-image: radial-gradient(rgb(22 22 22 / 0.12) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
   color: var(--color-beg-ink);
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
@@ -88,48 +135,111 @@ body {
  * layout: drift between pages is the failure this prevents).
  */
 @layer components {
-  /* Cards. */
+  /* Cards: card stock, thick ink border, hard offset shadow, springy entrance. */
   .card {
-    @apply rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5;
+    @apply rounded-[22px] border-[3px] border-beg-ink bg-beg-card p-5;
+    box-shadow: 5px 5px 0 0 var(--color-beg-ink);
+    animation: var(--animate-pop-in);
   }
 
-  /* For interactive cards only: links and buttons that behave like cards. */
+  /* For interactive cards only: links and buttons that behave like cards.
+     The sticker lifts off the sheet on hover and presses back on click. */
   .card-hover {
-    @apply duration-200 transition-[border-color,translate] hover:-translate-y-0.5 hover:border-beg-lime;
+    @apply duration-150 transition-[box-shadow,translate];
   }
 
-  /* Smaller list-row cards (activity, launches, dashboard). */
+  .card-hover:hover {
+    translate: -2px -2px;
+    box-shadow: 7px 7px 0 0 var(--color-beg-ink);
+  }
+
+  .card-hover:active {
+    translate: 2px 2px;
+    box-shadow: 2px 2px 0 0 var(--color-beg-ink);
+  }
+
+  /* Smaller list-row cards (activity, launches, dashboard), with a small
+     stagger so lists cascade in instead of landing as one block. */
   .card-sm {
-    @apply rounded-2xl border-[1.5px] border-beg-line bg-beg-card p-4;
+    @apply rounded-2xl border-2 border-beg-ink bg-beg-card p-4;
+    box-shadow: 3px 3px 0 0 var(--color-beg-ink);
+    animation: var(--animate-pop-in);
+  }
+
+  .card-sm:nth-child(2) {
+    animation-delay: 45ms;
+  }
+  .card-sm:nth-child(3) {
+    animation-delay: 90ms;
+  }
+  .card-sm:nth-child(4) {
+    animation-delay: 135ms;
+  }
+  .card-sm:nth-child(5) {
+    animation-delay: 180ms;
+  }
+  .card-sm:nth-child(n + 6) {
+    animation-delay: 225ms;
   }
 
   /* Quiet, honest notices: empty states and "not built yet" copy. */
   .notice {
-    @apply rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px] text-beg-dim;
+    @apply rounded-xl border-2 border-beg-ink bg-beg-card p-4 text-[13px] text-beg-dim;
   }
 
   .notice-dashed {
-    @apply rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-[13px] text-beg-dim;
+    @apply rounded-xl border-2 border-dashed border-beg-ink bg-beg-card p-5 text-[13px] text-beg-dim;
   }
 
-  /* Primary action. Standard size by default; individual call sites may
-     tighten padding with their own utilities, which wins over this layer. */
+  /* Primary action: a green sticker pill with an ink border. Standard size by
+     default; individual call sites may tighten padding with their own
+     utilities, which win over this layer. */
   .btn-primary {
-    @apply rounded-full bg-beg-lime px-5 py-3 text-[14px] font-bold text-beg-bg;
-    @apply transition-[box-shadow,filter,transform] duration-150 hover:shadow-glow hover:brightness-105 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+    @apply rounded-full border-[3px] border-beg-ink bg-beg-lime px-5 py-3 text-[14px] font-bold text-beg-ink;
+    box-shadow: 4px 4px 0 0 var(--color-beg-ink);
+    transition:
+      translate 0.15s,
+      box-shadow 0.15s;
   }
 
-  /* Ghost action: same DNA, transparent. No padding here — inline buttons,
-     full-width grid buttons and rounded tabs size themselves. */
+  .btn-primary:hover {
+    translate: -1px -1px;
+    box-shadow: 6px 6px 0 0 var(--color-beg-ink);
+  }
+
+  .btn-primary:active {
+    translate: 3px 3px;
+    box-shadow: 0 0 0 0 var(--color-beg-ink);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  /* Ghost action: card-stock pill, ink border. No padding here — inline
+     buttons, full-width grid buttons and rounded tabs size themselves. */
   .btn-ghost {
-    @apply rounded-full border-[1.5px] border-beg-line transition-colors duration-150 hover:border-beg-lime;
+    @apply rounded-full border-2 border-beg-ink bg-beg-card;
+    box-shadow: 3px 3px 0 0 var(--color-beg-ink);
+    transition:
+      translate 0.15s,
+      box-shadow 0.15s;
   }
 
-  /* Ambient glow behind big lime words. */
+  .btn-ghost:hover {
+    translate: -1px -1px;
+    box-shadow: 4px 4px 0 0 var(--color-beg-ink);
+  }
+
+  .btn-ghost:active {
+    translate: 2px 2px;
+    box-shadow: 0 0 0 0 var(--color-beg-ink);
+  }
+
+  /* Accent words get a hard yellow offset, not a blur glow. */
   .text-glow {
-    text-shadow:
-      0 0 26px rgb(204 255 0 / 0.35),
-      0 0 80px rgb(204 255 0 / 0.18);
+    text-shadow: 0.05em 0.05em 0 var(--color-beg-yellow);
   }
 
   /* The blinking caret: the brand's punctuation mark. It ends the logo, the
@@ -137,7 +247,6 @@ body {
      sentence, because an ask is exactly that. */
   .caret {
     @apply ml-0.5 inline-block h-[1.1em] w-[3px] translate-y-[0.16em] rounded-full bg-beg-lime;
-    box-shadow: 0 0 10px rgb(204 255 0 / 0.5);
     animation: var(--animate-blink);
   }
 
@@ -145,15 +254,14 @@ body {
      brand dot in the nav. */
   .live-dot {
     @apply inline-block size-[6px] rounded-full bg-beg-lime;
-    box-shadow: 0 0 10px rgb(204 255 0 / 0.55);
     animation: var(--animate-pulse-soft);
   }
 
-  /* Progress toward a goal. The track stays bedrock; the fill carries a slow
-     international-style sheen so a moving total reads as alive without a
-     counter animation that would have to lie between fetches. */
+  /* Progress toward a goal: an ink-bordered track on card stock; the fill
+     carries a slow sheen so a moving total reads as alive without a counter
+     animation that would have to lie between fetches. */
   .progress {
-    @apply h-2.5 overflow-hidden rounded-full bg-beg-bg;
+    @apply h-2.5 overflow-hidden rounded-full border-2 border-beg-ink bg-beg-card;
   }
 
   .progress-fill {
@@ -194,10 +302,10 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Visible keyboard focus everywhere (spec §3). Lime is the one colour that
-   reads against both the near-black page and the lime buttons. */
+/* Visible keyboard focus everywhere (spec §3). Ink is the one colour that
+   reads against the cream sheet, the card stock and the green buttons. */
 :focus-visible {
-  outline: 3px solid var(--color-beg-lime);
+  outline: 3px solid var(--color-beg-ink);
   outline-offset: 3px;
 }
 

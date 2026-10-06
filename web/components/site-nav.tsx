@@ -42,7 +42,7 @@ function DockTab({ href, label, Icon }: { href: string; label: string; Icon: typ
         isActive ? "text-beg-lime" : "text-beg-dim hover:text-beg-ink"
       }`}
     >
-      <Icon size={21} strokeWidth={isActive ? 2.4 : 2} aria-hidden />
+      <Icon size={21} strokeWidth={isActive ? 2.4 : 2} aria-hidden className={isActive ? "animate-hop" : ""} />
       {label}
     </Link>
   );
@@ -53,15 +53,15 @@ function Brand() {
   return (
     <Link
       href="/"
-      className="flex items-baseline text-xl font-extrabold tracking-[-0.04em] text-beg-ink"
+      className="flex -rotate-2 items-baseline text-xl font-extrabold tracking-[-0.04em] text-beg-ink transition-transform duration-150 hover:scale-105"
       aria-label="BegFi home"
     >
       {/* The dot says the product is live before anyone reads a word. */}
       <span
         aria-hidden
-        className="absolute -left-3 top-[3px] hidden size-[7px] rounded-full bg-beg-lime shadow-glow sm:block"
+        className="absolute -left-3 top-[3px] hidden size-[7px] rounded-full border border-beg-ink bg-beg-lime sm:block"
       />
-      beg<span className="text-beg-lime">fi</span>
+      beg<span className="text-beg-blue">fi</span>
       <span aria-hidden className="caret" />
     </Link>
   );
@@ -76,7 +76,7 @@ function AccountAction() {
       <>
         <Link
           href="/dashboard"
-          className="hidden rounded-full border-[1.5px] border-beg-line px-3.5 py-2 text-[13px] font-bold text-beg-ink transition-colors hover:border-beg-lime sm:inline-block"
+          className="btn-ghost hidden px-3.5 py-2 text-[13px] font-bold text-beg-ink sm:inline-block"
         >
           @{profile.username}
         </Link>
@@ -120,7 +120,7 @@ function AccountAction() {
  */
 export function SiteNav() {
   return (
-    <header className="safe-top sticky top-0 z-40 border-b border-beg-line bg-beg-bg/80 backdrop-blur-md">
+    <header className="safe-top sticky top-0 z-40 border-b-[3px] border-beg-ink bg-beg-bg/90 backdrop-blur-md">
       <div className="safe-x mx-auto flex max-w-[1000px] items-center justify-between py-3">
         <Brand />
         <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export function SiteDock() {
   return (
     <nav
       aria-label="Primary"
-      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-beg-line bg-beg-bg/90 backdrop-blur-md md:inset-x-auto md:bottom-5 md:left-1/2 md:-translate-x-1/2 md:rounded-full md:border md:shadow-glow-strong"
+      className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t-[3px] border-beg-ink bg-beg-bg/95 backdrop-blur-md md:inset-x-auto md:bottom-5 md:left-1/2 md:-translate-x-1/2 md:rounded-full md:border-[3px] md:shadow-glow-strong"
     >
       <div className="safe-x mx-auto flex max-w-[420px] items-center justify-around md:px-2">
         {links.map(({ href, label, Icon }) => (

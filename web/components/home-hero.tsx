@@ -163,17 +163,17 @@ export function HomeHero() {
     return (
       <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
         <div>
-          <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold leading-[.82] tracking-[-.06em]">
+          <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold uppercase leading-[.82] tracking-[-.06em]">
             You have
             <br />
-            <span className="text-glow text-beg-lime">a link.</span>
+            <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">a link.</span>
             <span aria-hidden className="caret" />
           </h1>
           <p className="mb-1.5 mt-4 max-w-[30ch] text-xl text-beg-dim">
-            Share it and anyone can send you $BEG, straight to your wallet.
+            Share it and anyone can send you $BEG, straight to your wallet. 🙏
           </p>
 
-          <div className="flex max-w-[420px] items-center gap-2 rounded-full border-[1.5px] border-beg-line bg-beg-card py-1.5 pl-[18px] pr-1.5">
+          <div className="flex max-w-[420px] items-center gap-2 rounded-full border-[3px] border-beg-ink bg-beg-card py-1.5 pl-[18px] pr-1.5 shadow-glow">
             <span className="whitespace-nowrap text-beg-dim">{LINK_ORIGIN.replace(/^https?:\/\//, "")}/</span>
             <span className="flex-1 truncate py-2.5 font-bold text-beg-lime">{profile.username}</span>
             <button
@@ -206,15 +206,17 @@ export function HomeHero() {
   return (
     <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
       <div>
-        <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold leading-[.82] tracking-[-.06em]">
+        <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold uppercase leading-[.82] tracking-[-.06em]">
           Everyone
-          <br />            <span className="text-glow text-beg-lime">begs.</span>
-            <span aria-hidden className="caret" />
-          </h1>          <p className="mb-1.5 mt-4 max-w-[30ch] text-xl text-beg-dim">
-            Your link. Their $BEG. Straight to your wallet.
-          </p>
+          <br />
+          <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">begs.</span>
+          <span aria-hidden className="caret" />
+        </h1>
+        <p className="mb-1.5 mt-4 max-w-[30ch] text-xl text-beg-dim">
+          Your link. Their $BEG. Straight to your wallet. 🙏
+        </p>
 
-        <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-2 pl-[18px] focus-within:border-beg-lime max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
+        <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[3px] border-beg-ink bg-beg-card p-2 pl-[18px] shadow-glow focus-within:border-beg-blue max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
           <span className="whitespace-nowrap text-beg-dim max-sm:col-span-2 max-sm:border-b max-sm:border-beg-line max-sm:pb-1">{LINK_ORIGIN.replace(/^https?:\/\//, "")}/</span>
           <span className="flex min-w-0 flex-1 items-center bg-transparent py-2.5">
             <input
@@ -266,25 +268,27 @@ export function HomeHero() {
  */
 function PhonePreview({ name }: { name: string }) {
   return (
-    <div className="mx-auto w-full max-w-[340px] animate-fade-rise rounded-[34px] border-[1.5px] border-beg-line bg-beg-card p-5 shadow-glow-strong">
+    <div className="mx-auto w-full max-w-[340px] rotate-[1.5deg] transition-transform duration-200 hover:rotate-0">
+    <div className="animate-fade-rise rounded-[26px] border-[3px] border-beg-ink bg-beg-card p-5 shadow-glow-strong">
       <div className="mb-4 flex justify-between text-xs text-beg-dim">
         <span>Profile preview</span>
-        <span>Robinhood Chain</span>
+        <span className="rounded-full border-2 border-beg-ink bg-beg-lime px-2 py-0.5 font-bold text-beg-ink">Robinhood Chain</span>
       </div>
 
       <div className="text-center">
-        <div className="mx-auto mb-2.5 grid size-[78px] place-items-center rounded-full bg-beg-lime text-[34px] font-extrabold text-beg-bg">
+        <div className="mx-auto mb-2.5 grid size-[78px] place-items-center rounded-full border-2 border-beg-ink bg-beg-yellow text-[34px] font-extrabold text-beg-ink">
           {name[0]?.toUpperCase() ?? "Y"}
         </div>
         <b className="block text-[22px]">@{name}</b>
       </div>
 
-      <div className="mb-0.5 mt-4 text-center text-[44px] font-extrabold tracking-[-.04em] text-beg-lime">0</div>
+      <div className="mb-0.5 mt-4 text-center text-[44px] font-extrabold tracking-[-.04em] text-beg-blue">0</div>
       <div className="mb-4 text-center text-[13px] text-beg-dim">$BEG received, no supporters yet</div>
 
       <p className="text-center text-[13px] text-beg-dim">
         Illustration only. No account, balance or payment sits behind this, and sends aren&apos;t live.
       </p>
+      </div>
     </div>
   );
 }
