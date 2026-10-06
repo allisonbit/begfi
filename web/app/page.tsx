@@ -103,7 +103,7 @@ export default function HomePage() {
           beg<span className="text-beg-lime">fi</span>
         </span>
         <span className="text-sm">
-          Built on Robinhood Chain · {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}
+          Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}
         </span>
       </footer>
     </div>

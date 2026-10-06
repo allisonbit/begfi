@@ -48,7 +48,7 @@ export default async function DashboardPage() {
 
       {!BEG_CONFIGURED ? (
         <p className="notice-dashed">
-          Sending isn&apos;t live yet — $BEG hasn&apos;t been launched, so no transfers can exist until
+          Sending isn&apos;t live yet because $BEG hasn&apos;t been launched, so no transfers can exist until
           it is. Your link and your begs work now; the totals start moving the moment it does.
         </p>
       ) : null}

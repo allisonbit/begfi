@@ -158,7 +158,7 @@ export async function POST(request: Request) {
     );
     if (hit) {
       return NextResponse.json(
-        { error: `"${hit}" is reserved on BegFi — launches may not impersonate it.` },
+        { error: `"${hit}" is reserved on BegFi, launches may not impersonate it.` },
         { status: 409 },
       );
     }

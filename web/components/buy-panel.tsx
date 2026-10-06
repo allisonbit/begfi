@@ -205,15 +205,15 @@ export function BuyPanel({ token, curve, pairToken }: { token: string; curve: st
         <div className="flex justify-between">
           <span className="text-beg-dim">You receive</span>
           <span className="font-bold text-beg-lime">
-            {quote === null ? "—" : `about ${formatTokens(quote)}`}
+            {quote === null ? "…" : `about ${formatTokens(quote)}`}
           </span>
         </div>
         <div className="mt-1.5 flex justify-between">
           <span className="text-beg-dim">Minimum received</span>
-          <span className="text-beg-ink">{minOut === null ? "—" : formatTokens(minOut)}</span>
+          <span className="text-beg-ink">{minOut === null ? "…" : formatTokens(minOut)}</span>
         </div>
         <p className="mt-2 text-[12px] text-beg-dim">
-          An estimate from the curve&apos;s reserves. The minimum is what the transaction enforces — it
+          An estimate from the curve&apos;s reserves. The minimum is what the transaction enforces; it
           reverts rather than fill below it.
         </p>
       </div>

@@ -17,7 +17,7 @@ export function NeedsSignIn({ what }: { what: string }) {
       </h1>
 
       <p className="text-beg-dim">
-        BegFi has no passwords and no email. Signing in is a free signature from your wallet — it
+        BegFi has no passwords and no email. Signing in is a free signature from your wallet. It
         costs no gas and sends no transaction. It is how the site knows which link is yours.
       </p>
 
@@ -50,7 +50,7 @@ export function NeedsUsername() {
 
       <p className="text-beg-dim">
         You&apos;re signed in, but you haven&apos;t picked a username yet. That username is your
-        payment link — the thing people open to send you $BEG.
+        payment link, the thing people open to send you $BEG.
       </p>
 
       <a

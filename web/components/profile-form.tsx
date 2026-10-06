@@ -137,7 +137,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         </div>
         <span className="text-[12px] text-beg-dim">
           Shown on your profile and on your begs, so people can find you. Paste a link or just the
-          handle — it is tidied up either way.
+          handle, it is tidied up either way.
         </span>
       </label>
 

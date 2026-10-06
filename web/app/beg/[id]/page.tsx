@@ -176,7 +176,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
           */}
           {!beg.progressKnown ? (
             <p className="text-[12px] text-beg-dim">
-              Couldn&apos;t read the total just now — that&apos;s a problem reaching the chain, not a
+              Couldn&apos;t read the total just now. That&apos;s a problem reaching the chain, not a
               zero.
             </p>
           ) : (

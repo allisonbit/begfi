@@ -52,8 +52,8 @@ export default function TermsPage() {
             <h2 className="mb-2 font-bold text-beg-ink">Usernames</h2>
             <p>
               A username points at a wallet address. It cannot be changed after it is claimed, and it
-              does not prove identity. Always check the address shown next to a name before sending —
-              blockchain sends cannot be undone.
+              does not prove identity. Always check the address shown next to a name before sending,
+              because blockchain sends cannot be undone.
             </p>
           </section>
 

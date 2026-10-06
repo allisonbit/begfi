@@ -98,7 +98,7 @@ export default async function LaunchesPage() {
       {scanFailed ? (
         <p className="rounded-2xl border-[1.5px] border-beg-line p-5 text-[13px] text-beg-ink">
           Couldn&apos;t read your launches from the chain just now. This is a problem reaching the RPC,
-          not an empty list — try again shortly.
+          not an empty list. Try again shortly.
         </p>
       ) : launches.length === 0 ? (
         <div className="rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-[13px] text-beg-dim">

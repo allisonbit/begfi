@@ -228,7 +228,7 @@ export function LaunchForm() {
   function validate(): string | null {
     if (!name.trim()) return "Give the token a name.";
     if (!symbolClean) return "Give the token a ticker.";
-    if (!/^[A-Z0-9]{2,10}$/.test(symbolClean)) return "A ticker is 2–10 letters or digits.";
+    if (!/^[A-Z0-9]{2,10}$/.test(symbolClean)) return "A ticker is 2 to 10 letters or digits.";
     return null;
   }
 
@@ -307,7 +307,7 @@ export function LaunchForm() {
             {recordState === "failed" ? (
               <div className="mt-3 grid gap-2">
                 <p className="text-[13px] text-beg-ink">
-                  {recordError} The launch itself went through — this is only the catalog entry,
+                  {recordError} The launch itself went through. This is only the catalog entry,
                   and its page on BegFi stays hidden until it is added.
                 </p>
                 <button
@@ -334,7 +334,7 @@ export function LaunchForm() {
         ) : (
           <p className="mt-2 text-[13px] text-beg-dim">
             Confirmed on-chain. Its page is already live at{" "}
-            <span className="font-mono">/token/&lt;its address&gt;</span> — the token address is in
+            <span className="font-mono">/token/&lt;its address&gt;</span>; the token address is in
             the transaction below.
           </p>
         )}
@@ -386,7 +386,7 @@ export function LaunchForm() {
           {(
             [
               ["standard", "Standard", "3% creator tax to you"],
-              ["genesis", "$BEG itself — reserved", "BegFi's own launch, not open"],
+              ["genesis", "$BEG itself (reserved)", "BegFi's own launch, not open"],
             ] as const
           ).map(([value, label, note]) => (
             <button
@@ -407,7 +407,7 @@ export function LaunchForm() {
 
       {mode === "genesis" ? (
         <p className="notice p-4">
-          $BEG has not launched, so there is no genesis launch to join — and when it happens, the
+          $BEG has not launched, so there is no genesis launch to join. And when it happens, the
           5% goes to BegFi&apos;s dev wallet, not to whoever has this form open. Standard is the
           mode open to any wallet.
         </p>
@@ -522,7 +522,7 @@ export function LaunchForm() {
 
       {launchEnabled === false ? (
         <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-[13px] text-beg-ink">
-          This factory has been switched off — launches are not possible on it right now. Nothing
+          This factory has been switched off, so launches are not possible on it right now. Nothing
           about this form is wrong; the contract itself is closed.
         </p>
       ) : null}

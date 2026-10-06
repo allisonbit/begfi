@@ -45,8 +45,8 @@ export default function LaunchPage() {
         */}
         <p className="notice">
           Anyone can launch a token here. Tokens are not endorsed by BegFi or by Robinhood, and
-          nothing here is financial advice. Check a contract before you trade it — a launch cannot
-          be undone.
+          nothing here is financial advice. Check a contract before you trade it, because a launch
+          cannot be undone.
         </p>
 
         <p className="text-[13px] text-beg-dim">
@@ -69,24 +69,24 @@ export default function LaunchPage() {
         </h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">1 — Describe it</span>
+            <span className="text-[13px] font-bold text-beg-lime">1. Describe it</span>
             <p className="text-[13px] text-beg-dim">
-              Name, ticker, logo, optional socials — and a 3% creator tax that goes to your wallet
+              Name, ticker, logo, optional socials, and a 3% creator tax that goes to your wallet
               on every trade, for the life of the token.
             </p>
           </div>
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">2 — Sign and pay the fee</span>
+            <span className="text-[13px] font-bold text-beg-lime">2. Sign and pay the fee</span>
             <p className="text-[13px] text-beg-dim">
               One transaction from your wallet: the 0.0005 ETH launch fee plus gas. BegFi never
               touches it. The token is created with a fixed supply of 1,000,000,000.
             </p>
           </div>
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">3 — It trades on the curve</span>
+            <span className="text-[13px] font-bold text-beg-lime">3. It trades on the curve</span>
             <p className="text-[13px] text-beg-dim">
               Priced against robinhood ETH immediately. Traders pay the 1% curve fee plus your 3%,
-              which accrues to you in Pons&apos; escrow — claim it any time from{" "}
+              which accrues to you in Pons&apos; escrow. Claim it any time from{" "}
               <Link href="/dashboard/launches" className="text-beg-ink underline underline-offset-2">
                 Dashboard → Launches
               </Link>

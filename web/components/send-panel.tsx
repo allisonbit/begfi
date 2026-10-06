@@ -218,7 +218,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
 
       {/* The recipient, before signing. Spec §7.2. */}
       <p className="text-center text-[13px] text-beg-dim">
-        To <span className="text-beg-ink">@{username}</span> ·{" "}
+        To <span className="text-beg-ink">@{username}</span>,{" "}
         <span className="font-mono">{shortAddress(recipient)}</span>
       </p>
 

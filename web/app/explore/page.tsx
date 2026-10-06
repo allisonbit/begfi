@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { createPublicClient, http } from "viem";
 import { robinhoodChain, shortAddress } from "@/lib/chains";
-import { PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
+import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
+import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import type { Launch } from "@/lib/types";
@@ -33,7 +34,11 @@ const client = createPublicClient({
   transport: http(),
 });
 
-type Listed = Launch & { graduated: boolean | null };
+type Listed = Launch & {
+  graduated: boolean | null;
+  /** Live curve numbers; null when graduated, unreadable, or still unknown. */
+  curve: { price: string; pooled: string } | null;
+};
 
 async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: boolean }> {
   if (!SUPABASE_CONFIGURED) return { items: [], dbFailed: true };
@@ -47,6 +52,26 @@ async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: 
 
   if (error || !data) return { items: [], dbFailed: true };
 
+  /*
+   * getReserves() reports the curve's virtual quote reserve: real ETH plus the
+   * config's phantomQuote that sets the opening price. The pooled figure
+   * subtracts it, so a card shows ETH traders actually put in. If this config
+   * read fails the curve numbers are left out entirely rather than computed
+   * against a guessed phantom.
+   */
+  let phantom: bigint | null = null;
+  try {
+    const config = await client.readContract({
+      abi: ponsFactoryAbi,
+      address: PONS_FACTORY,
+      functionName: "getLaunchConfig",
+      args: [LAUNCH_CONFIG_ID],
+    });
+    phantom = config[2];
+  } catch {
+    phantom = null;
+  }
+
   const items = await Promise.all(
     data.map(async (launch) => {
       try {
@@ -56,10 +81,35 @@ async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: 
           functionName: "getLaunchedToken",
           args: [launch.token_address as `0x${string}`],
         });
-        return { ...launch, graduated: record.phase !== 0 };
+
+        // Curve numbers only while the token is still on its curve: after
+        // graduation the reserves are swept to the pair pool, and a curve
+        // price would describe a market the token no longer trades on.
+        if (record.phase !== 0 || phantom === null) {
+          return { ...launch, graduated: record.phase !== 0, curve: null };
+        }
+
+        try {
+          const [quoteReserve, tokenReserve] = await client.readContract({
+            abi: ponsCurveAbi,
+            address: record.curve,
+            functionName: "getReserves",
+          });
+          return {
+            ...launch,
+            graduated: false,
+            curve: {
+              price: pricePerToken(quoteReserve, tokenReserve),
+              pooled: formatEth(quoteReserve > phantom ? quoteReserve - phantom : 0n),
+            },
+          };
+        } catch {
+          // The curve read failed; the status stays, the numbers stay out.
+          return { ...launch, graduated: false, curve: null };
+        }
       } catch {
         // The token is in the catalog; its live status is just unreadable.
-        return { ...launch, graduated: null };
+        return { ...launch, graduated: null, curve: null };
       }
     }),
   );
@@ -84,7 +134,7 @@ export default async function ExplorePage() {
 
       {dbFailed ? (
         <p className="notice-dashed p-5">
-          Couldn&apos;t read the launch catalog just now — that&apos;s a problem reaching the
+          Couldn&apos;t read the launch catalog just now. That&apos;s a problem reaching the
           database, not an empty list. Try again in a moment.
         </p>
       ) : items.length === 0 ? (
@@ -117,6 +167,14 @@ export default async function ExplorePage() {
                   <p className="mt-1 font-mono text-[12px] text-beg-dim">
                     {shortAddress(item.token_address)}
                   </p>
+                  {item.curve ? (
+                    <p className="mt-1.5 flex items-baseline justify-between gap-2 text-[12px]">
+                      <span className="truncate font-mono font-bold text-beg-ink">
+                        {item.curve.price === "n/a" ? "n/a" : `${item.curve.price} ETH`}
+                      </span>
+                      <span className="shrink-0 text-beg-dim">{item.curve.pooled} ETH pooled</span>
+                    </p>
+                  ) : null}
                   <p className="mt-2 flex items-center justify-between text-[12px] text-beg-dim">
                     {/* Plain text, not a link: the whole card is one already,
                         and an anchor inside an anchor is not HTML. */}
@@ -140,7 +198,7 @@ export default async function ExplorePage() {
       */}
       <p className="notice">
         Every token here launched through BegFi, on Pons&apos; contracts. BegFi does not vet any of
-        them — listing is not an endorsement, a review, or advice. Check a contract before you trade
+        them; listing is not an endorsement, a review, or advice. Check a contract before you trade
         it.
       </p>
     </div>

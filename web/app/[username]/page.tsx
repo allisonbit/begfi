@@ -118,7 +118,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
             {formatAmount(BigInt(stats.total_received))}
           </div>
           <div className="mb-5 text-center text-[13px] text-beg-dim">
-            $BEG received · {stats.supporters === 1 ? "1 supporter" : `${stats.supporters} supporters`}
+            $BEG received from {stats.supporters === 1 ? "1 supporter" : `${stats.supporters} supporters`}
           </div>
 
           {BEG_CONFIGURED ? (

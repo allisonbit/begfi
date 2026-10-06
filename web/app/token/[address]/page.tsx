@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { createPublicClient, http, isAddress } from "viem";
 import { BuyPanel } from "@/components/buy-panel";
 import { addressUrl, robinhoodChain, shortAddress } from "@/lib/chains";
+import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { erc20Abi } from "@/lib/erc20";
-import { PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
+import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import type { Launch } from "@/lib/types";
@@ -35,7 +37,7 @@ const client = createPublicClient({
   transport: http(),
 });
 
-async function getLaunch(token: string) {
+async function getLaunchUncached(token: string) {
   if (!SUPABASE_CONFIGURED) return null;
 
   /*
@@ -89,8 +91,50 @@ async function getLaunch(token: string) {
   if (!results) return null;
   const [record, name, symbol] = results;
   if (!record.exists) return null;
-  return { launch, record, name, symbol };
+
+  /*
+   * The live curve numbers. Read only while the token is still on its curve:
+   * after graduation the reserves are swept to the pair pool, and a price
+   * quoted against a swept curve would describe a market the token no longer
+   * trades on. A failed read leaves the numbers out rather than guessed.
+   */
+  let curve: { price: string; pooled: string } | null = null;
+  if (record.phase === 0) {
+    try {
+      const [reserves, config] = await Promise.all([
+        client.readContract({
+          abi: ponsCurveAbi,
+          address: record.curve,
+          functionName: "getReserves",
+        }),
+        client.readContract({
+          abi: ponsFactoryAbi,
+          address: PONS_FACTORY,
+          functionName: "getLaunchConfig",
+          args: [LAUNCH_CONFIG_ID],
+        }),
+      ]);
+      const [quoteReserve, tokenReserve] = reserves;
+      const phantom = config[2];
+      /*
+       * getReserves() reports the curve's virtual quote reserve: the real ETH
+       * plus the config's phantomQuote that sets the opening price. The pooled
+       * figure subtracts it, so the number is ETH traders actually put in.
+       */
+      curve = {
+        price: pricePerToken(quoteReserve, tokenReserve),
+        pooled: formatEth(quoteReserve > phantom ? quoteReserve - phantom : 0n),
+      };
+    } catch {
+      curve = null;
+    }
+  }
+
+  return { launch, record, name, symbol, curve };
 }
+
+/** One set of chain reads per request: the metadata and the page share this. */
+const getLaunch = cache(getLaunchUncached);
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { address } = await params;
@@ -101,7 +145,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   return {
     title: `${found.name} ($${found.symbol})`,
-    description: `${found.name}, launched on BegFi — fixed supply, trading on Robinhood Chain.`,
+    description: `${found.name}, launched on BegFi. Fixed supply, trading on Robinhood Chain.`,
   };
 }
 
@@ -113,7 +157,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
   const found = await getLaunch(address);
   if (!found) notFound();
 
-  const { launch, record, name, symbol } = found;
+  const { launch, record, name, symbol, curve } = found;
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-12 py-8">
@@ -167,11 +211,19 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
             >
               {shortAddress(record.creatorFeeRecipient)}
             </a>{" "}
-            · {Number(record.creatorTaxBps) / 100}% of each trade
+            ({Number(record.creatorTaxBps) / 100}% of each trade)
           </Row>
           <Row label="Status">
             {record.phase === 0 ? "On the curve" : "Graduated"}
           </Row>
+          {curve ? (
+            <>
+              <Row label="Curve price">
+                {curve.price === "n/a" ? "n/a" : `${curve.price} ETH`}
+              </Row>
+              <Row label="Pooled ETH">{curve.pooled} ETH</Row>
+            </>
+          ) : null}
           <Row label="Graduates at">
             {Number(record.graduationThreshold) / 1e18} ETH pooled
           </Row>
@@ -198,7 +250,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
 
         <p className="notice">
           Launched through BegFi&apos;s launchpad, on Pons&apos; contracts. BegFi does not vet the
-          tokens launched through it — this is not an endorsement, and a blockchain trade cannot be
+          tokens launched through it; this is not an endorsement, and a blockchain trade cannot be
           undone. Check the contract before you buy, and never spend more than you can lose.
         </p>
       </div>

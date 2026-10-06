@@ -1,4 +1,4 @@
-import { parseAbi } from "viem";
+import { formatUnits, parseAbi } from "viem";
 
 /**
  * The Pons V2 bonding curve — where a launched token is actually bought and sold
@@ -95,7 +95,7 @@ export function minOutFor(quoted: bigint, slippageBps: bigint): bigint {
  * survive a double, and the value is only ever going to be shown.
  */
 export function pricePerToken(reserveIn: bigint, reserveOut: bigint): string {
-  if (reserveOut === 0n) return "—";
+  if (reserveOut === 0n) return "n/a";
 
   // Scale up before dividing so the result keeps meaningful precision.
   const SCALE = 10n ** 18n;
@@ -106,4 +106,18 @@ export function pricePerToken(reserveIn: bigint, reserveOut: bigint): string {
   const text = fraction ? `${whole}.${fraction}` : whole.toString();
   // Below a gwei the number stops being readable and starts being noise.
   return scaled < 10n ** 9n ? "<0.000000001" : text;
+}
+
+/**
+ * An ETH amount for display, trimmed to something readable.
+ *
+ * Display only: a double rounds the last digits, which is fine for a number
+ * someone reads and never trades on.
+ */
+export function formatEth(value: bigint): string {
+  const n = Number(formatUnits(value, 18));
+  if (n === 0) return "0";
+  if (n >= 1000) return n.toFixed(0);
+  if (n >= 1) return n.toFixed(3);
+  return n.toFixed(4);
 }

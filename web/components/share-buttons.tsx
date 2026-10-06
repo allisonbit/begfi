@@ -18,7 +18,7 @@ import { useState } from "react";
 export function ShareButtons({
   url,
   text,
-  caption = "The link carries the image — posting it shows your words, and clicking it opens your page.",
+  caption = "The link carries the image. Posting it shows your words, and clicking it opens your page.",
 }: {
   url: string;
   text: string;

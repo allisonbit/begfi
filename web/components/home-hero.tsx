@@ -94,7 +94,7 @@ export function HomeHero() {
       case "reserved":
         return <span className="text-beg-dim">/{clean} is reserved</span>;
       case "invalid":
-        return <span className="text-beg-dim">3–20 characters: a–z, 0–9, _</span>;
+        return <span className="text-beg-dim">3 to 20 characters: a-z, 0-9, _</span>;
       case "unknown":
         return <span className="text-beg-dim">Couldn&apos;t check right now</span>;
       default:
@@ -191,8 +191,8 @@ export function HomeHero() {
             ) : (
               <>
                 {claimed ? "That's yours. " : null}
-                Your profile page is at this address. Sending isn&apos;t live yet — $BEG hasn&apos;t been
-                launched.
+                Your profile page is at this address. Sending isn&apos;t live yet because $BEG hasn&apos;t
+                been launched.
               </>
             )}
           </p>
@@ -280,7 +280,7 @@ function PhonePreview({ name }: { name: string }) {
       </div>
 
       <div className="mb-0.5 mt-4 text-center text-[44px] font-extrabold tracking-[-.04em] text-beg-lime">0</div>
-      <div className="mb-4 text-center text-[13px] text-beg-dim">$BEG received · no supporters yet</div>
+      <div className="mb-4 text-center text-[13px] text-beg-dim">$BEG received, no supporters yet</div>
 
       <p className="text-center text-[13px] text-beg-dim">
         Illustration only. No account, balance or payment sits behind this, and sends aren&apos;t live.

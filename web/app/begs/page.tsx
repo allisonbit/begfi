@@ -115,7 +115,7 @@ export default async function BegsPage() {
 
       {feed.kind === "error" ? (
         <p className="notice-dashed p-5">
-          The feed couldn&apos;t be read just now — that&apos;s a problem reaching the database, not
+          The feed couldn&apos;t be read just now. That&apos;s a problem reaching the database, not
           an empty product. Try again in a moment.
         </p>
       ) : null}
@@ -123,7 +123,7 @@ export default async function BegsPage() {
       {feed.kind === "ok" && feed.begs.length > 0 ? (
         <>
           <p className="text-[12px] text-beg-dim">
-            Newest first{feed.begs.length >= 30 ? " — the latest 30 shown" : ""}.
+            Newest first{feed.begs.length >= 30 ? " (latest 30 shown)" : ""}.
           </p>
           <ul className="grid gap-4">
             {feed.begs.map((beg) => {
@@ -163,7 +163,6 @@ export default async function BegsPage() {
                         <Link href={`/${beg.username}`} className="hover:text-beg-ink">
                           @{beg.username}
                         </Link>
-                        <span aria-hidden>·</span>
                         <time dateTime={beg.created_at} className="whitespace-nowrap">
                           {age(beg.created_at)}
                         </time>
@@ -175,7 +174,6 @@ export default async function BegsPage() {
                         */}
                         {beg.x_handle ? (
                           <>
-                            <span aria-hidden>·</span>
                             <a
                               href={`https://x.com/${beg.x_handle}`}
                               target="_blank"
@@ -217,12 +215,12 @@ export default async function BegsPage() {
                        * never render as a confident zero.
                        */
                       <span className="text-[12px] text-beg-dim">
-                        Couldn&apos;t read the total just now — that&apos;s a problem reaching the
+                        Couldn&apos;t read the total just now. That&apos;s a problem reaching the
                         chain, not a zero.
                       </span>
                     )
                   ) : (
-                    <span className="text-[12px] text-beg-dim">Open-ended — any amount helps.</span>
+                    <span className="text-[12px] text-beg-dim">Open-ended. Any amount helps.</span>
                   )}
 
                   {/* Share this one beg, from the feed, without opening it first. */}
@@ -264,7 +262,7 @@ export default async function BegsPage() {
           </ul>
           <p className="text-[12px] text-beg-dim">
             Ages count from when each beg was written, and progress is counted from confirmed
-            transfers — a fresh send takes a little while to show.
+            transfers, so a fresh send takes a little while to show.
           </p>
         </>
       ) : null}
@@ -277,7 +275,7 @@ export default async function BegsPage() {
 
       <p className="notice">
         Anyone can write a beg here and BegFi does not check any of them. Give to people you know or
-        have reason to trust — nothing on this page is verified, and a blockchain send cannot be
+        have reason to trust. Nothing on this page is verified, and a blockchain send cannot be
         undone.
       </p>
     </div>

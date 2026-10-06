@@ -19,7 +19,7 @@ const bricolage = Bricolage_Grotesque({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: { default: "BegFi", template: "%s · BegFi" },
+  title: { default: "BegFi", template: "%s | BegFi" },
   description:
     "Your link. Their $BEG. Straight to your wallet. Non-custodial payment links and token launches on Robinhood Chain.",
   applicationName: "BegFi",
