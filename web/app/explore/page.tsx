@@ -38,6 +38,8 @@ type Listed = Launch & {
   graduated: boolean | null;
   /** Live curve numbers; null when graduated, unreadable, or still unknown. */
   curve: { price: string; pooled: string } | null;
+  /** Pooled ETH as raw wei while on curve, so totals can be summed exactly. */
+  pooledWei: bigint | null;
 };
 
 async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: boolean }> {
@@ -86,7 +88,7 @@ async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: 
         // graduation the reserves are swept to the pair pool, and a curve
         // price would describe a market the token no longer trades on.
         if (record.phase !== 0 || phantom === null) {
-          return { ...launch, graduated: record.phase !== 0, curve: null };
+          return { ...launch, graduated: record.phase !== 0, curve: null, pooledWei: null };
         }
 
         try {
@@ -95,21 +97,23 @@ async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: 
             address: record.curve,
             functionName: "getReserves",
           });
+          const pooled = quoteReserve > phantom ? quoteReserve - phantom : 0n;
           return {
             ...launch,
             graduated: false,
             curve: {
               price: pricePerToken(quoteReserve, tokenReserve),
-              pooled: formatEth(quoteReserve > phantom ? quoteReserve - phantom : 0n),
+              pooled: formatEth(pooled),
             },
+            pooledWei: pooled,
           };
         } catch {
           // The curve read failed; the status stays, the numbers stay out.
-          return { ...launch, graduated: false, curve: null };
+          return { ...launch, graduated: false, curve: null, pooledWei: null };
         }
       } catch {
         // The token is in the catalog; its live status is just unreadable.
-        return { ...launch, graduated: null, curve: null };
+        return { ...launch, graduated: null, curve: null, pooledWei: null };
       }
     }),
   );
@@ -117,8 +121,65 @@ async function recentLaunches(limit = 24): Promise<{ items: Listed[]; dbFailed: 
   return { items, dbFailed: false };
 }
 
+/**
+ * Launch analytics, in the shape of the mockup: stat cards over a 14-day bar
+ * chart. Every number here is computed from the same real sources as the list
+ * below — the catalog table and live curve reads. Trading volume and fee
+ * revenue are NOT shown because nothing indexes trade events yet; a panel that
+ * displays zeros it invented would be worse than one that admits the gap.
+ */
+async function launchStats(items: Listed[]) {
+  // The total comes from the whole table, not just the 24 most recent rows the
+  // page lists; if this count fails the visible rows are still a real count.
+  let totalLaunches = items.length;
+  try {
+    const admin = createAdminClient();
+    const { count, error } = await admin
+      .from("launches")
+      .select("*", { count: "exact", head: true });
+    if (!error && count !== null) totalLaunches = count;
+  } catch {
+    /* service key unavailable; the listed count is still real */
+  }
+  const graduated = items.filter((i) => i.graduated === true).length;
+  const pooledWei = items.reduce((sum, i) => (i.pooledWei ? sum + i.pooledWei : sum), 0n);
+
+  const top = items.reduce<Listed | null>(
+    (best, i) => (i.pooledWei && (!best?.pooledWei || i.pooledWei > best.pooledWei) ? i : best),
+    null,
+  );
+
+  // 14 daily buckets, oldest first, UTC — the day a launch was recorded is a
+  // property of the row, not of when this page renders.
+  const days: { label: string; key: string; count: number; isToday: boolean }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - i);
+    days.push({
+      label: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`,
+      key: d.toISOString().slice(0, 10),
+      count: 0,
+      isToday: i === 0,
+    });
+  }
+  const keyToIndex = new Map(days.map((day, idx) => [day.key, idx]));
+  for (const item of items) {
+    const idx = keyToIndex.get(item.created_at.slice(0, 10));
+    if (idx !== undefined) days[idx].count += 1;
+  }
+
+  return { totalLaunches, graduated, pooledWei, top, days };
+}
+
 export default async function ExplorePage() {
   const { items, dbFailed } = await recentLaunches();
+  const stats = await launchStats(items);
+
+  // The chart's tallest bar is the scale; a day with no launches renders as a
+  // dot so the baseline of the chart is still visible.
+  const maxCount = Math.max(1, ...stats.days.map((d) => d.count));
+  const totalEth = formatEth(stats.pooledWei);
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
@@ -131,6 +192,74 @@ export default async function ExplorePage() {
           Launch a token
         </Link>
       </header>
+
+      {/*
+   * Launch analytics. "Top token" is by pooled ETH right now — the one number
+   * that is provably on-chain. A 24h volume leader needs a trade-event indexer,
+   * which does not exist yet; when it does, this is the slot it fills.
+   */}
+      <section className="card p-5 max-md:rotate-[0.4deg] md:rotate-[-0.5deg]">
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-[22px] font-extrabold tracking-[-.03em]">Launch analytics</h2>
+          <span className="rounded-full border-2 border-beg-ink bg-beg-yellow px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em]">
+            Live from the chain
+          </span>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+            <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">Launches</dt>
+            <dd className="mt-1 text-[30px] font-extrabold leading-none tracking-[-.03em]">{stats.totalLaunches}</dd>
+          </div>
+          <div className="rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+            <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">Graduated</dt>
+            <dd className="mt-1 text-[30px] font-extrabold leading-none tracking-[-.03em]">{stats.graduated}</dd>
+          </div>
+          <div className="rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+            <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">ETH on curves</dt>
+            <dd className="mt-1 text-[30px] font-extrabold leading-none tracking-[-.03em]">{totalEth}</dd>
+          </div>
+          <div className="rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+            <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">Top token</dt>
+            <dd className="mt-1 truncate text-[30px] font-extrabold leading-none tracking-[-.03em]">
+              {stats.top ? (
+                <Link href={`/token/${stats.top.token_address}`} className="text-beg-lime hover:underline">
+                  ${stats.top.ticker}
+                </Link>
+              ) : (
+                <span className="text-[18px] leading-none text-beg-dim">None yet</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+          <div className="mb-2 flex items-baseline justify-between">
+            <b className="text-[14px]">Launches per day</b>
+            <span className="text-[11px] text-beg-dim">last 14 days</span>
+          </div>
+          <div className="flex h-[88px] items-end gap-1.5">
+            {stats.days.map((day) => (
+              <div
+                key={day.key}
+                title={`${day.label}: ${day.count} launch${day.count === 1 ? "" : "es"}`}
+                className="flex-1"
+              >
+                <div
+                  className={`w-full rounded-t-[4px] border-2 border-beg-ink border-b-0 transition-[height] duration-500 ${
+                    day.isToday ? "bg-beg-blue" : "bg-beg-lime"
+                  } ${day.count === 0 ? "h-[6px] opacity-40" : ""}`}
+                  style={day.count === 0 ? undefined : { height: `${Math.max(8, (day.count / maxCount) * 100)}%` }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="mt-1.5 flex justify-between text-[10px] text-beg-dim">
+            <span>{stats.days[0]?.label}</span>
+            <span>today</span>
+          </div>
+        </div>
+      </section>
 
       {dbFailed ? (
         <p className="notice-dashed p-5">
