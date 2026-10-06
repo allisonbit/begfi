@@ -48,12 +48,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-dvh flex-col antialiased">
         <Providers>
           <SiteNav />
-          {/*
-            pb-16 reserves the dock's strip on phones (md undocks it into the
-            floating pill), so the footer's last links are never covered.
-          */}
-          <div className="flex-1 pb-16 md:pb-0">{children}</div>
+          <div className="flex-1">{children}</div>
           <SiteFooter />
+          {/*
+            Dock clearance: the dock is fixed, so something in flow has to
+            reserve its strip — after the footer, which is the page's true
+            bottom, or its last links scroll out from under the bar (phone)
+            or the pill (desktop).
+          */}
+          <div aria-hidden className="h-20 md:h-24" />
           <SiteDock />
         </Providers>
       </body>
