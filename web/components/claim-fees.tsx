@@ -82,7 +82,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
   }
 
   return (
-    <section className="grid gap-3 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5">
+    <section className="card grid gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-[13px] text-beg-dim">Creator fees available</span>
         <span className="text-[28px] font-extrabold tracking-[-.04em] text-beg-lime">

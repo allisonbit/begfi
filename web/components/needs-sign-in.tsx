@@ -55,7 +55,7 @@ export function NeedsUsername() {
 
       <a
         href="/#claim"
-        className="mx-auto rounded-full bg-beg-lime px-6 py-3.5 font-bold text-beg-bg"
+        className="btn-primary mx-auto px-6 py-3.5"
       >
         Pick a username
       </a>

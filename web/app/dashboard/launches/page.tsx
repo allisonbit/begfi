@@ -88,8 +88,7 @@ export default async function LaunchesPage() {
         <div>
           <h1 className="text-[clamp(28px,6vw,40px)] font-extrabold tracking-[-.05em]">Launches</h1>
           <p className="mt-1 text-beg-dim">Tokens you launched, and the fees they have earned you.</p>
-        </div>
-        <Link href="/launch" className="rounded-full bg-beg-lime px-5 py-3 text-[14px] font-bold text-beg-bg">
+        </div>         <Link href="/launch" className="btn-primary">
           Launch a token
         </Link>
       </header>
@@ -118,7 +117,7 @@ export default async function LaunchesPage() {
             {launches.map((l) => (
               <li
                 key={l.token}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-[1.5px] border-beg-line bg-beg-card p-4 text-[13px]"
+                className="card-sm flex flex-wrap items-center justify-between gap-2 text-[13px]"
               >
                 <Link href={`/token/${l.token}`} className="font-mono text-beg-ink underline underline-offset-2">
                   {shortAddress(l.token)}

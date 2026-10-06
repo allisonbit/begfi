@@ -104,15 +104,14 @@ export default async function ExplorePage() {
   const { items, failed } = await recentLaunches();
 
   return (
-    <div className="mx-auto grid max-w-[1000px] gap-6 px-5 py-8">
+    <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">Explore</h1>
           <p className="mt-1 text-beg-dim">Recently launched on Robinhood Chain.</p>
         </div>
         <Link
-          href="/launch"
-          className="rounded-full bg-beg-lime px-5 py-3 text-[14px] font-bold text-beg-bg"
+          href="/launch"           className="btn-primary"
         >
           Launch a token
         </Link>
@@ -132,8 +131,7 @@ export default async function ExplorePage() {
           {items.map((item) => (
             <li key={item.token}>
               <Link
-                href={`/token/${item.token}`}
-                className="block rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5 transition-colors hover:border-beg-lime"
+                href={`/token/${item.token}`}                 className="card-hover card block"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <b className="truncate text-[18px] text-beg-ink">{item.name}</b>

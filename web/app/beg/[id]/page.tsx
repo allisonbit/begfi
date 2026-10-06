@@ -113,7 +113,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
   const pct = goal && goal > 0n ? Number((beg.raised * 10_000n) / goal) / 100 : 0;
 
   return (
-    <div className="mx-auto grid max-w-[560px] gap-6 px-5 py-10">
+    <div className="safe-x mx-auto grid max-w-[560px] gap-6 py-10">
       <header className="flex items-center gap-3">
         {beg.profiles.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -138,7 +138,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
 
       {/* Progress, when a target was set. */}
       {goal !== null && goal > 0n ? (
-        <section className="grid gap-2 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5">
+        <section className="card grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[13px] text-beg-dim">Raised</span>
             <span className="text-[13px] text-beg-dim">Goal {formatAmount(goal)} $BEG</span>

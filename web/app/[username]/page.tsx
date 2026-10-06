@@ -61,7 +61,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
   const xHandle = profile.x_handle;
 
   return (
-    <div className="mx-auto max-w-[1000px] px-5">
+    <div className="safe-x mx-auto max-w-[1000px]">
 
       <main className="mx-auto grid max-w-[560px] gap-8 py-10">
         <header className="text-center">
@@ -113,8 +113,8 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
           ) : null}
         </header>
 
-        <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-6">
-          <div className="mb-1 text-center text-[40px] font-extrabold tracking-[-.04em] text-beg-lime">
+        <div className="card p-6">
+          <div className="text-glow mb-1 text-center text-[40px] font-extrabold tracking-[-.04em] text-beg-lime">
             {formatAmount(BigInt(stats.total_received))}
           </div>
           <div className="mb-5 text-center text-[13px] text-beg-dim">

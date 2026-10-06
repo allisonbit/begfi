@@ -15,7 +15,20 @@ import { useState } from "react";
  * one produces a blank preview, which looks like a broken post rather than a
  * broken configuration.
  */
-export function ShareButtons({ url, text }: { url: string; text: string }) {
+export function ShareButtons({
+  url,
+  text,
+  caption = "The link carries the image — posting it shows your words, and clicking it opens your page.",
+}: {
+  url: string;
+  text: string;
+  /**
+   * Optional, because the default line is written for a beg's author. A caller
+   * that shares something without a generated image (the feed) passes its own
+   * so it does not borrow a promise the page cannot keep.
+   */
+  caption?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const encoded = encodeURIComponent(url);
@@ -49,7 +62,7 @@ export function ShareButtons({ url, text }: { url: string; text: string }) {
             href={t.href}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full border-[1.5px] border-beg-line p-3.5 text-center text-[14px] font-bold text-beg-ink transition-colors hover:border-beg-lime"
+            className="btn-ghost p-3.5 text-center text-[14px] font-bold text-beg-ink"
           >
             {t.label}
           </a>
@@ -61,15 +74,13 @@ export function ShareButtons({ url, text }: { url: string; text: string }) {
         <button
           type="button"
           onClick={copy}
-          className="shrink-0 rounded-full bg-beg-lime px-4 py-2.5 text-[13px] font-bold text-beg-bg"
+          className="btn-primary shrink-0 px-4 py-2.5 text-[13px]"
         >
           {copied ? "Copied" : "Copy link"}
         </button>
       </div>
 
-      <p className="text-[12px] text-beg-dim">
-        The link carries the image — posting it shows your words, and clicking it opens your page.
-      </p>
+      <p className="text-[12px] text-beg-dim">{caption}</p>
     </div>
   );
 }

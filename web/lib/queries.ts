@@ -123,6 +123,14 @@ export type PublicBeg = {
   avatar_url: string | null;
   x_handle: string | null;
   raised: string;
+  /**
+   * False only when the aggregate itself could not be read. An open-ended beg's
+   * zero is different: with no goal there is nothing to be a fraction of, and
+   * that is knowledge rather than ignorance. Collapsing the two into one
+   * confident zero is the most misleading thing a progress figure can do — the
+   * individual beg page already refuses to, so the feed cannot either.
+   */
+  progressKnown: boolean;
 };
 
 /**
@@ -149,10 +157,14 @@ export async function getRecentBegs(limit = 30): Promise<PublicBeg[]> {
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  // `error` is read, not caught: supabase-js returns rather than throws, so a
-  // failure here would otherwise render as "no begs have been written", which
-  // looks like an empty product rather than a broken query.
-  if (error || !data) return [];
+  // `error` is read, not caught: supabase-js returns rather than throws. A
+  // failure here used to return [] — and the feed rendered that as "no begs
+  // have been written" for a database that was plainly unreachable. An empty
+  // product is the most misleading thing a feed can claim, so a failed read
+  // throws now, and the page says the difference out loud.
+  if (error || !data) {
+    throw new Error("The begs feed could not be read.", { cause: error ?? "no data" });
+  }
 
   const rows = data as unknown as (Omit<PublicBeg, "raised" | "username" | "display_name" | "avatar_url" | "x_handle"> & {
     profiles: {
@@ -165,19 +177,20 @@ export async function getRecentBegs(limit = 30): Promise<PublicBeg[]> {
   })[];
 
   // Only begs with a target have progress worth fetching. An open-ended beg has
-  // nothing to be a fraction of.
+  // nothing to be a fraction of — but that is knowledge, not ignorance, so it
+  // is marked known. A failed read is the opposite: unknown, and marked so.
   const progress = await Promise.all(
-    rows.map(async (row) => {
-      if (!row.goal) return "0";
+    rows.map(async (row): Promise<{ raised: string; known: boolean }> => {
+      if (!row.goal) return { raised: "0", known: true };
       try {
         const { data: sum, error: sumError } = await sb.rpc("received_since", {
           p_wallet: row.profiles.wallet_address,
           p_since: row.created_at,
         });
-        if (sumError || sum === null || sum === undefined) return "0";
-        return String(sum);
+        if (sumError || sum === null || sum === undefined) return { raised: "0", known: false };
+        return { raised: String(sum), known: true };
       } catch {
-        return "0";
+        return { raised: "0", known: false };
       }
     }),
   );
@@ -191,7 +204,8 @@ export async function getRecentBegs(limit = 30): Promise<PublicBeg[]> {
     display_name: row.profiles.display_name,
     avatar_url: row.profiles.avatar_url,
     x_handle: row.profiles.x_handle,
-    raised: progress[i],
+    raised: progress[i].raised,
+    progressKnown: progress[i].known,
   }));
 }
 

@@ -4,7 +4,9 @@
  * BegFi design tokens (spec §3). Robinhood neon lime on near-black; no stock
  * "crypto gradient", no cardboard. These are the only colours in the product —
  * a surface that needs a shade reaches for one of these rather than inventing
- * a new one.
+ * a new one. What has been added since the first pass is derived *modifiers*
+ * of the palette: glow shadows and an ambient grid, both made from the same
+ * lime, so the one-sentence palette rule still holds.
  */
 @theme {
   --color-beg-bg: #07080a;
@@ -15,6 +17,49 @@
   --color-beg-lime: #ccff00;
 
   --font-display: var(--font-bricolage), system-ui, sans-serif;
+
+  /* The page's ambient light: the phone preview's glow, systematised. */
+  --shadow-glow: 0 0 24px rgb(204 255 0 / 0.32), 0 0 6px rgb(204 255 0 / 0.25);
+  --shadow-glow-strong: 0 0 90px rgb(204 255 0 / 0.12);
+
+  --animate-fade-rise: fade-rise 0.5s cubic-bezier(0.22, 0.7, 0.35, 1) both;
+  --animate-pulse-soft: pulse-soft 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.6s linear infinite;
+  --animate-blink: blink 1.1s step-end infinite;
+
+  @keyframes fade-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes pulse-soft {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /** A sheen that sweeps once across `.progress-fill` on loop. */
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
+  }
 }
 
 :root {
@@ -24,15 +69,132 @@
 html {
   /* Anchor jumps must clear the notch, not slide under it. */
   scroll-padding-top: env(safe-area-inset-top, 0px);
+  /* The page colour lives on html so the ambient texture on body::before can
+     sit between the background and the content. */
+  background: var(--color-beg-bg);
 }
 
 body {
   margin: 0;
-  background: var(--color-beg-bg);
+  background: transparent;
   color: var(--color-beg-ink);
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+
+  /* Ambient texture behind every page: a faint lime blueprint grid that
+     brightens into a glow at the very top. Fixed, so it does not scroll,
+     and capped at 3-9% opacity so it reads as light on the surface, never
+     as a pattern demanding attention. Content is unaffected — it is one
+     fixed painted layer, not per-element decoration. */
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgb(204 255 0 / 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(204 255 0 / 0.03) 1px, transparent 1px),
+      radial-gradient(ellipse 90% 55% at 50% -12%, rgb(204 255 0 / 0.08), transparent 62%);
+    background-size:
+      44px 44px,
+      44px 44px,
+      100% 100%;
+  }
+}
+
+/**
+ * Components. One shared vocabulary so the same card, button and progress
+ * widgets do not restyle themselves on every page (matches the note in the
+ * layout: drift between pages is the failure this prevents).
+ */
+@layer components {
+  /* Cards. */
+  .card {
+    @apply rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5;
+  }
+
+  /* For interactive cards only: links and buttons that behave like cards. */
+  .card-hover {
+    @apply duration-200 transition-[border-color,translate] hover:-translate-y-0.5 hover:border-beg-lime;
+  }
+
+  /* Smaller list-row cards (activity, launches, dashboard). */
+  .card-sm {
+    @apply rounded-2xl border-[1.5px] border-beg-line bg-beg-card p-4;
+  }
+
+  /* Quiet, honest notices: empty states and "not built yet" copy. */
+  .notice {
+    @apply rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px] text-beg-dim;
+  }
+
+  .notice-dashed {
+    @apply rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-[13px] text-beg-dim;
+  }
+
+  /* Primary action. Standard size by default; individual call sites may
+     tighten padding with their own utilities, which wins over this layer. */
+  .btn-primary {
+    @apply rounded-full bg-beg-lime px-5 py-3 text-[14px] font-bold text-beg-bg;
+    @apply transition-[box-shadow,filter,transform] duration-150 hover:shadow-glow hover:brightness-105 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  /* Ghost action: same DNA, transparent. No padding here — inline buttons,
+     full-width grid buttons and rounded tabs size themselves. */
+  .btn-ghost {
+    @apply rounded-full border-[1.5px] border-beg-line transition-colors duration-150 hover:border-beg-lime;
+  }
+
+  /* Ambient glow behind big lime words. */
+  .text-glow {
+    text-shadow:
+      0 0 26px rgb(204 255 0 / 0.35),
+      0 0 80px rgb(204 255 0 / 0.18);
+  }
+
+  /* The blinking caret: the brand's punctuation mark. It ends the logo, the
+     hero captions and the claim field — begging looks like an unfinished
+     sentence, because an ask is exactly that. */
+  .caret {
+    @apply ml-0.5 inline-block h-[1.1em] w-[3px] translate-y-[0.16em] rounded-full bg-beg-lime;
+    box-shadow: 0 0 10px rgb(204 255 0 / 0.5);
+    animation: var(--animate-blink);
+  }
+
+  /* A pulse that says "this is happening now" — the live-feed badge and the
+     brand dot in the nav. */
+  .live-dot {
+    @apply inline-block size-[6px] rounded-full bg-beg-lime;
+    box-shadow: 0 0 10px rgb(204 255 0 / 0.55);
+    animation: var(--animate-pulse-soft);
+  }
+
+  /* Progress toward a goal. The track stays bedrock; the fill carries a slow
+     international-style sheen so a moving total reads as alive without a
+     counter animation that would have to lie between fetches. */
+  .progress {
+    @apply h-2.5 overflow-hidden rounded-full bg-beg-bg;
+  }
+
+  .progress-fill {
+    @apply relative h-full overflow-hidden rounded-full bg-beg-lime;
+    transition: width 0.6s cubic-bezier(0.22, 0.7, 0.35, 1);
+
+    /* The sheen rides along only when the bar is wide enough to host one —
+       a 2% sliver with a highlight across it just looks broken. */
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+      background-size: 200% 100%;
+      background-repeat: no-repeat;
+      background-position: 200% 0;
+      animation: var(--animate-shimmer);
+    }
+  }
 }
 
 /**
@@ -45,9 +207,11 @@ body {
   padding-left: max(20px, env(safe-area-inset-left, 0px));
   padding-right: max(20px, env(safe-area-inset-right, 0px));
 }
+
 .safe-top {
   padding-top: env(safe-area-inset-top, 0px);
 }
+
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -65,6 +229,7 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }

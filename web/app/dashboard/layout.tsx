@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="mx-auto grid max-w-[1000px] gap-6 px-5 py-8">
+    <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
       <DashboardNav />
       {children}
     </div>

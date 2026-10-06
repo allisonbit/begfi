@@ -62,7 +62,7 @@ export function SignInButton({ className = "" }: { className?: string }) {
         type="button"
         onClick={() => void run()}
         disabled={busy}
-        className="rounded-full bg-beg-lime px-4 py-2.5 text-[14px] font-bold text-beg-bg disabled:opacity-50"
+        className="btn-primary px-4 py-2.5 disabled:opacity-50"
       >
         {busy ? "Check your wallet…" : isConnected ? "Sign in" : "Sign in"}
       </button>

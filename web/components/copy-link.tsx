@@ -30,12 +30,12 @@ export function CopyLink({ url }: { url: string }) {
 
   return (
     <section className="grid gap-3">
-      <div className="flex items-center gap-2 rounded-full border-[1.5px] border-beg-line bg-beg-card py-1.5 pl-[18px] pr-1.5">
-        <span className="min-w-0 flex-1 truncate font-bold text-beg-lime">{absolute}</span>
+      <div className="grid max-sm:grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-2 pl-[18px] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
+        <span className="flex min-w-0 items-center sm:flex-1 truncate font-bold text-beg-lime max-sm:py-2">{absolute}</span>
         <button
           type="button"
           onClick={copy}
-          className="shrink-0 rounded-full bg-beg-lime px-5 py-3 text-[15px] font-bold text-beg-bg"
+          className="btn-primary shrink-0 max-sm:px-4 max-sm:py-2.5 max-sm:text-[13px] sm:px-5 sm:py-3 sm:text-[15px]"
         >
           {copied ? "Copied" : "Copy"}
         </button>

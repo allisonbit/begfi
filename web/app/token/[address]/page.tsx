@@ -82,7 +82,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
   const { record, name, symbol } = found;
 
   return (
-    <div className="mx-auto max-w-[1000px] px-5">
+    <div className="safe-x mx-auto max-w-[1000px]">
 
       <main className="mx-auto grid max-w-[560px] gap-6 py-10">
         <header className="text-center">
@@ -93,7 +93,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
           </p>
         </header>
 
-        <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-6">
+        <div className="card p-6">
           <BuyPanel token={record.token} curve={record.curve} pairToken={record.pairToken} />
         </div>
 

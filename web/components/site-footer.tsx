@@ -37,7 +37,7 @@ const COLUMNS = [
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-beg-line">
-      <div className="mx-auto grid max-w-[1000px] gap-8 px-5 py-10 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div className="safe-x mx-auto grid max-w-[1000px] gap-8 py-10 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
             beg<span className="text-beg-lime">fi</span>
@@ -67,7 +67,7 @@ export function SiteFooter() {
         Spec §12 and §2. Worth repeating on every page: BegFi is not Robinhood,
         and anyone can launch a token through this site.
       */}
-      <div className="mx-auto max-w-[1000px] px-5 pb-10">
+      <div className="safe-x mx-auto max-w-[1000px] pb-10">
         <p className="border-t border-beg-line pt-5 text-[12px] text-beg-dim">
           BegFi is not affiliated with Robinhood. Anyone can launch a token through this site and
           none of them are endorsed here. Nothing on this site is financial advice. BegFi never

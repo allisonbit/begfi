@@ -156,7 +156,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
       <button
         type="button"
         onClick={() => void connectAsync({ connector: injected() })}
-        className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg"
+        className="btn-primary w-full p-4 text-[17px]"
       >
         Connect wallet
       </button>
@@ -173,7 +173,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
         <button
           type="button"
           onClick={() => void switchChainAsync({ chainId: DEFAULT_CHAIN_ID })}
-          className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg"
+          className="btn-primary w-full p-4 text-[17px]"
         >
           Switch to {robinhoodChain.name}
         </button>
@@ -257,7 +257,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
         type="button"
         onClick={() => void send()}
         disabled={!canSend}
-        className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg disabled:opacity-40"
+        className="btn-primary w-full p-4 text-[17px] disabled:opacity-40"
       >
         {isPending ? "Confirm in your wallet…" : confirming ? "Sending…" : `Send ${amount || "0"} $BEG`}
       </button>

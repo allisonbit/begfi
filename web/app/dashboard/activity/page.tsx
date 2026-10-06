@@ -40,7 +40,7 @@ export default async function ActivityPage() {
           {transfers.map((t) => (
             <li
               key={`${t.tx_hash}-${t.log_index}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border-[1.5px] border-beg-line bg-beg-card p-4 text-[13px]"
+              className="card-sm flex flex-wrap items-center justify-between gap-2 text-[13px]"
             >
               <span className="font-mono text-beg-dim">{shortAddress(t.from_address)}</span>
               <span className="text-beg-dim">{new Date(t.block_time).toLocaleString("en-GB")}</span>

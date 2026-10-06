@@ -42,12 +42,12 @@ export default async function DashboardPage() {
       </header>
 
       <section className="grid gap-3.5 sm:grid-cols-2">
-        <Stat label="$BEG received" value={formatAmount(BigInt(stats.total_received))} />
+        <Stat label="$BEG received" value={formatAmount(BigInt(stats.total_received))} glow />
         <Stat label="Supporters" value={String(stats.supporters)} />
       </section>
 
       {!BEG_CONFIGURED ? (
-        <p className="rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-[13px] text-beg-dim">
+        <p className="notice-dashed">
           Sending isn&apos;t live yet — $BEG hasn&apos;t been launched, so no transfers can exist until
           it is. Your link and your begs work now; the totals start moving the moment it does.
         </p>
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
             {transfers.map((t) => (
               <li
                 key={`${t.tx_hash}-${t.log_index}`}
-                className="flex items-center justify-between rounded-2xl border-[1.5px] border-beg-line bg-beg-card p-4 text-[13px]"
+                className="card-sm flex items-center justify-between text-[13px]"
               >
                 <span className="font-mono text-beg-dim">{shortAddress(t.from_address)}</span>
                 <span className="font-bold text-beg-lime">{formatAmount(BigInt(t.amount))} $BEG</span>
@@ -94,11 +94,15 @@ export default async function DashboardPage() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, glow = false }: { label: string; value: string; glow?: boolean }) {
   return (
-    <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5">
+    <div className="card">
       <div className="text-[13px] text-beg-dim">{label}</div>
-      <div className="mt-1 text-[36px] font-extrabold tracking-[-.04em] text-beg-lime">{value}</div>
+      <div
+        className={`mt-1 text-[36px] font-extrabold tracking-[-.04em] text-beg-lime ${glow ? "text-glow" : ""}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }

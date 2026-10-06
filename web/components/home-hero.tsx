@@ -161,14 +161,15 @@ export function HomeHero() {
 
   if (profile) {
     return (
-      <section id="claim" className="grid items-center gap-9 py-11 md:grid-cols-[1.15fr_.85fr]">
+      <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
         <div>
           <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold leading-[.82] tracking-[-.06em]">
             You have
             <br />
-            <span className="text-beg-lime">a link.</span>
+            <span className="text-glow text-beg-lime">a link.</span>
+            <span aria-hidden className="caret" />
           </h1>
-          <p className="my-5 max-w-[26ch] text-xl text-beg-dim">
+          <p className="mb-1.5 mt-4 max-w-[30ch] text-xl text-beg-dim">
             Share it and anyone can send you $BEG, straight to your wallet.
           </p>
 
@@ -178,7 +179,7 @@ export function HomeHero() {
             <button
               type="button"
               onClick={copy}
-              className="rounded-full bg-beg-lime px-5 py-3 text-[15px] font-bold text-beg-bg"
+              className="btn-primary px-5 py-3 text-[15px]"
             >
               {copied ? "Copied" : "Copy"}
             </button>
@@ -203,35 +204,37 @@ export function HomeHero() {
   }
 
   return (
-    <section id="claim" className="grid items-center gap-9 py-11 md:grid-cols-[1.15fr_.85fr]">
+    <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
       <div>
         <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold leading-[.82] tracking-[-.06em]">
           Everyone
-          <br />
-          <span className="text-beg-lime">begs.</span>
-        </h1>
-        <p className="my-5 max-w-[26ch] text-xl text-beg-dim">
-          Your link. Their $BEG. Straight to your wallet.
-        </p>
+          <br />            <span className="text-glow text-beg-lime">begs.</span>
+            <span aria-hidden className="caret" />
+          </h1>          <p className="mb-1.5 mt-4 max-w-[30ch] text-xl text-beg-dim">
+            Your link. Their $BEG. Straight to your wallet.
+          </p>
 
-        <div className="flex max-w-[420px] items-center gap-1.5 rounded-full border-[1.5px] border-beg-line bg-beg-card py-1.5 pl-[18px] pr-1.5 focus-within:border-beg-lime">
-          <span className="whitespace-nowrap text-beg-dim">{LINK_ORIGIN.replace(/^https?:\/\//, "")}/</span>
-          <input
-            id="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-            placeholder="yourname"
-            maxLength={USERNAME_MAX}
-            autoCapitalize="off"
-            spellCheck={false}
-            aria-label="Pick a username"
-            className="min-w-0 flex-1 bg-transparent py-2.5 font-bold text-beg-lime outline-none placeholder:text-beg-dim"
-          />
+        <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-2 pl-[18px] focus-within:border-beg-lime max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
+          <span className="whitespace-nowrap text-beg-dim max-sm:col-span-2 max-sm:border-b max-sm:border-beg-line max-sm:pb-1">{LINK_ORIGIN.replace(/^https?:\/\//, "")}/</span>
+          <span className="flex min-w-0 flex-1 items-center bg-transparent py-2.5">
+            <input
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+              placeholder="yourname"
+              maxLength={USERNAME_MAX}
+              autoCapitalize="off"
+              spellCheck={false}
+              aria-label="Pick a username"
+              className="min-w-0 flex-1 bg-transparent font-bold text-beg-lime outline-none placeholder:text-beg-dim"
+            />
+            {clean ? null : <span aria-hidden className="caret opacity-70" />}
+          </span>
           <button
             type="button"
             onClick={claim}
             disabled={claiming || signingIn || availability.state === "taken" || availability.state === "reserved"}
-            className="rounded-full bg-beg-lime px-5 py-3 text-[15px] font-bold text-beg-bg disabled:opacity-40"
+            className="btn-primary max-sm:px-4 max-sm:py-2.5 max-sm:text-[13px] sm:px-5 sm:py-3 sm:text-[15px]"
           >
             {claiming
               ? "Claiming…"
@@ -263,7 +266,7 @@ export function HomeHero() {
  */
 function PhonePreview({ name }: { name: string }) {
   return (
-    <div className="mx-auto w-full max-w-[340px] rounded-[34px] border-[1.5px] border-beg-line bg-beg-card p-5 shadow-[0_0_90px_rgba(204,255,0,.12)]">
+    <div className="mx-auto w-full max-w-[340px] animate-fade-rise rounded-[34px] border-[1.5px] border-beg-line bg-beg-card p-5 shadow-glow-strong">
       <div className="mb-4 flex justify-between text-xs text-beg-dim">
         <span>Profile preview</span>
         <span>Robinhood Chain</span>

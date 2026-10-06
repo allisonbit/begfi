@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 function LaunchSection() {
   return (
     <section className="py-8 pb-16">
-      <h2 className="mb-6 text-[clamp(36px,8vw,64px)] font-extrabold leading-[.95] tracking-[-.05em]">
+      <h2 className="mb-6 text-[clamp(36px,8vw,64px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
         Launch a token.
         <br />
         Get paid on every trade.
@@ -33,9 +33,9 @@ function LaunchSection() {
       </p>
 
       <div className="grid gap-3.5 md:grid-cols-2">
-        <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5">
+        <div className="card p-6">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-[46px] place-items-center rounded-2xl bg-beg-lime font-extrabold text-beg-bg">
+            <div className="grid size-[46px] place-items-center rounded-2xl bg-beg-lime font-extrabold text-beg-bg shadow-glow">
               B
             </div>
             <div>
@@ -52,9 +52,9 @@ function LaunchSection() {
           </div>
         </div>
 
-        <div className="rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-5">
+        <div className="card p-6">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-[46px] place-items-center rounded-2xl bg-white font-extrabold text-beg-bg">
+            <div className="grid size-[46px] place-items-center rounded-2xl bg-beg-ink font-extrabold text-beg-bg">
               +
             </div>
             <div>
@@ -79,10 +79,10 @@ function LaunchSection() {
         No launch form. A form that cannot submit is a promise the page cannot
         keep, and the honest version of "not yet" is a sentence, not a dead input.
       */}
-      <p className="mt-3.5 text-[13px] text-beg-dim">
-        There is no launch form here yet, because there is nothing it could do.{" "}
-        <Link href="/terms" className="text-beg-ink underline underline-offset-2">
-          Terms
+      <p className="notice mt-3.5">
+        The launch form is at{" "}
+        <Link href="/launch" className="text-beg-ink underline underline-offset-2">
+          /launch
         </Link>
         .
       </p>
@@ -92,7 +92,7 @@ function LaunchSection() {
 
 export default function HomePage() {
   return (
-    <div className="mx-auto max-w-[1000px] px-5">
+    <div className="safe-x mx-auto max-w-[1000px]">
       <main>
         <HomeHero />
         <LaunchSection />

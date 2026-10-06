@@ -14,6 +14,7 @@ import {
 import { decodeEventLog } from "viem";
 import { injected } from "wagmi/connectors";
 import { ImageUpload } from "@/components/image-upload";
+import { BEG_CONFIGURED } from "@/lib/config";
 import { DEFAULT_CHAIN_ID, robinhoodChain, txUrl } from "@/lib/chains";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -83,6 +84,18 @@ export function LaunchForm() {
   });
 
   /**
+   * The factory's on/off switch, read rather than assumed. `launchEnabled()`
+   * is how Pons retires a factory version — V1 still has deployed bytecode and
+   * reports false, and its launches revert. Existence proves nothing here; the
+   * question has to be asked, and the answer shown.
+   */
+  const { data: launchEnabled } = useReadContract({
+    abi: ponsFactoryAbi,
+    address: PONS_FACTORY,
+    functionName: "launchEnabled",
+  });
+
+  /**
    * The economics commitment, fetched for the exact (config, pair) being used.
    * The factory compares this against its own computation at launch, so a stale
    * or invented value makes the transaction revert — it cannot be defaulted to
@@ -140,6 +153,14 @@ export function LaunchForm() {
   const canSubmit =
     isConnected &&
     !wrongChain &&
+    launchEnabled !== false &&
+    // Genesis is reserved for BegFi's own launch, and that launch does not
+    // exist yet: no $BEG contract, no address (README, "blocked on things
+    // outside the code"). The factory would happily accept a 5%-to-self launch
+    // from any wallet — which is exactly the thing the label must not invite —
+    // so until $BEG is configured the button stays dead in this mode, with the
+    // notice above saying why.
+    (mode === "standard" || BEG_CONFIGURED) &&
     name.trim().length > 0 &&
     symbolClean.length > 0 &&
     expectedEconomics !== undefined &&
@@ -225,14 +246,16 @@ export function LaunchForm() {
             <p className="mt-1 break-all font-mono text-[13px] text-beg-ink">{launched.token}</p>
             <a
               href={`/token/${launched.token}`}
-              className="mt-3 inline-block rounded-full bg-beg-lime px-5 py-3 font-bold text-beg-bg"
+              className="btn-primary mt-3 inline-block"
             >
               Open its page
             </a>
           </>
         ) : (
           <p className="mt-2 text-[13px] text-beg-dim">
-            Confirmed on-chain. Its page appears once the launch is indexed.
+            Confirmed on-chain. Its page is already live at{" "}
+            <span className="font-mono">/token/&lt;its address&gt;</span> — the token address is in
+            the transaction below.
           </p>
         )}
         <p className="mt-3 text-[13px] text-beg-dim">
@@ -249,7 +272,7 @@ export function LaunchForm() {
       <button
         type="button"
         onClick={() => void connectAsync({ connector: injected() })}
-        className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg"
+        className="btn-primary w-full p-4 text-[17px]"
       >
         Connect wallet
       </button>
@@ -265,7 +288,7 @@ export function LaunchForm() {
         <button
           type="button"
           onClick={() => void switchChainAsync({ chainId: DEFAULT_CHAIN_ID })}
-          className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg"
+          className="btn-primary w-full p-4 text-[17px]"
         >
           Switch to {robinhoodChain.name}
         </button>
@@ -282,14 +305,15 @@ export function LaunchForm() {
         <div className="flex gap-2">
           {(
             [
-              ["standard", "Standard", "3% creator tax"],
-              ["genesis", "$BEG itself", "5% to the dev wallet"],
+              ["standard", "Standard", "3% creator tax to you"],
+              ["genesis", "$BEG itself — reserved", "BegFi's own launch, not open"],
             ] as const
           ).map(([value, label, note]) => (
             <button
               key={value}
               type="button"
               onClick={() => setMode(value)}
+              aria-pressed={mode === value}
               className={`flex-1 rounded-2xl border-[1.5px] p-3 text-left text-[13px] ${
                 mode === value ? "border-beg-lime text-beg-lime" : "border-beg-line text-beg-ink"
               }`}
@@ -300,6 +324,14 @@ export function LaunchForm() {
           ))}
         </div>
       </div>
+
+      {mode === "genesis" ? (
+        <p className="notice p-4">
+          $BEG has not launched, so there is no genesis launch to join — and when it happens, the
+          5% goes to BegFi&apos;s dev wallet, not to whoever has this form open. Standard is the
+          mode open to any wallet.
+        </p>
+      ) : null}
 
       <label className="grid gap-1.5">
         <span className="text-[13px] text-beg-dim">Token name</span>
@@ -377,7 +409,7 @@ export function LaunchForm() {
       </details>
 
       {/* What the launcher is agreeing to, before they sign. */}
-      <dl className="grid gap-2 rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px]">
+      <dl className="card grid gap-2 text-[13px]">
         <Row label="Launch fee">{formatEth(fee)} ETH, paid once</Row>
         <Row label="Your creator tax">
           {Number(creatorTaxBps) / 100}% of every trade, to your wallet
@@ -408,13 +440,20 @@ export function LaunchForm() {
         </p>
       ) : null}
 
+      {launchEnabled === false ? (
+        <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-[13px] text-beg-ink">
+          This factory has been switched off — launches are not possible on it right now. Nothing
+          about this form is wrong; the contract itself is closed.
+        </p>
+      ) : null}
+
       {error ? <p className="text-center text-[13px] text-beg-ink">{error}</p> : null}
 
       <button
         type="button"
         onClick={() => void launch()}
         disabled={!canSubmit}
-        className="w-full rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg disabled:opacity-40"
+        className="btn-primary w-full p-4 text-[17px] disabled:opacity-40"
       >
         {isPending ? "Confirm in your wallet…" : confirming ? "Launching…" : `Launch for ${formatEth(fee)} ETH`}
       </button>

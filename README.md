@@ -28,7 +28,7 @@ git history (last present in `718b12f`).
 
 ```sh
 npm install                 # repo root: Hardhat + OpenZeppelin
-npm test                    # 26 splitter tests
+npm test                    # 32 splitter tests
 
 cd web && npm install       # app dependencies (.npmrc sets legacy-peer-deps — see that file)
 cp .env.example .env.local  # then fill in Supabase keys
@@ -82,14 +82,16 @@ ever been run against mainnet — no token, no splitter, no factory. Two gates s
   tables underneath and would leak hidden profiles and the whole transfer graph.
 - Next.js app: design system, wallet connection, wallet sign-in (nonce → signature → session),
   username availability and atomic claim, home page, terms, privacy.
+- `/[username]` public page with the wallet-to-wallet send flow, `/beg/[id]` progress pages and
+  the public `/begs` feed, with generated share images.
+- `/dashboard` (overview, profile edit, activity, launches) and its own tab navigation.
+- The `/launch` form and `/token/[address]` pages, reading straight from Pons' factory on-chain.
+- The indexer that records confirmed `Transfer` events, driven by `/api/cron/indexer`.
 
 **Not built yet**
 
-- `/[username]` public page and the send flow
-- `/dashboard` (overview, profile edit, activity) and `/dashboard/launches`
-- The indexer that records confirmed `Transfer` events
-- `/launch` and `/token/[address]`
-- Open Graph previews
+- Nothing in the app tree — the blockers that remain are outside the code: `$BEG` itself is not
+  deployed, Supabase migrations have not been applied to a live project, and the audit gate.
 
 **Blocked on things outside the code**
 
