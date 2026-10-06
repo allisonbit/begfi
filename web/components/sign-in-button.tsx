@@ -37,8 +37,10 @@ export function SignInButton({ className = "" }: { className?: string }) {
     // server sets, and the server-rendered pages have to see it. Refreshing
     // client state alone would leave the header showing "Sign in" on a page
     // whose content already assumed a session.
-    const { error: failure } = await signIn();
-    if (!failure) {
+    const { error: failure, pending } = await signIn();
+    // `pending`: the connect modal is open and the flow resumes on its own once
+    // a wallet connects. Reloading here would kill the modal mid-flight.
+    if (!failure && !pending) {
       await refresh();
       window.location.reload();
     }

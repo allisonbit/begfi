@@ -133,8 +133,10 @@ export function HomeHero() {
      * `signedIn` reports.
      */
     if (!signedIn) {
-      const { error } = await signIn({ next: "/#claim" });
-      if (error) setClaimError(error);
+      // `pending`: the connect modal is open; the flow resumes on its own once
+      // a wallet connects, and the redirect target rides along in `next`.
+      const { error, pending } = await signIn({ next: "/#claim" });
+      if (error && !pending) setClaimError(error);
       return;
     }
 

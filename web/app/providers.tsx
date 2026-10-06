@@ -82,17 +82,63 @@ const config = createConfig({
   ssr: true,
 });
 
-/** RainbowKit's accent, matched to the design system rather than left at the
- *  library default, so the modal reads as part of the site instead of a widget
- *  bolted onto it. The light base matches the cream sticker sheet; the accent
- *  is the same Robinhood green as every button fill on the site. */
-const WALLET_THEME: Theme = lightTheme({
-  accentColor: "#00CC6D",
-  accentColorForeground: "#FFFFFF",
-  borderRadius: "large",
-  overlayBlur: "small",
-  fontStack: "system",
-});
+/**
+ * RainbowKit's theme, matched to the design system rather than left at the
+ * library default, so the modal reads as part of the site instead of a widget
+ * bolted onto it.
+ *
+ * The light base gets overridden piece by piece so the modal sits on the same
+ * cream sheet as everything else: ink text on card stock, ink borders, and the
+ * sticker shadow recipe — a hard ink offset with no blur, which is why the
+ * overlay blur is off. The accent is the same Robinhood green as every button
+ * fill on the site.
+ */
+const WALLET_THEME: Theme = {
+  ...lightTheme({
+    accentColor: "#00CC6D",
+    accentColorForeground: "#FFFFFF",
+    borderRadius: "large",
+    fontStack: "system",
+    overlayBlur: "none",
+  }),
+  colors: {
+    ...lightTheme().colors,
+    accentColor: "#00CC6D",
+    accentColorForeground: "#FFFFFF",
+    modalBackdrop: "rgb(22 22 22 / 0.55)",
+    modalBackground: "#fffcf2",
+    modalBorder: "#161616",
+    modalText: "#161616",
+    modalTextDim: "#59626f",
+    modalTextSecondary: "#59626f",
+    generalBorder: "#161616",
+    generalBorderDim: "#161616",
+    menuItemBackground: "#fff3d6",
+    actionButtonBorder: "#161616",
+    actionButtonSecondaryBackground: "#fff3d6",
+    connectButtonBackground: "#fffcf2",
+    connectButtonInnerBackground: "#fff3d6",
+    connectButtonText: "#161616",
+    profileAction: "#00a651",
+    profileActionHover: "#009247",
+    profileForeground: "#fffcf2",
+    closeButton: "#161616",
+    closeButtonBackground: "#fff3d6",
+  },
+  shadows: {
+    ...lightTheme().shadows,
+    dialog: "7px 7px 0 0 #161616",
+    selectedOption: "3px 3px 0 0 #161616",
+    selectedWallet: "3px 3px 0 0 #161616",
+    walletLogo: "none",
+    connectButton: "4px 4px 0 0 #161616",
+  },
+  radii: {
+    ...lightTheme().radii,
+    modal: "22px",
+    modalMobile: "22px",
+  },
+};
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
