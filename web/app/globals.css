@@ -5,8 +5,8 @@
  * "crypto gradient", no cardboard. These are the only colours in the product —
  * a surface that needs a shade reaches for one of these rather than inventing
  * a new one. What has been added since the first pass is derived *modifiers*
- * of the palette: glow shadows and an ambient grid, both made from the same
- * lime, so the one-sentence palette rule still holds.
+ * of the palette: glow shadows made from the same lime, so the one-sentence
+ * palette rule still holds.
  */
 @theme {
   --color-beg-bg: #07080a;
@@ -69,39 +69,17 @@
 html {
   /* Anchor jumps must clear the notch, not slide under it. */
   scroll-padding-top: env(safe-area-inset-top, 0px);
-  /* The page colour lives on html so the ambient texture on body::before can
-     sit between the background and the content. */
+  /* The page colour lives on html. */
   background: var(--color-beg-bg);
 }
 
 body {
   margin: 0;
-  background: transparent;
+  background: var(--color-beg-bg);
   color: var(--color-beg-ink);
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
-
-  /* Ambient texture behind every page: a faint lime blueprint grid that
-     brightens into a glow at the very top. Fixed, so it does not scroll,
-     and capped at 3-9% opacity so it reads as light on the surface, never
-     as a pattern demanding attention. Content is unaffected — it is one
-     fixed painted layer, not per-element decoration. */
-  &::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-image:
-      linear-gradient(rgb(204 255 0 / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(204 255 0 / 0.03) 1px, transparent 1px),
-      radial-gradient(ellipse 90% 55% at 50% -12%, rgb(204 255 0 / 0.08), transparent 62%);
-    background-size:
-      44px 44px,
-      44px 44px,
-      100% 100%;
-  }
 }
 
 /**

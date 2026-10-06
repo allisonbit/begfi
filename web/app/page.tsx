@@ -28,7 +28,7 @@ function LaunchSection() {
       </h2>
 
       <p className="-mt-3 mb-6 max-w-[62ch] text-[13px] text-beg-dim">
-        Planned. No contracts are deployed and no token has been launched. The fee splits below are the
+        Planned. No contracts are deployed and no token has been launched. The fees below are the
         intended design, not live terms.
       </p>
 
@@ -48,7 +48,6 @@ function LaunchSection() {
           </div>
           <div className="mb-3.5 mt-2 flex justify-between text-xs text-beg-dim">
             <span>5% trading fee</span>
-            <span>100% to the dev wallet</span>
           </div>
         </div>
 
@@ -59,18 +58,11 @@ function LaunchSection() {
             </div>
             <div>
               <b className="text-[19px]">Every other launch</b>
-              <small className="block text-beg-dim">3% trading fee, split three ways</small>
+              <small className="block text-beg-dim">3% trading fee</small>
             </div>
           </div>
           <div className="flex h-3 gap-[3px] overflow-hidden rounded-full">
-            <i className="block w-1/3 bg-beg-lime" />
-            <i className="block w-1/3 bg-white" />
-            <i className="block w-[34%] bg-[#5b6370]" />
-          </div>
-          <div className="mb-3.5 mt-2 flex justify-between text-xs text-beg-dim">
-            <span>1% BegFi</span>
-            <span>1% $BEG growth fund</span>
-            <span>1% launcher</span>
+            <i className="block w-full bg-white" />
           </div>
         </div>
       </div>
