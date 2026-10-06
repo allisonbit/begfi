@@ -1,27 +1,34 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createPublicClient, http, isAddress } from "viem";
 import { BuyPanel } from "@/components/buy-panel";
 import { addressUrl, robinhoodChain, shortAddress } from "@/lib/chains";
 import { erc20Abi } from "@/lib/erc20";
 import { PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
+import type { Launch } from "@/lib/types";
 
 type Params = { address: string };
 
 export const dynamic = "force-dynamic";
 
 /**
- * A launched token's page.
+ * A token launched from BegFi.
  *
- * THE CHAIN IS THE SOURCE OF TRUTH, not our database. Launches go through Pons'
- * factory, so `getLaunchedToken(token)` on-chain is authoritative and complete —
- * it carries the curve address, the creator, the tax and the phase. Reading from
- * `begfi.launches` instead would mean a token that launched a minute ago 404s
- * until an indexer caught up, and would make our table a second place the truth
- * could be wrong.
+ * THIS PAGE SERVES BEGFI'S LAUNCHPAD, NOT THE FACTORY. Pons' factory is shared
+ * infrastructure — anyone on Robinhood Chain can call it, and most of what it
+ * produces has nothing to do with this site. So membership of `begfi.launches`
+ * decides whether this page renders at all: a token recorded here was signed
+ * by the launcher's own wallet through BegFi's own form, verified by
+ * `/api/launch` against the receipt before the row was written.
  *
- * The database copy is still useful for search and for joining a launch to a
- * BegFi profile, but it is not what decides whether this page renders.
+ * The chain is still the source of truth for everything the page *says* — the
+ * record only gates the door. `getLaunchedToken(token)` carries the curve, the
+ * tax and the phase as they are right now, and the metadata reads use the same
+ * public client, so a stale row cannot show a wrong number; it can only show
+ * the token at all.
  */
 const client = createPublicClient({
   chain: robinhoodChain,
@@ -29,33 +36,60 @@ const client = createPublicClient({
 });
 
 async function getLaunch(token: string) {
-  try {
-    const [record, name, symbol] = await Promise.all([
-      client.readContract({
-        abi: ponsFactoryAbi,
-        address: PONS_FACTORY,
-        functionName: "getLaunchedToken",
-        args: [token as `0x${string}`],
-      }),
-      client.readContract({
-        abi: erc20Abi,
-        address: token as `0x${string}`,
-        functionName: "name",
-      }),
-      client.readContract({
-        abi: erc20Abi,
-        address: token as `0x${string}`,
-        functionName: "symbol",
-      }),
-    ]);
+  if (!SUPABASE_CONFIGURED) return null;
 
-    if (!record.exists) return null;
-    return { record, name, symbol };
+  /*
+   * Membership is read from `launches` with the admin client: this is a
+   * server-side read with no visitor session to inherit. The outcome is
+   * three-valued on purpose, because "unreachable" and "absent" want
+   * different treatment — and the safe reading of "unreachable" is refusal,
+   * not trust: a failed read must never quietly render a token whose
+   * membership could not be proven.
+   */
+  let launch: Launch | null = null;
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("launches")
+      .select("*")
+      .eq("token_address", token.toLowerCase())
+      .maybeSingle<Launch>();
+
+    if (error) return null;
+    launch = data;
   } catch {
-    // A token that does not exist makes the factory revert, and a plain address
-    // with no contract makes the reads fail. Both mean "no such token here".
     return null;
   }
+
+  // No row in the catalog: the factory may have produced this token, but it
+  // did not launch from BegFi, and this page does not serve the factory.
+  if (!launch) return null;
+
+  const results = await Promise.all([
+    client.readContract({
+      abi: ponsFactoryAbi,
+      address: PONS_FACTORY,
+      functionName: "getLaunchedToken",
+      args: [token as `0x${string}`],
+    }),
+    client.readContract({
+      abi: erc20Abi,
+      address: token as `0x${string}`,
+      functionName: "name",
+    }),
+    client.readContract({
+      abi: erc20Abi,
+      address: token as `0x${string}`,
+      functionName: "symbol",
+    }),
+  ]).catch(() => null);
+
+  // A recorded token the chain no longer confirms — or a read that failed — is
+  // refused rather than rendered from the row alone.
+  if (!results) return null;
+  const [record, name, symbol] = results;
+  if (!record.exists) return null;
+  return { launch, record, name, symbol };
 }
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
@@ -67,7 +101,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
   return {
     title: `${found.name} ($${found.symbol})`,
-    description: `${found.name} on BegFi — launched on Robinhood Chain.`,
+    description: `${found.name}, launched on BegFi — fixed supply, trading on Robinhood Chain.`,
   };
 }
 
@@ -79,26 +113,52 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
   const found = await getLaunch(address);
   if (!found) notFound();
 
-  const { record, name, symbol } = found;
+  const { launch, record, name, symbol } = found;
 
   return (
-    <div className="safe-x mx-auto max-w-[1000px]">
-
-      <main className="mx-auto grid max-w-[560px] gap-6 py-10">
-        <header className="text-center">
-          <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">{name}</h1>
-          <p className="text-beg-dim">${symbol}</p>
-          <p className="mt-2 font-mono text-[13px] text-beg-dim" title={record.token}>
+    <div className="safe-x mx-auto grid max-w-[1000px] gap-12 py-8">
+      <div className="mx-auto grid w-full max-w-[560px] gap-6">
+        <header className="grid justify-items-center gap-3 text-center">
+          {launch?.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={launch.image_url}
+              alt=""
+              className="size-16 rounded-2xl border-[1.5px] border-beg-line object-cover"
+            />
+          ) : (
+            <div className="grid size-16 place-items-center rounded-2xl bg-beg-lime text-2xl font-extrabold text-beg-bg">
+              {name[0]?.toUpperCase() ?? "?"}
+            </div>
+          )}
+          <div>
+            <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">{name}</h1>
+            <p className="text-beg-dim">${symbol}</p>
+          </div>
+          <p className="font-mono text-[13px] text-beg-dim" title={record.token}>
             {shortAddress(record.token)}
           </p>
+          <p className="text-[12px] text-beg-lime">Launched on BegFi</p>
         </header>
 
         <div className="card p-6">
           <BuyPanel token={record.token} curve={record.curve} pairToken={record.pairToken} />
         </div>
 
-        <dl className="grid gap-2 rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px]">
-          <Row label="Creator">
+        <dl className="card grid gap-2 text-[13px]">
+          {launch ? (
+            <Row label="Launcher">
+              <a
+                href={addressUrl(launch.launcher_wallet)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-mono underline underline-offset-2"
+              >
+                {shortAddress(launch.launcher_wallet)}
+              </a>
+            </Row>
+          ) : null}
+          <Row label="Creator tax">
             <a
               href={addressUrl(record.creatorFeeRecipient)}
               target="_blank"
@@ -106,9 +166,9 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
               className="font-mono underline underline-offset-2"
             >
               {shortAddress(record.creatorFeeRecipient)}
-            </a>
+            </a>{" "}
+            · {Number(record.creatorTaxBps) / 100}% of each trade
           </Row>
-          <Row label="Creator tax">{Number(record.creatorTaxBps) / 100}% of each trade</Row>
           <Row label="Status">
             {record.phase === 0 ? "On the curve" : "Graduated"}
           </Row>
@@ -125,17 +185,35 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
               {shortAddress(record.curve)}
             </a>
           </Row>
+          {launch ? (
+            <Row label="Launched">
+              {new Date(launch.created_at).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
+            </Row>
+          ) : null}
         </dl>
 
-        {/*
-          Spec §12 requires this on token pages, and it is simply true: BegFi
-          does not vet what anyone launches through it.
-        */}
-        <p className="rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px] text-beg-dim">
-          Anyone can launch a token. Tokens here are not endorsed by BegFi or Robinhood. Check the
-          contract before trading, and never spend more than you can lose.
+        <p className="notice">
+          Launched through BegFi&apos;s launchpad, on Pons&apos; contracts. BegFi does not vet the
+          tokens launched through it — this is not an endorsement, and a blockchain trade cannot be
+          undone. Check the contract before you buy, and never spend more than you can lose.
         </p>
-      </main>
+      </div>
+
+      <section className="card-hover card flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[17px] font-bold text-beg-ink">Launch your own</p>
+          <p className="mt-1 text-[13px] text-beg-dim">
+            Fixed supply, a 3% creator tax paid to your wallet, one transaction.
+          </p>
+        </div>
+        <Link href="/launch" className="btn-primary shrink-0">
+          Launch a token
+        </Link>
+      </section>
     </div>
   );
 }

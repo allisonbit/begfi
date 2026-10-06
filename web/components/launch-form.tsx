@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useAccount,
   useBalance,
@@ -150,6 +150,61 @@ export function LaunchForm() {
   const symbolClean = symbol.trim().toUpperCase();
   const notEnoughGas = balance !== undefined && balance.value < fee;
 
+  /*
+   * Recording the launch into BegFi's catalog. The transaction confirming is
+   * not enough for the site's own pages: /token and /explore serve only what
+   * /api/launch has verified and recorded, so this call is what turns "a
+   * receipt" into "a BegFi launch". Its failure is shown with a retry rather
+   * than hidden — a launch that never lands in the catalog would otherwise be
+   * invisible on BegFi forever, with no error anywhere.
+   */
+  const [recordState, setRecordState] = useState<"idle" | "recording" | "done" | "failed">("idle");
+  const [recordError, setRecordError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSuccess || !hash || !launched || recordState !== "idle") return;
+    let cancelled = false;
+    setRecordState("recording");
+    void (async () => {
+      try {
+        const res = await fetch("/api/launch", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            token: launched.token,
+            txHash: hash,
+            mode,
+            image: logo.trim() ? logo.trim() : undefined,
+          }),
+        });
+        const result = (await res.json().catch(() => null)) as
+          | { ok?: boolean; error?: string }
+          | null;
+        if (cancelled) return;
+        if (!res.ok || !result?.ok) {
+          setRecordError(result?.error ?? "Couldn't add the token to the launchpad.");
+          setRecordState("failed");
+          return;
+        }
+        setRecordState("done");
+      } catch {
+        if (!cancelled) {
+          setRecordError("Couldn't reach the server.");
+          setRecordState("failed");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSuccess, hash, launched, mode, logo, recordState]);
+
+  /* Retry resets to idle, which is what re-arms the effect above. */
+  function retryRecord() {
+    setRecordError(null);
+    setRecordState("idle");
+  }
+
   const canSubmit =
     isConnected &&
     !wrongChain &&
@@ -244,12 +299,37 @@ export function LaunchForm() {
           <>
             <p className="mt-2 text-[13px] text-beg-dim">The token is live at</p>
             <p className="mt-1 break-all font-mono text-[13px] text-beg-ink">{launched.token}</p>
-            <a
-              href={`/token/${launched.token}`}
-              className="btn-primary mt-3 inline-block"
-            >
-              Open its page
-            </a>
+
+            {recordState === "recording" || recordState === "idle" ? (
+              <p className="mt-3 text-[13px] text-beg-dim">Adding it to the BegFi launchpad…</p>
+            ) : null}
+
+            {recordState === "failed" ? (
+              <div className="mt-3 grid gap-2">
+                <p className="text-[13px] text-beg-ink">
+                  {recordError} The launch itself went through — this is only the catalog entry,
+                  and its page on BegFi stays hidden until it is added.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void retryRecord()}
+                  className="btn-ghost justify-self-start px-4 py-2 text-[13px] font-bold text-beg-ink"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : null}
+
+            {/*
+              The link appears only once the catalog entry exists — the token
+              page it points at serves recorded launches, and showing it earlier
+              would send the launcher straight to a 404.
+            */}
+            {recordState === "done" ? (
+              <a href={`/token/${launched.token}`} className="btn-primary mt-3 inline-block">
+                Open its page
+              </a>
+            ) : null}
           </>
         ) : (
           <p className="mt-2 text-[13px] text-beg-dim">
