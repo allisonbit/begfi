@@ -2,8 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { SiteDock, SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
-import { SiteNav } from "@/components/site-nav";
 import { SITE_URL } from "@/lib/config";
 
 /**
@@ -48,8 +48,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex min-h-dvh flex-col antialiased">
         <Providers>
           <SiteNav />
-          <div className="flex-1">{children}</div>
+          {/*
+            pb-16 reserves the dock's strip on phones (md undocks it into the
+            floating pill), so the footer's last links are never covered.
+          */}
+          <div className="flex-1 pb-16 md:pb-0">{children}</div>
           <SiteFooter />
+          <SiteDock />
         </Providers>
       </body>
     </html>
