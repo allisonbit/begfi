@@ -5,14 +5,12 @@ import {
   useAccount,
   useBalance,
   useChainId,
-  useConnect,
   useReadContract,
-  useSwitchChain,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
 import { decodeEventLog } from "viem";
-import { injected } from "wagmi/connectors";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ImageUpload } from "@/components/image-upload";
 import { BEG_CONFIGURED } from "@/lib/config";
 import { DEFAULT_CHAIN_ID, robinhoodChain, txUrl } from "@/lib/chains";
@@ -56,8 +54,7 @@ export function LaunchForm() {
   const { address, isConnected } = useAccount();
   const { userId } = useAuth();
   const chainId = useChainId();
-  const { connectAsync } = useConnect();
-  const { switchChainAsync } = useSwitchChain();
+  const { openConnectModal } = useConnectModal();
   const { writeContractAsync, data: hash, isPending } = useWriteContract();
   const { isLoading: confirming, isSuccess, data: receipt } = useWaitForTransactionReceipt({ hash });
 
@@ -205,25 +202,15 @@ export function LaunchForm() {
     setRecordState("idle");
   }
 
-  const canSubmit =
-    isConnected &&
-    !wrongChain &&
-    launchEnabled !== false &&
-    // Genesis is reserved for BegFi's own launch, and that launch does not
-    // exist yet: no $BEG contract, no address (README, "blocked on things
-    // outside the code"). The factory would happily accept a 5%-to-self launch
-    // from any wallet — which is exactly the thing the label must not invite —
-    // so until $BEG is configured the button stays dead in this mode, with the
-    // notice above saying why.
-    (mode === "standard" || BEG_CONFIGURED) &&
-    name.trim().length > 0 &&
-    symbolClean.length > 0 &&
-    expectedEconomics !== undefined &&
-    canLaunch !== false &&
-    !taxTooHigh &&
-    !notEnoughGas &&
-    !isPending &&
-    !confirming;
+  /*
+   * Genesis is reserved for BegFi's own launch, and that launch does not
+   * exist yet: no $BEG contract, no address (README, "blocked on things
+   * outside the code"). The factory would happily accept a 5%-to-self launch
+   * from any wallet — which is exactly the thing the label must not invite —
+   * so until $BEG is configured the button stays dead in this mode, with the
+   * notice above saying why.
+   */
+  const genesisReserved = mode === "genesis" && !BEG_CONFIGURED;
 
   function validate(): string | null {
     if (!name.trim()) return "Give the token a name.";
@@ -237,6 +224,11 @@ export function LaunchForm() {
     const problem = validate();
     if (problem) return setError(problem);
     if (expectedEconomics === undefined) return setError("Still reading the launch terms. Try again in a moment.");
+    if (genesisReserved) return setError("The $BEG launch is reserved. Standard mode is open to any wallet.");
+    if (launchEnabled === false) return setError("This factory is switched off right now; launches are not possible.");
+    if (canLaunch === false) return setError("This wallet isn't permitted to launch right now.");
+    if (taxTooHigh) return setError("The creator tax is above the cap this factory allows.");
+    if (notEnoughGas) return setError(`Not enough ETH. You need ${formatEth(fee)} for the fee plus gas.`);
 
     try {
       await writeContractAsync({
@@ -347,34 +339,13 @@ export function LaunchForm() {
     );
   }
 
-  if (!isConnected) {
-    return (
-      <button
-        type="button"
-        onClick={() => void connectAsync({ connector: injected() })}
-        className="btn-primary w-full p-4 text-[17px]"
-      >
-        Connect wallet
-      </button>
-    );
-  }
-
-  if (wrongChain) {
-    return (
-      <div className="grid gap-3">
-        <p className="text-center text-[13px] text-beg-dim">
-          Your wallet is on another network. Launches happen on {robinhoodChain.name}.
-        </p>
-        <button
-          type="button"
-          onClick={() => void switchChainAsync({ chainId: DEFAULT_CHAIN_ID })}
-          className="btn-primary w-full p-4 text-[17px]"
-        >
-          Switch to {robinhoodChain.name}
-        </button>
-      </div>
-    );
-  }
+  /*
+   * The form itself is always visible, like every other launchpad: what the
+   * connection gates is only the submit button at the bottom. Hiding the whole
+   * form behind a lone connect button made the page look empty and asked the
+   * visitor to commit before showing them what a launch even involves.
+   */
+  const notReady = !isConnected || wrongChain;
 
   const field = "rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 text-beg-ink outline-none focus:border-beg-lime";
 
@@ -502,6 +473,13 @@ export function LaunchForm() {
         <Row label="Graduates at">4.2 ETH of pooled liquidity</Row>
       </dl>
 
+      {wrongChain ? (
+        <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-[13px] text-beg-ink">
+          Your wallet is on another network. Launches happen on {robinhoodChain.name}; switch to
+          continue.
+        </p>
+      ) : null}
+
       {notEnoughGas ? (
         <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-[13px] text-beg-ink">
           Not enough ETH. You need {formatEth(fee)} for the fee plus gas.
@@ -531,11 +509,19 @@ export function LaunchForm() {
 
       <button
         type="button"
-        onClick={() => void launch()}
-        disabled={!canSubmit}
+        onClick={() => (notReady ? openConnectModal?.() : void launch())}
+        disabled={isPending || confirming || genesisReserved}
         className="btn-primary w-full p-4 text-[17px] disabled:opacity-40"
       >
-        {isPending ? "Confirm in your wallet…" : confirming ? "Launching…" : `Launch for ${formatEth(fee)} ETH`}
+        {isPending
+          ? "Confirm in your wallet…"
+          : confirming
+            ? "Launching…"
+            : !isConnected
+              ? "Connect wallet to launch"
+              : wrongChain
+                ? `Switch to ${robinhoodChain.name} to launch`
+                : `Launch for ${formatEth(fee)} ETH`}
       </button>
 
       <p className="text-center text-[13px] text-beg-dim">
