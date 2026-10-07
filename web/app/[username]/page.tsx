@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SendPanel } from "@/components/send-panel";
+import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, USERNAME_PATTERN, isReserved } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
@@ -132,6 +133,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
       <footer className="flex flex-wrap justify-between gap-2.5 border-t border-beg-line py-7 pb-12 text-beg-dim">
         <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
           beg<span className="text-beg-logo">fi</span>
+          <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
         </span>
         <span className="text-sm">Anyone can claim a BegFi link. A username is not proof of identity.</span>
       </footer>

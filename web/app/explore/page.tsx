@@ -9,6 +9,7 @@ import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
+import { getTradeAggregates } from "@/lib/queries";
 import type { Launch } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -47,9 +48,17 @@ type Listed = Launch & {
   pooledWei: bigint | null;
   /** Fraction of the graduation threshold the pooled ETH reaches, 0..1. */
   progress: number | null;
+  /** 24h quote volume in raw wei, from the indexer's confirmed trade events. */
+  volume24hWei: bigint | null;
+  /** The same volume formatted for display. */
+  volume24hEth: string | null;
+  /** Number of confirmed trades in the window, null when the indexer has none. */
+  tradeCount24h: number | null;
+  /** Percent change of the last trade price versus the window's first. */
+  priceChange24h: number | null;
 };
 
-const SORTS = ["mc", "newest", "oldest"] as const;
+const SORTS = ["mc", "trending", "newest", "oldest"] as const;
 type Sort = (typeof SORTS)[number];
 
 function parseSort(value: string | undefined): Sort {
@@ -58,6 +67,7 @@ function parseSort(value: string | undefined): Sort {
 
 function sortLabel(sort: Sort): string {
   if (sort === "mc") return "Market cap";
+  if (sort === "trending") return "Trending";
   if (sort === "oldest") return "Oldest";
   return "Newest";
 }
@@ -166,7 +176,29 @@ async function recentLaunches(limit = 60): Promise<{ items: Listed[]; dbFailed: 
     }),
   );
 
-  return { items, dbFailed: false };
+  /*
+   * Trade aggregates for exactly the tokens listed, from the indexer's table
+   * of confirmed curve trade events. One query, maps keyed by address; a
+   * token with no trades in the window is simply absent from them, which the
+   * cards read as "nothing to show" rather than a zero someone might mistake
+   * for "the indexer looked and found nothing".
+   */
+  const { volumeWei, trades, priceChange } = await getTradeAggregates(
+    data.map((d) => d.token_address),
+  );
+
+  const itemsWithTrades: Listed[] = items.map((item) => {
+    const vol = volumeWei.get(item.token_address);
+    return {
+      ...item,
+      volume24hWei: vol !== undefined ? BigInt(vol) : null,
+      volume24hEth: vol !== undefined ? formatEth(BigInt(vol)) : null,
+      tradeCount24h: trades.get(item.token_address) ?? null,
+      priceChange24h: priceChange.get(item.token_address) ?? null,
+    };
+  });
+
+  return { items: itemsWithTrades, dbFailed: false };
 }
 
 /**
@@ -191,6 +223,7 @@ async function launchStats(items: Listed[]) {
   }
   const graduated = items.filter((i) => i.graduated === true).length;
   const pooledWei = items.reduce((sum, i) => (i.pooledWei ? sum + i.pooledWei : sum), 0n);
+  const volume24hWei = items.reduce((sum, i) => (i.volume24hWei ? sum + i.volume24hWei : sum), 0n);
 
   const top = items.reduce<Listed | null>(
     (best, i) => (i.pooledWei && (!best?.pooledWei || i.pooledWei > best.pooledWei) ? i : best),
@@ -217,7 +250,7 @@ async function launchStats(items: Listed[]) {
     if (idx !== undefined) days[idx].count += 1;
   }
 
-  return { totalLaunches, graduated, pooledWei, top, days };
+  return { totalLaunches, graduated, pooledWei, volume24hWei, top, days };
 }
 
 export default async function ExplorePage({
@@ -232,9 +265,10 @@ export default async function ExplorePage({
   const stats = await launchStats(items);
 
   /*
-   * Ranking. "Market cap" is supply x live curve reserves — a real ranking of
-   * real numbers, not a JSON price. Tokens whose curve could not be read keep
-   * launch-date order and follow the ranked ones, never lost between chips.
+   * Ranking. "Market cap" is supply x live curve reserves; "Trending" is 24h
+   * quote volume from confirmed trade events, with tokens that have not
+   * traded following the ranked ones in launch-date order. Every ordering is
+   * of real numbers, never a JSON price.
    */
   const byDate = (a: Listed, b: Listed) =>
     b.created_at.localeCompare(a.created_at);
@@ -243,6 +277,16 @@ export default async function ExplorePage({
     const bKnown = b.curve !== null;
     if (sort === "newest") return byDate(a, b);
     if (sort === "oldest") return byDate(b, a);
+    if (sort === "trending") {
+      const aVol = a.volume24hWei ?? 0n;
+      const bVol = b.volume24hWei ?? 0n;
+      if (aVol === 0n && bVol === 0n) return byDate(a, b);
+      if (bVol !== aVol) return bVol > aVol ? 1 : -1;
+      const aTrades = a.tradeCount24h ?? 0;
+      const bTrades = b.tradeCount24h ?? 0;
+      if (bTrades !== aTrades) return bTrades - aTrades;
+      return byDate(a, b);
+    }
     if (aKnown !== bKnown) return aKnown ? -1 : 1;
     if (!aKnown || !bKnown) return byDate(a, b);
     if (b.mcNum !== a.mcNum) return b.mcNum - a.mcNum;
@@ -270,10 +314,8 @@ export default async function ExplorePage({
       </header>
 
       {/*
-       * Launch analytics. "Top token" is by pooled ETH right now — the one
-       * number that is provably on-chain. A 24h volume leader needs a
-       * trade-event indexer, which does not exist yet; when it does, this is
-       * the slot it fills.
+       * Launch analytics. Every number is computed from real sources: the
+       * catalog table, live curve reads, and the indexer's confirmed trades.
        */}
       <section className="card p-5 max-md:rotate-[0.4deg] md:rotate-[-0.5deg]">
         <div className="mb-4 flex items-center justify-between gap-2">
@@ -308,6 +350,12 @@ export default async function ExplorePage({
               )}
             </dd>
           </div>
+          <div className="col-span-2 rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
+            <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">24h volume, all tokens</dt>
+            <dd className="mt-1 text-[30px] font-extrabold leading-none tracking-[-.03em]">
+              {stats.volume24hWei > 0n ? `${formatEth(stats.volume24hWei)} ETH` : "Quiet today"}
+            </dd>
+          </div>
         </dl>
 
         <div className="mt-4 rounded-2xl border-2 border-beg-ink bg-beg-bg p-3.5">
@@ -338,9 +386,7 @@ export default async function ExplorePage({
         </div>
       </section>
 
-      {/* Sort row: real sortings, not decorative ones. "24h/7d" and volume
-          windows arrive with the trade indexer; showing disabled chips that
-          filter nothing would be a lie on a page about numbers. */}
+      {/* Sort row: every chip is a real ordering of real numbers. */}
       <nav aria-label="Sort tokens" className="flex flex-wrap items-center gap-2">
         <Link
           href="/explore"
@@ -348,6 +394,13 @@ export default async function ExplorePage({
           className={`${chip(sort === "mc")} rotate-[-0.5deg]`}
         >
           Market cap
+        </Link>
+        <Link
+          href="/explore?sort=trending"
+          aria-current={sort === "trending" ? "page" : undefined}
+          className={`${chip(sort === "trending")} rotate-[0.5deg]`}
+        >
+          Trending
         </Link>
         <Link
           href="/explore?sort=newest"
@@ -426,6 +479,23 @@ export default async function ExplorePage({
                         <span>{item.graduated === false ? "On the curve" : "Graduated"}</span>
                         <span>{item.curve.pooled} ETH pooled</span>
                       </p>
+                      {item.volume24hWei !== null && item.volume24hWei > 0n ? (
+                        <p className="mt-1 flex items-center justify-between gap-2 text-[12px]">
+                          <span className="font-bold text-beg-ink">{item.volume24hEth} ETH volume</span>
+                          {item.priceChange24h !== null ? (
+                            <span
+                              className={`rounded-md px-1 py-0.5 font-bold ${
+                                item.priceChange24h >= 0
+                                  ? "bg-beg-lime text-beg-ink"
+                                  : "bg-beg-yellow text-beg-ink"
+                              }`}
+                            >
+                              {item.priceChange24h >= 0 ? "+" : ""}
+                              {item.priceChange24h.toFixed(1)}%
+                            </span>
+                          ) : null}
+                        </p>
+                      ) : null}
                     </>
                   ) : (
                     <p className="mt-1.5 text-[12px] text-beg-dim">
@@ -440,11 +510,16 @@ export default async function ExplorePage({
         </ul>
       )}
 
-      {/* Trading volume and 24h rankings are to come: BegFi does not index
-          trade events yet, and this page shows real numbers or nothing. */}
+      {/*
+        What the window does and does not know. Volumes and price change come
+        from the indexer's confirmed CurveBuy and CurveSell events; they move
+        when it runs, not in real time, and a quiet token shows nothing rather
+        than a fabricated zero.
+      */}
       <p className="notice">
-        Volume stats and 24h rankings arrive with the trade indexer. Every number here now is
-        read live from Robinhood Chain.
+        24h volume and price change count confirmed curve trades, recorded by the indexer and
+        refreshed when it runs, not live second by second. Tokens with no trades in the window
+        show nothing rather than a zero.
       </p>
 
       {/*

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RobinhoodFeather } from "@/components/robinhood-feather";
 
 /**
  * The site footer.
@@ -41,6 +42,7 @@ export function SiteFooter() {
         <div>
           <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
             beg<span className="text-beg-logo">fi</span>
+            <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
             Noncustodial $BEG payment links and token launches on Robinhood Chain.

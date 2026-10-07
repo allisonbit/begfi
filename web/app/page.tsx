@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HomeHero } from "@/components/home-hero";
+import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
@@ -161,6 +162,7 @@ export default function HomePage() {
       <footer className="flex flex-wrap justify-between gap-2.5 border-t-[3px] border-beg-ink py-7 pb-12 text-beg-dim">
         <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
           beg<span className="text-beg-logo">fi</span>
+          <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
         </span>
         <span className="text-sm">
           Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}

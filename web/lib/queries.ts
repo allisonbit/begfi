@@ -1,6 +1,7 @@
 import "server-only";
 
 import { USERNAME_PATTERN, isReserved } from "@/lib/config";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import type { ProfileStats, PublicProfile, Transfer } from "@/lib/types";
@@ -228,4 +229,104 @@ export async function getRecentTransfers(walletAddress: string, limit = 50): Pro
     .limit(limit);
 
   return (data as Transfer[] | null) ?? [];
+}
+
+/**
+ * Per-token trade aggregates over the last 24 hours, from the indexer's
+ * `trades` table — confirmed curve trade events only, catalog tokens only.
+ *
+ * Returns three maps keyed by lowercase token address:
+ *
+ *  - volumeWei: sum of quote side (buys in, sells out) as raw wei strings, so
+ *    the caller sums exactly with bigint before any display rounding;
+ *  - trades: the number of confirmed trades;
+ *  - priceChange: percent change of the last trade price versus a trade at
+ *    the 24h boundary, as a plain number (15.2 means up 15.2%). Missing on
+ *    purpose where the window has fewer than two priced sides: a percentage
+ *    computed from one trade is noise wearing a percent sign.
+ *
+ * Prices are token price in ETH (quote amount per token amount, both exact
+ * integers), which for an AMM is the marginal price at the trade — the same
+ * number the curve itself would quote around that block. The last trade's
+ * price IS today's live price to within a block; the boundary trade's is the
+ * honest "yesterday". No oracle is consulted and no external price is
+ * imported, because there is nowhere on this chain that publishes one for a
+ * pre-graduation curve.
+ *
+ * Reads with the admin client like the explore page's other reads: the table
+ * has no public policies (a per-trade feed would publish the whole trader
+ * graph), and these are server-side aggregates, never client queries.
+ */
+export async function getTradeAggregates(tokenAddresses: string[]): Promise<{
+  volumeWei: Map<string, string>;
+  trades: Map<string, number>;
+  priceChange: Map<string, number>;
+}> {
+  const empty = {
+    volumeWei: new Map<string, string>(),
+    trades: new Map<string, number>(),
+    priceChange: new Map<string, number>(),
+  };
+
+  if (!SUPABASE_CONFIGURED || tokenAddresses.length === 0) return empty;
+
+  const admin = createAdminClient();
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await admin
+    .from("trades")
+    .select("token_address, is_buy, quote_amount, token_amount, block_time")
+    .in("token_address", tokenAddresses.map((t) => t.toLowerCase()))
+    .gte("block_time", since)
+    .order("block_time", { ascending: true })
+    .limit(20_000);
+
+  if (error || !data) return empty;
+
+  type Trade = {
+    token_address: string;
+    is_buy: boolean;
+    quote_amount: string;
+    token_amount: string;
+    block_time: string;
+  };
+  const rows = data as Trade[];
+
+  const volumeWei = new Map<string, string>();
+  const trades = new Map<string, number>();
+  const priceChange = new Map<string, number>();
+
+  const perToken = new Map<string, Trade[]>();
+  for (const row of rows) {
+    const key = row.token_address.toLowerCase();
+    const list = perToken.get(key);
+    if (list) list.push(row);
+    else perToken.set(key, [row]);
+  }
+
+  for (const [token, list] of perToken) {
+    let sum = 0n;
+    for (const row of list) sum += BigInt(row.quote_amount);
+    volumeWei.set(token, sum.toString());
+    trades.set(token, list.length);
+
+    /*
+     * Price change across the window, from real trade prices: quote wei per
+     * token wei on each trade, first versus last in the 24h window. Trades
+     * with a zero token side (which a real curve does not emit but which
+     * would divide by zero) are excluded rather than crash the page. Fewer
+     * than two priced trades means no percentage: one trade is a point, not
+     * a change, and a percent sign on a single point is noise.
+     */
+    const priced = list
+      .filter((row) => row.token_amount !== "0" && row.quote_amount !== "0")
+      .map((row) => Number(BigInt(row.quote_amount)) / Number(BigInt(row.token_amount)));
+    if (priced.length >= 2) {
+      const first = priced[0];
+      const last = priced[priced.length - 1];
+      priceChange.set(token, (last / first - 1) * 100);
+    }
+  }
+
+  return { volumeWei, trades, priceChange };
 }

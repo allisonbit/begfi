@@ -42,6 +42,17 @@ export const ponsCurveAbi = parseAbi([
   "function isNativeQuote() view returns (bool)",
 
   "event CurveBuy(address indexed buyer, address indexed recipient, uint256 quoteIn, uint256 tokensOut, uint256 fee, uint256 tax)",
+
+  /**
+   * The sell-side mirror of CurveBuy. Fingerprinted from live logs rather than
+   * a verified source: the curve contracts are unverified on the explorer, but
+   * this signature's topic0 was observed on a deployed curve with exactly the
+   * buy event's shape (3 indexed topics, 128 data bytes = four uints), so the
+   * parameter list mirrors CurveBuy. `quoteOut` is what the seller received
+   * from the curve, before their creator tax is taken — the number volume
+   * counts, the same way a buy counts its quoteIn.
+   */
+  "event CurveSell(address indexed seller, address indexed recipient, uint256 tokensIn, uint256 quoteOut, uint256 fee, uint256 tax)",
 ]);
 
 const BASIS_POINTS = 10_000n;

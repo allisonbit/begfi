@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HandCoins, LayoutGrid, Rocket, User } from "lucide-react";
 import { SignInButton } from "@/components/sign-in-button";
+import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { useAuth } from "@/lib/auth-context";
 
 /**
@@ -62,6 +63,7 @@ function Brand() {
         className="absolute -left-3 top-[3px] hidden size-[7px] rounded-full border border-beg-ink bg-beg-lime sm:block"
       />
       beg<span className="text-beg-logo">fi</span>
+      <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
       <span aria-hidden className="caret" />
     </Link>
   );
