@@ -12,7 +12,7 @@ import {
 import { decodeEventLog } from "viem";
 import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { ImageUpload } from "@/components/image-upload";
-import { BEG_CONFIGURED } from "@/lib/config";
+import { BEG_CONFIGURED, GENESIS_LAUNCHER_WALLET } from "@/lib/config";
 import { DEFAULT_CHAIN_ID, robinhoodChain, txUrl } from "@/lib/chains";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -203,14 +203,18 @@ export function LaunchForm() {
   }
 
   /*
-   * Genesis is reserved for BegFi's own launch, and that launch does not
-   * exist yet: no $BEG contract, no address (README, "blocked on things
-   * outside the code"). The factory would happily accept a 5%-to-self launch
-   * from any wallet — which is exactly the thing the label must not invite —
-   * so until $BEG is configured the button stays dead in this mode, with the
-   * notice above saying why.
+   * Genesis is reserved for BegFi's own launch, run by one wallet — the dev
+   * wallet, named in the deployment environment. Everyone else sees the mode
+   * locked: the factory would happily accept a 5%-to-self launch from any
+   * wallet, which is exactly the thing the label must not invite. The lock is
+   * lifted for the genesis wallet alone, and once $BEG is configured it stays
+   * shut for everyone (a second genesis would not be BegFi's launch).
    */
-  const genesisReserved = mode === "genesis" && !BEG_CONFIGURED;
+  const isGenesisWallet =
+    GENESIS_LAUNCHER_WALLET !== null &&
+    address !== undefined &&
+    address.toLowerCase() === GENESIS_LAUNCHER_WALLET;
+  const genesisReserved = mode === "genesis" && (BEG_CONFIGURED || !isGenesisWallet);
 
   function validate(): string | null {
     if (!name.trim()) return "Give the token a name.";
@@ -377,11 +381,18 @@ export function LaunchForm() {
       </div>
 
       {mode === "genesis" ? (
-        <p className="notice p-4">
-          $BEG has not launched, so there is no genesis launch to join. And when it happens, the
-          5% goes to BegFi&apos;s dev wallet, not to whoever has this form open. Standard is the
-          mode open to any wallet.
-        </p>
+        isGenesisWallet ? (
+          <p className="notice p-4">
+            Genesis mode, for the dev wallet. The 5% creator tax goes to this wallet, and this
+            launch becomes $BEG site wide once its address is set.
+          </p>
+        ) : (
+          <p className="notice p-4">
+            $BEG has not launched, so there is no genesis launch to join. And when it happens, the
+            5% goes to BegFi&apos;s dev wallet, not to whoever has this form open. Standard is the
+            mode open to any wallet.
+          </p>
+        )
       ) : null}
 
       <label className="grid gap-1.5">

@@ -25,6 +25,23 @@ export const BEG_TOKEN_ADDRESS = addr(process.env.NEXT_PUBLIC_BEG_TOKEN_ADDRESS)
 export const BEG_CONFIGURED = BEG_TOKEN_ADDRESS !== null;
 
 /**
+ * The one wallet allowed to run BegFi's own genesis launch — the dev wallet for
+ * $BEG (spec §9.2: 5% creator tax, all of it to the dev wallet).
+ *
+ * GENESIS OTHERWISE DEADLOCKS. The form used to lock genesis mode for everyone
+ * "until $BEG exists", but $BEG comes into existence THROUGH a genesis launch:
+ * the reservation, read absolutely, forbade the one launch it was reserving
+ * space for. Naming the wallet in advance is the way out that keeps the
+ * reservation honest — every other wallet still sees genesis locked, and this
+ * address stops being special the moment $BEG exists, because a configured
+ * token address locks genesis for everyone including the dev.
+ *
+ * The address is lowercase and compared lowercase. Set from the deployment
+ * environment, like every other address in this file.
+ */
+export const GENESIS_LAUNCHER_WALLET = process.env.NEXT_PUBLIC_GENESIS_LAUNCHER_WALLET?.trim().toLowerCase() || null;
+
+/**
  * Public origin, used to build shareable links and Open Graph URLs.
  *
  * Blank is treated as unset (`||`, not `??`), because `.env` files routinely
