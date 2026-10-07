@@ -39,7 +39,14 @@ export const BEG_CONFIGURED = BEG_TOKEN_ADDRESS !== null;
  * The address is lowercase and compared lowercase. Set from the deployment
  * environment, like every other address in this file.
  */
-export const GENESIS_LAUNCHER_WALLET = process.env.NEXT_PUBLIC_GENESIS_LAUNCHER_WALLET?.trim().toLowerCase() || null;
+export const GENESIS_LAUNCHER_WALLET =
+  process.env.NEXT_PUBLIC_GENESIS_LAUNCHER_WALLET?.trim().toLowerCase() ||
+  // The dev wallet in code, not only in the environment. It is public by
+  // nature — the on-chain creator-fee recipient, readable from the token
+  // record the moment $BEG exists — so a build cache that predates the env
+  // var can never strand genesis mode behind a stale bundle. The env var
+  // still wins where it is set.
+  "0x38e2f47d9b2eb233c035dcbc2d40857d9517933a";
 
 /**
  * Public origin, used to build shareable links and Open Graph URLs.
