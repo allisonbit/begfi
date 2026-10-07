@@ -39,7 +39,7 @@ function DockTab({ href, label, Icon }: { href: string; label: string; Icon: typ
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={`flex min-w-[64px] flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-bold transition-colors ${
-        isActive ? "text-beg-lime" : "text-beg-dim hover:text-beg-ink"
+        isActive ? "bg-beg-lime text-beg-ink shadow-glow" : "text-beg-dim hover:text-beg-ink"
       }`}
     >
       <Icon size={21} strokeWidth={isActive ? 2.4 : 2} aria-hidden className={isActive ? "animate-hop" : ""} />
@@ -61,7 +61,7 @@ function Brand() {
         aria-hidden
         className="absolute -left-3 top-[3px] hidden size-[7px] rounded-full border border-beg-ink bg-beg-lime sm:block"
       />
-      beg<span className="text-beg-blue">fi</span>
+      beg<span className="text-beg-logo">fi</span>
       <span aria-hidden className="caret" />
     </Link>
   );

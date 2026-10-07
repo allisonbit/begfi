@@ -65,7 +65,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
   if (isSuccess) {
     return (
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-[13px]">
-        <p className="font-bold text-beg-lime">Claimed</p>
+        <p className="rounded-md bg-beg-lime px-1.5 py-0.5 font-bold text-beg-ink">Claimed</p>
         <p className="mt-1 text-beg-dim">The ETH is in your wallet.</p>
         {hash ? (
           <a
@@ -85,7 +85,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
     <section className="card grid gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="text-[13px] text-beg-dim">Creator fees available</span>
-        <span className="text-[28px] font-extrabold tracking-[-.04em] text-beg-lime">
+        <span className="text-[28px] font-extrabold tracking-[-.04em] text-beg-ink">
           {trim(formatEther(amount))} ETH
         </span>
       </div>
@@ -95,7 +95,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
           <button
             type="button"
             onClick={() => void switchChainAsync({ chainId: DEFAULT_CHAIN_ID })}
-            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-bg"
+            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-ink"
           >
             Switch to {robinhoodChain.name}
           </button>
@@ -104,7 +104,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
             type="button"
             onClick={() => void claim()}
             disabled={isPending || confirming}
-            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-bg disabled:opacity-40"
+            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-ink disabled:opacity-40"
           >
             {isPending ? "Confirm in your wallet…" : confirming ? "Claiming…" : "Claim fees"}
           </button>
@@ -112,7 +112,7 @@ export function ClaimFees({ wallet }: { wallet: string }) {
           <button
             type="button"
             onClick={() => void connectAsync({ connector: injected() })}
-            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-bg"
+            className="rounded-full bg-beg-lime p-3.5 font-bold text-beg-ink"
           >
             Connect to claim
           </button>

@@ -16,7 +16,12 @@
   --color-beg-line: #161616; /* borders are ink */
   --color-beg-ink: #161616; /* text */
   --color-beg-dim: #59626f; /* secondary text, legible on cream */
-  --color-beg-lime: #00a651; /* THE accent: Robinhood green */
+  /* THE accent: Robin Neon #ccff00, the official Robinhood Chain brand
+     colour. Per the chain's brand guidelines it is always paired with black:
+     fills and highlights carry ink text, and it is never used as small text
+     on cream, where it would wash out. */
+  --color-beg-lime: #ccff00; /* Robinhood Chain green (Robin Neon) */
+  --color-beg-logo: #00a651; /* Robinhood logo green, for the brandmark */
   --color-beg-blue: #3b6bff; /* sticker secondary */
   --color-beg-yellow: #ffd21f; /* sticker secondary */
 

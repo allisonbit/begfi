@@ -300,7 +300,7 @@ export default async function ExplorePage({
             <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">Top token</dt>
             <dd className="mt-1 truncate text-[30px] font-extrabold leading-none tracking-[-.03em]">
               {stats.top ? (
-                <Link href={`/token/${stats.top.token_address}`} className="text-beg-lime hover:underline">
+                <Link href={`/token/${stats.top.token_address}`} className="bg-beg-lime px-1 text-beg-ink hover:underline">
                   ${stats.top.ticker}
                 </Link>
               ) : (
@@ -400,7 +400,7 @@ export default async function ExplorePage({
                     </span>
                   </div>
                   <p className="mt-1 text-[13px] text-beg-dim">
-                    ${item.ticker} · by {shortAddress(item.launcher_wallet)}
+                    by {shortAddress(item.launcher_wallet)}, ${item.ticker}
                   </p>
                   {item.curve ? (
                     <>

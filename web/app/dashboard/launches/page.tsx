@@ -123,7 +123,7 @@ export default async function LaunchesPage() {
                   {shortAddress(l.token)}
                 </Link>
                 <span className="text-beg-dim">{l.creatorTaxBps / 100}% tax</span>
-                <span className={l.graduated ? "text-beg-lime" : "text-beg-dim"}>
+                <span className={l.graduated ? "rounded-md bg-beg-lime px-1.5 py-0.5 font-bold text-beg-ink" : "text-beg-dim"}>
                   {l.graduated ? "Graduated" : "On the curve"}
                 </span>
               </li>

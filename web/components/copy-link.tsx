@@ -31,7 +31,7 @@ export function CopyLink({ url }: { url: string }) {
   return (
     <section className="grid gap-3">
       <div className="grid max-sm:grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-3xl border-[1.5px] border-beg-line bg-beg-card p-2 pl-[18px] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
-        <span className="flex min-w-0 items-center sm:flex-1 truncate font-bold text-beg-lime max-sm:py-2">{absolute}</span>
+        <span className="flex min-w-0 items-center sm:flex-1 truncate font-bold text-beg-ink max-sm:py-2">{absolute}</span>
         <button
           type="button"
           onClick={copy}

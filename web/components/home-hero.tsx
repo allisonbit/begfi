@@ -88,13 +88,13 @@ export function HomeHero() {
       case "checking":
         return <span className="text-beg-dim">Checking…</span>;
       case "free":
-        return <span className="text-beg-lime">/{clean} is free</span>;
+        return <span className="rounded-md bg-beg-lime px-1.5 py-0.5 font-bold text-beg-ink">/{clean} is free</span>;
       case "taken":
         return <span className="text-beg-dim">/{clean} is taken</span>;
       case "reserved":
         return <span className="text-beg-dim">/{clean} is reserved</span>;
       case "invalid":
-        return <span className="text-beg-dim">3 to 20 characters: a-z, 0-9, _</span>;
+        return <span className="text-beg-dim">3 to 20 characters: a z, 0 to 9, _</span>;
       case "unknown":
         return <span className="text-beg-dim">Couldn&apos;t check right now</span>;
       default:
@@ -178,7 +178,7 @@ export function HomeHero() {
 
           <div className="flex max-w-[420px] items-center gap-2 rounded-full border-[3px] border-beg-ink bg-beg-card py-1.5 pl-[18px] pr-1.5 shadow-glow">
             <span className="whitespace-nowrap text-beg-dim">{LINK_ORIGIN.replace(/^https?:\/\//, "")}/</span>
-            <span className="flex-1 truncate py-2.5 font-bold text-beg-lime">{profile.username}</span>
+            <span className="flex-1 truncate py-2.5 font-bold text-beg-ink">{profile.username}</span>
             <button
               type="button"
               onClick={copy}
@@ -216,7 +216,7 @@ export function HomeHero() {
           <span aria-hidden className="caret" />
         </h1>
         <p className="mb-1.5 mt-4 max-w-[34ch] text-xl text-beg-dim">
-          The e-begging protocol, straight from the tl. No roadmap to riches,
+          The begging protocol, straight from the tl. No roadmap to riches,
           just the audacity to ask whoever. Anything helps 🙏
         </p>
 
@@ -232,7 +232,7 @@ export function HomeHero() {
               autoCapitalize="off"
               spellCheck={false}
               aria-label="Pick a username"
-              className="min-w-0 flex-1 bg-transparent font-bold text-beg-lime outline-none placeholder:text-beg-dim"
+              className="min-w-0 flex-1 bg-transparent font-bold text-beg-ink outline-none placeholder:text-beg-dim"
             />
             {clean ? null : <span aria-hidden className="caret opacity-70" />}
           </span>

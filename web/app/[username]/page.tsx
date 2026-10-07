@@ -75,7 +75,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
               className="mx-auto mb-3 size-[96px] rounded-full border-[1.5px] border-beg-line object-cover"
             />
           ) : (
-            <div className="mx-auto mb-3 grid size-[96px] place-items-center rounded-full bg-beg-lime text-[40px] font-extrabold text-beg-bg">
+            <div className="mx-auto mb-3 grid size-[96px] place-items-center rounded-full bg-beg-lime text-[40px] font-extrabold text-beg-ink">
               {initial}
             </div>
           )}
@@ -114,7 +114,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
         </header>
 
         <div className="card p-6">
-          <div className="text-glow mb-1 text-center text-[40px] font-extrabold tracking-[-.04em] text-beg-lime">
+          <div className="text-glow mb-1 text-center text-[40px] font-extrabold tracking-[-.04em] text-beg-ink">
             {formatAmount(BigInt(stats.total_received))}
           </div>
           <div className="mb-5 text-center text-[13px] text-beg-dim">
@@ -131,7 +131,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
 
       <footer className="flex flex-wrap justify-between gap-2.5 border-t border-beg-line py-7 pb-12 text-beg-dim">
         <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
-          beg<span className="text-beg-lime">fi</span>
+          beg<span className="text-beg-logo">fi</span>
         </span>
         <span className="text-sm">Anyone can claim a BegFi link. A username is not proof of identity.</span>
       </footer>

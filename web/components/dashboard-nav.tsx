@@ -41,7 +41,7 @@ export function DashboardNav() {
                 aria-current={active ? "page" : undefined}
                 className={`inline-block whitespace-nowrap rounded-full border-[1.5px] px-4 py-2.5 text-[14px] font-bold transition-colors ${
                   active
-                    ? "border-beg-lime bg-beg-lime text-beg-bg shadow-glow"
+                    ? "border-beg-lime bg-beg-lime text-beg-ink shadow-glow"
                     : "border-beg-line text-beg-dim hover:border-beg-lime hover:text-beg-ink"
                 }`}
               >

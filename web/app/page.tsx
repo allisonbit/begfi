@@ -4,9 +4,9 @@ import { HomeHero } from "@/components/home-hero";
 import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
-  title: "BegFi — beg boldly, anything helps",
+  title: "BegFi: beg boldly, anything helps",
   description:
-    "The e-begging protocol, born on Crypto Twitter. BegFi turns the timeline's favorite hustle into an onchain ask: your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
+    "The begging protocol, born on Crypto Twitter. BegFi turns the timeline's favorite hustle into an onchain ask. Your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
 };
 
 /**
@@ -39,7 +39,7 @@ function LaunchSection() {
       <div className="grid gap-3.5 md:grid-cols-2">
         <div className="card p-6 max-md:first:rotate-[-1deg] md:first:-rotate-1">
           <div className="mb-4 flex items-center gap-3">
-            <div className="grid size-[46px] place-items-center rounded-xl border-2 border-beg-ink bg-beg-lime font-extrabold text-white shadow-glow">
+            <div className="grid size-[46px] place-items-center rounded-xl border-2 border-beg-ink bg-beg-lime font-extrabold text-beg-ink shadow-glow">
               B
             </div>
             <div>
@@ -81,9 +81,9 @@ function LaunchSection() {
         keep, and the honest version of "not yet" is a sentence, not a dead input.
       */}
       <p className="notice mt-3.5">
-        The launch form is at{" "}
+        The launch form is on the{" "}
         <Link href="/launch" className="text-beg-ink underline underline-offset-2">
-          /launch
+          Launch page
         </Link>
         .
       </p>
@@ -108,7 +108,7 @@ function ManifestoSection() {
       </h2>
       <p className="mb-6 max-w-[60ch] text-[13px] text-beg-dim">
         Started as a joke on the timeline. Became the whole game. BegFi is that
-        ask, onchain — at your own link.
+        ask, onchain, at your own link.
       </p>
 
       <div className="grid gap-3.5 md:grid-cols-3">
@@ -124,7 +124,7 @@ function ManifestoSection() {
         </div>
 
         <div className="card p-6 max-md:first:rotate-[0.5deg] md:first:-rotate-1">
-          <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-blue px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] text-white">
+          <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-blue px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] text-beg-ink">
             Beg to earn
           </div>
           <p className="text-[14px] leading-relaxed">
@@ -140,7 +140,7 @@ function ManifestoSection() {
           </div>
           <p className="text-[14px] leading-relaxed">
             No roadmap to riches. Any VCs want to fund my decentralized
-            e-begging protocol? No? Then spare some Robinhood ETH 🙏 Anything
+            begging protocol? No? Then spare some Robinhood ETH 🙏 Anything
             helps.
           </p>
         </div>
@@ -160,7 +160,7 @@ export default function HomePage() {
 
       <footer className="flex flex-wrap justify-between gap-2.5 border-t-[3px] border-beg-ink py-7 pb-12 text-beg-dim">
         <span className="text-2xl font-extrabold tracking-[-0.04em] text-beg-ink">
-          beg<span className="text-beg-blue">fi</span>
+          beg<span className="text-beg-logo">fi</span>
         </span>
         <span className="text-sm">
           Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}

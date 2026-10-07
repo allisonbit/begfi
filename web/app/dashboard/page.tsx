@@ -84,7 +84,7 @@ export default async function DashboardPage() {
                 className="card-sm flex items-center justify-between text-[13px]"
               >
                 <span className="font-mono text-beg-dim">{shortAddress(t.from_address)}</span>
-                <span className="font-bold text-beg-lime">{formatAmount(BigInt(t.amount))} $BEG</span>
+                <span className="font-bold text-beg-ink">{formatAmount(BigInt(t.amount))} $BEG</span>
               </li>
             ))}
           </ul>
@@ -99,7 +99,7 @@ function Stat({ label, value, glow = false }: { label: string; value: string; gl
     <div className="card">
       <div className="text-[13px] text-beg-dim">{label}</div>
       <div
-        className={`mt-1 text-[36px] font-extrabold tracking-[-.04em] text-beg-lime ${glow ? "text-glow" : ""}`}
+        className={`mt-1 text-[36px] font-extrabold tracking-[-.04em] text-beg-ink ${glow ? "text-glow" : ""}`}
       >
         {value}
       </div>

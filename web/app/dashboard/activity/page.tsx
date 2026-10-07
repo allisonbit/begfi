@@ -44,7 +44,7 @@ export default async function ActivityPage() {
             >
               <span className="font-mono text-beg-dim">{shortAddress(t.from_address)}</span>
               <span className="text-beg-dim">{new Date(t.block_time).toLocaleString("en-GB")}</span>
-              <span className="font-bold text-beg-lime">{formatAmount(BigInt(t.amount))} $BEG</span>
+              <span className="font-bold text-beg-ink">{formatAmount(BigInt(t.amount))} $BEG</span>
               <a
                 href={txUrl(t.tx_hash)}
                 target="_blank"

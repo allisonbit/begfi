@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   const username = parsed.data.username.trim().toLowerCase();
 
   if (!USERNAME_PATTERN.test(username)) {
-    return NextResponse.json({ error: "Usernames are 3 to 20 characters of a-z, 0-9 and _." }, { status: 400 });
+    return NextResponse.json({ error: "Usernames are 3 to 20 characters of a z, 0 to 9 and _." }, { status: 400 });
   }
   if (isReserved(username)) {
     return NextResponse.json({ error: "That name is reserved." }, { status: 409 });
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "That name is reserved." }, { status: 409 });
     }
     if (/invalid_username/.test(error.message)) {
-      return NextResponse.json({ error: "Usernames are 3 to 20 characters of a-z, 0-9 and _." }, { status: 400 });
+      return NextResponse.json({ error: "Usernames are 3 to 20 characters of a z, 0 to 9 and _." }, { status: 400 });
     }
     if (/duplicate key|unique/i.test(error.message)) {
       return NextResponse.json({ error: "That username was just taken." }, { status: 409 });

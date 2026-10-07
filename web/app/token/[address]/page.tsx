@@ -171,7 +171,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
               className="size-16 rounded-2xl border-[1.5px] border-beg-line object-cover"
             />
           ) : (
-            <div className="grid size-16 place-items-center rounded-2xl bg-beg-lime text-2xl font-extrabold text-beg-bg">
+            <div className="grid size-16 place-items-center rounded-2xl bg-beg-lime text-2xl font-extrabold text-beg-ink">
               {name[0]?.toUpperCase() ?? "?"}
             </div>
           )}
@@ -182,7 +182,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
           <p className="font-mono text-[13px] text-beg-dim" title={record.token}>
             {shortAddress(record.token)}
           </p>
-          <p className="text-[12px] text-beg-lime">Launched on BegFi</p>
+          <p className="rounded-md bg-beg-lime px-1.5 py-0.5 text-[12px] font-bold text-beg-ink">Launched on BegFi</p>
         </header>
 
         <div className="card p-6">

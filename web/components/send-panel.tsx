@@ -131,7 +131,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
   if (isSuccess && hash) {
     return (
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-center">
-        <p className="text-lg font-extrabold text-beg-lime">Sent</p>
+        <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-lg font-extrabold text-beg-ink">Sent</p>
         <p className="mt-1.5 text-[13px] text-beg-dim">
           {parsed ? `${formatAmount(parsed)} $BEG` : "$BEG"} to @{username}. Confirmed on-chain.
         </p>
@@ -194,7 +194,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
               setAmount(value.toString());
             }}
             className={`flex-1 rounded-2xl border-[1.5px] py-3 text-[15px] font-bold ${
-              preset === value ? "border-beg-lime text-beg-lime" : "border-beg-line text-beg-ink"
+              preset === value ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-ink"
             }`}
           >
             {value >= 1_000n ? `${value / 1_000n}K` : value.toString()}
@@ -212,7 +212,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
           }}
           inputMode="decimal"
           placeholder="0"
-          className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 font-bold text-beg-lime outline-none focus:border-beg-lime"
+          className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 font-bold text-beg-ink outline-none focus:border-beg-lime"
         />
       </label>
 
@@ -245,7 +245,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
           <p className="text-beg-ink">
             Sends on a blockchain cannot be reversed. Check the username and the address above.
           </p>
-          <button type="button" onClick={acknowledge} className="mt-2 font-bold text-beg-lime underline">
+          <button type="button" onClick={acknowledge} className="mt-2 font-bold text-beg-ink underline decoration-beg-lime decoration-2">
             I understand
           </button>
         </div>

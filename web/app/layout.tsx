@@ -21,14 +21,14 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "BegFi", template: "%s | BegFi" },
   description:
-    "Your link. Their $BEG. Straight to your wallet. Non-custodial payment links and token launches on Robinhood Chain.",
+    "Your link. Their $BEG. Straight to your wallet. Noncustodial payment links and token launches on Robinhood Chain.",
   applicationName: "BegFi",
   openGraph: { type: "website", siteName: "BegFi" },
   twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07080A",
+  themeColor: "#fff3d6",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

@@ -286,7 +286,7 @@ export function LaunchForm() {
   if (isSuccess && hash) {
     return (
       <div className="rounded-3xl border-[1.5px] border-beg-lime p-6">
-        <p className="text-xl font-extrabold text-beg-lime">Launched</p>
+        <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-xl font-extrabold text-beg-ink">Launched</p>
         {launched ? (
           <>
             <p className="mt-2 text-[13px] text-beg-dim">The token is live at</p>
@@ -366,7 +366,7 @@ export function LaunchForm() {
               onClick={() => setMode(value)}
               aria-pressed={mode === value}
               className={`flex-1 rounded-2xl border-[1.5px] p-3 text-left text-[13px] ${
-                mode === value ? "border-beg-lime text-beg-lime" : "border-beg-line text-beg-ink"
+                mode === value ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-ink"
               }`}
             >
               <b className="block">{label}</b>

@@ -4,7 +4,7 @@ import { LaunchForm } from "@/components/launch-form";
 
 export const metadata: Metadata = {
   title: "Launch a token",
-  description: "Launch a fixed-supply token on Robinhood Chain, paid for and owned by your own wallet.",
+  description: "Launch a token with fixed supply on Robinhood Chain, paid for and owned by your own wallet.",
 };
 
 /**
@@ -69,21 +69,21 @@ export default function LaunchPage() {
         </h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">1. Describe it</span>
+            <span className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-[13px] font-bold text-beg-ink">1. Describe it</span>
             <p className="text-[13px] text-beg-dim">
               Name, ticker, logo, optional socials, and a 3% creator tax that goes to your wallet
               on every trade, for the life of the token.
             </p>
           </div>
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">2. Sign and pay the fee</span>
+            <span className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-[13px] font-bold text-beg-ink">2. Sign and pay the fee</span>
             <p className="text-[13px] text-beg-dim">
               One transaction from your wallet: the 0.0005 ETH launch fee plus gas. BegFi never
               touches it. The token is created with a fixed supply of 1,000,000,000.
             </p>
           </div>
           <div className="card grid gap-2">
-            <span className="text-[13px] font-bold text-beg-lime">3. It trades on the curve</span>
+            <span className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-[13px] font-bold text-beg-ink">3. It trades on the curve</span>
             <p className="text-[13px] text-beg-dim">
               Priced against robinhood ETH immediately. Traders pay the 1% curve fee plus your 3%,
               which accrues to you in Pons&apos; escrow. Claim it any time from{" "}

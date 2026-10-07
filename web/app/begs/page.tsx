@@ -153,7 +153,7 @@ export default async function BegsPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={beg.avatar_url} alt="" className="size-10 rounded-full object-cover" />
                     ) : (
-                      <div className="grid size-10 place-items-center rounded-full bg-beg-lime text-lg font-extrabold text-beg-bg">
+                      <div className="grid size-10 place-items-center rounded-full bg-beg-lime text-lg font-extrabold text-beg-ink">
                         {initial}
                       </div>
                     )}
@@ -196,7 +196,7 @@ export default async function BegsPage() {
                     beg.progressKnown ? (
                       <div className="grid gap-2">
                         <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                          <span className="font-bold text-beg-lime">{formatAmount(raised)} $BEG</span>
+                          <span className="font-bold text-beg-ink">{formatAmount(raised)} $BEG</span>
                           <span className="text-beg-dim">of {formatAmount(goal)} $BEG</span>
                         </div>
                         <div className="progress" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progress toward ${who}'s goal`}>

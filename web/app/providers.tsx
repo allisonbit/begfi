@@ -90,21 +90,21 @@ const config = createConfig({
  * The light base gets overridden piece by piece so the modal sits on the same
  * cream sheet as everything else: ink text on card stock, ink borders, and the
  * sticker shadow recipe — a hard ink offset with no blur, which is why the
- * overlay blur is off. The accent is the same Robinhood green as every button
- * fill on the site.
+ * overlay blur is off. The accent is Robin Neon, the official Robinhood Chain
+ * brand colour, always ink text on neon per the chain's own guidelines.
  */
 const WALLET_THEME: Theme = {
   ...lightTheme({
-    accentColor: "#00CC6D",
-    accentColorForeground: "#FFFFFF",
+    accentColor: "#ccff00",
+    accentColorForeground: "#161616",
     borderRadius: "large",
     fontStack: "system",
     overlayBlur: "none",
   }),
   colors: {
     ...lightTheme().colors,
-    accentColor: "#00CC6D",
-    accentColorForeground: "#FFFFFF",
+    accentColor: "#ccff00",
+    accentColorForeground: "#161616",
     modalBackdrop: "rgb(22 22 22 / 0.55)",
     modalBackground: "#fffcf2",
     modalBorder: "#161616",
@@ -119,8 +119,8 @@ const WALLET_THEME: Theme = {
     connectButtonBackground: "#fffcf2",
     connectButtonInnerBackground: "#fff3d6",
     connectButtonText: "#161616",
-    profileAction: "#00a651",
-    profileActionHover: "#009247",
+    profileAction: "#1b9e3f",
+    profileActionHover: "#178f37",
     profileForeground: "#fffcf2",
     closeButton: "#161616",
     closeButtonBackground: "#fff3d6",

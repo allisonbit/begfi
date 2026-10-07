@@ -119,7 +119,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={beg.profiles.avatar_url} alt="" className="size-12 rounded-full object-cover" />
         ) : (
-          <div className="grid size-12 place-items-center rounded-full bg-beg-lime text-xl font-extrabold text-beg-bg">
+          <div className="grid size-12 place-items-center rounded-full bg-beg-lime text-xl font-extrabold text-beg-ink">
             {who[0]?.toUpperCase() ?? "?"}
           </div>
         )}
@@ -144,7 +144,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
             <span className="text-[13px] text-beg-dim">Goal {formatAmount(goal)} $BEG</span>
           </div>
 
-          <div className="text-[28px] font-extrabold tracking-[-.04em] text-beg-lime">
+          <div className="text-[28px] font-extrabold tracking-[-.04em] text-beg-ink">
             {formatAmount(beg.raised)} $BEG
           </div>
 
@@ -191,7 +191,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
 
       <Link
         href={`/${beg.profiles.username}`}
-        className="rounded-full bg-beg-lime p-4 text-center text-[17px] font-bold text-beg-bg"
+        className="rounded-full bg-beg-lime p-4 text-center text-[17px] font-bold text-beg-ink"
       >
         Send {who.split(" ")[0]} some $BEG
       </Link>

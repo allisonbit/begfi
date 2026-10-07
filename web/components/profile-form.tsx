@@ -105,7 +105,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           placeholder={profile.username}
           className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 text-beg-ink outline-none focus:border-beg-lime"
         />
-        <span className="text-right text-[12px] text-beg-dim">{displayName.length}/40</span>
+        <span className="text-right text-[12px] text-beg-dim">{displayName.length} of 40</span>
       </label>
 
       <label className="grid gap-1.5">
@@ -118,7 +118,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           placeholder="Plain text only."
           className="resize-none rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 text-beg-ink outline-none focus:border-beg-lime"
         />
-        <span className="text-right text-[12px] text-beg-dim">{bio.length}/160</span>
+        <span className="text-right text-[12px] text-beg-dim">{bio.length} of 160</span>
       </label>
 
       <label className="grid gap-1.5">
@@ -132,7 +132,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
             placeholder="yourhandle"
             autoCapitalize="off"
             spellCheck={false}
-            className="min-w-0 flex-1 bg-transparent text-[16px] font-bold text-beg-lime outline-none placeholder:font-normal placeholder:text-beg-dim"
+            className="min-w-0 flex-1 bg-transparent text-[16px] font-bold text-beg-ink outline-none placeholder:font-normal placeholder:text-beg-dim"
           />
         </div>
         <span className="text-[12px] text-beg-dim">
@@ -154,7 +154,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
         type="button"
         onClick={() => void save()}
         disabled={status === "saving"}
-        className="rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg disabled:opacity-40"
+        className="rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-ink disabled:opacity-40"
       >
         {status === "saving" ? "Saving…" : status === "saved" ? "Saved" : "Save"}
       </button>

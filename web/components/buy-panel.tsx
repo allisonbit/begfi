@@ -136,7 +136,7 @@ export function BuyPanel({ token, curve, pairToken }: { token: string; curve: st
   if (isSuccess && hash) {
     return (
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-center">
-        <p className="text-lg font-extrabold text-beg-lime">Bought</p>
+        <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-lg font-extrabold text-beg-ink">Bought</p>
         <p className="mt-1.5 text-[13px] text-beg-dim">
           Confirmed on-chain. The tokens are in your wallet.
         </p>
@@ -197,14 +197,14 @@ export function BuyPanel({ token, curve, pairToken }: { token: string; curve: st
           value={amount}
           onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
           inputMode="decimal"
-          className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 font-bold text-beg-lime outline-none focus:border-beg-lime"
+          className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 font-bold text-beg-ink outline-none focus:border-beg-lime"
         />
       </label>
 
       <div className="rounded-2xl border-[1.5px] border-beg-line p-4 text-[13px]">
         <div className="flex justify-between">
           <span className="text-beg-dim">You receive</span>
-          <span className="font-bold text-beg-lime">
+          <span className="font-bold text-beg-ink">
             {quote === null ? "…" : `about ${formatTokens(quote)}`}
           </span>
         </div>
@@ -226,7 +226,7 @@ export function BuyPanel({ token, curve, pairToken }: { token: string; curve: st
             type="button"
             onClick={() => setSlippageBps(bps)}
             className={`rounded-full border-[1.5px] px-3 py-1.5 text-[13px] font-bold ${
-              slippageBps === bps ? "border-beg-lime text-beg-lime" : "border-beg-line text-beg-ink"
+              slippageBps === bps ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-ink"
             }`}
           >
             {Number(bps) / 100}%

@@ -80,7 +80,7 @@ export function BegComposer() {
     return (
       <div className="grid gap-5">
         <div className="rounded-3xl border-[1.5px] border-beg-lime p-5">
-          <p className="text-[13px] font-bold text-beg-lime">Your beg is live</p>
+          <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-[13px] font-bold text-beg-ink">Your beg is live</p>
           <p className="mt-2 text-[15px] text-beg-ink">{body}</p>
           {share.goal ? (
             <p className="mt-2 text-[13px] text-beg-dim">Asking for {share.goal} $BEG</p>
@@ -115,7 +115,7 @@ export function BegComposer() {
           placeholder="I'm begging for…"
           className="resize-none rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-4 text-[16px] text-beg-ink outline-none focus:border-beg-lime"
         />
-        <span className={`text-right text-[12px] ${body.length > MAX - 20 ? "text-beg-lime" : "text-beg-dim"}`}>
+        <span className={`text-right text-[12px] ${body.length > MAX - 20 ? "rounded-md bg-beg-lime px-1 font-bold text-beg-ink" : "text-beg-dim"}`}>
           {body.length}/{MAX}
         </span>
       </label>
@@ -128,12 +128,12 @@ export function BegComposer() {
             onChange={(e) => setGoal(e.target.value.replace(/[^0-9.,]/g, ""))}
             inputMode="decimal"
             placeholder="1000"
-            className="min-w-0 flex-1 bg-transparent text-[16px] font-bold text-beg-lime outline-none placeholder:font-normal placeholder:text-beg-dim"
+            className="min-w-0 flex-1 bg-transparent text-[16px] font-bold text-beg-ink outline-none placeholder:font-normal placeholder:text-beg-dim"
           />
           <span className="text-[13px] font-bold text-beg-dim">$BEG</span>
         </div>
         <span className="text-[12px] text-beg-dim">
-          Set a target and your page shows how far along you are. Leave it blank to beg open-endedly.
+          Set a target and your page shows how far along you are. Leave it blank to beg open endedly.
         </span>
       </label>
 
@@ -158,7 +158,7 @@ export function BegComposer() {
         type="button"
         onClick={() => void create()}
         disabled={busy || body.trim().length === 0}
-        className="rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-bg disabled:opacity-40"
+        className="rounded-full bg-beg-lime p-4 text-[17px] font-bold text-beg-ink disabled:opacity-40"
       >
         {busy ? "Making your link…" : "Make my beg link"}
       </button>
