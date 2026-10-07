@@ -38,9 +38,11 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || "http://loc
 
 /**
  * The link prefix shown to users and copied to the clipboard. Kept separate from
- * SITE_URL because the product domain (begfi.xyz) is not the deployment URL yet,
- * and copy that claims a domain the app is not served from would be a lie about
- * where the link goes. Blank falls back to SITE_URL.
+ * SITE_URL so the two can move independently — the product domain and the
+ * serving domain do not have to change on the same day. Both are set to
+ * https://begfi.io now that the domain is live; a deployment URL would show in
+ * copy that claims a domain the app is not served from, which would be a lie
+ * about where the link goes. Blank falls back to SITE_URL.
  */
 export const LINK_ORIGIN = process.env.NEXT_PUBLIC_LINK_ORIGIN?.trim() || SITE_URL;
 
