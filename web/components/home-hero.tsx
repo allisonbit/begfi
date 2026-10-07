@@ -216,8 +216,8 @@ export function HomeHero() {
           <span aria-hidden className="caret" />
         </h1>
         <p className="mb-1.5 mt-4 max-w-[34ch] text-xl text-beg-dim">
-          The e-begging protocol. No roadmap to riches, just the audacity to ask
-          whoever. Anything helps 🙏
+          The e-begging protocol, straight from the tl. No roadmap to riches,
+          just the audacity to ask whoever. Anything helps 🙏
         </p>
 
         <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[3px] border-beg-ink bg-beg-card p-2 pl-[18px] shadow-glow focus-within:border-beg-blue max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">

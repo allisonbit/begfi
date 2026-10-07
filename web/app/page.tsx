@@ -6,7 +6,7 @@ import { BEG_CONFIGURED } from "@/lib/config";
 export const metadata: Metadata = {
   title: "BegFi — beg boldly, anything helps",
   description:
-    "The e-begging protocol. BegFi is a non-custodial $BEG payment link on Robinhood Chain: your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
+    "The e-begging protocol, born on Crypto Twitter. BegFi turns the timeline's favorite hustle into an onchain ask: your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
 };
 
 /**
@@ -92,45 +92,56 @@ function LaunchSection() {
 }
 
 /**
- * The pitch, in the page's own words. These are claims about what BegFi *is*,
- * not numbers it cannot prove: no volume, no user count, no projection — the
- * honesty rules in the file header apply to jokes too.
+ * The pitch, in the timeline's own words.
+ *
+ * "BegFi" is already a word on Crypto Twitter: the meta of asking openly for
+ * airdrops and spare change, born under a mega airdrop, celebrated and shamed
+ * at once. The copy below speaks that language on purpose — CT lore, B2E, the
+ * street sign — while keeping the honesty rules: lore is attributed as lore,
+ * and no number is claimed that the protocol cannot prove.
  */
 function ManifestoSection() {
   return (
     <section className="animate-wobble py-6">
-      <h2 className="mb-6 text-[clamp(30px,6vw,44px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
-        Why beg onchain?
+      <h2 className="mb-2 text-[clamp(30px,6vw,44px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
+        The begfi meta.
       </h2>
+      <p className="mb-6 max-w-[60ch] text-[13px] text-beg-dim">
+        Started as a joke on the timeline. Became the whole game. BegFi is that
+        ask, onchain — at your own link.
+      </p>
 
       <div className="grid gap-3.5 md:grid-cols-3">
         <div className="card p-6 max-md:first:rotate-[-1deg] md:first:rotate-1">
           <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-lime px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em]">
-            BegFi for airdrops
+            How it started
           </div>
           <p className="text-[14px] leading-relaxed">
-            Fork a link, drop it under any airdrop thread, and sign. Whoever wants
-            to help, helps; straight to your wallet, no middleman taking a cut.
+            CT coined it by begging under a mega airdrop. Then one anon simply
+            asked, and got $250,000. The tl swore it was shameful, the tl kept
+            asking.
           </p>
         </div>
 
         <div className="card p-6 max-md:first:rotate-[0.5deg] md:first:-rotate-1">
           <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-blue px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] text-white">
-            The irl industry
+            Beg to earn
           </div>
           <p className="text-[14px] leading-relaxed">
-            IRL begging is a huge industry. Street signs say "will work for
-            anything". BegFi just brings it onchain, with receipts.
+            Crypto was always B2E: beg to earn. The street signs say "will work
+            for anything". BegFi is that sign, onchain, with receipts, and no
+            middleman taking a cut.
           </p>
         </div>
 
         <div className="card p-6 max-md:first:rotate-[-0.5deg] md:first:rotate-2">
           <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-yellow px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em]">
-            Dear VC friends
+            The ask
           </div>
           <p className="text-[14px] leading-relaxed">
-            Any VC want to fund my decentralized e-begging protocol? No? Then
-            spare some Robinhood ETH. 🙏 Anything helps.
+            No roadmap to riches. Any VCs want to fund my decentralized
+            e-begging protocol? No? Then spare some Robinhood ETH 🙏 Anything
+            helps.
           </p>
         </div>
       </div>
