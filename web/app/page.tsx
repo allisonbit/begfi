@@ -4,9 +4,9 @@ import { HomeHero } from "@/components/home-hero";
 import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
-  title: "BegFi",
+  title: "BegFi — beg boldly, anything helps",
   description:
-    "Your link. Their $BEG. Straight to your wallet. A non-custodial payment link on Robinhood Chain.",
+    "The e-begging protocol. BegFi is a non-custodial $BEG payment link on Robinhood Chain: your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
 };
 
 /**
@@ -91,11 +91,59 @@ function LaunchSection() {
   );
 }
 
+/**
+ * The pitch, in the page's own words. These are claims about what BegFi *is*,
+ * not numbers it cannot prove: no volume, no user count, no projection — the
+ * honesty rules in the file header apply to jokes too.
+ */
+function ManifestoSection() {
+  return (
+    <section className="animate-wobble py-6">
+      <h2 className="mb-6 text-[clamp(30px,6vw,44px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
+        Why beg onchain?
+      </h2>
+
+      <div className="grid gap-3.5 md:grid-cols-3">
+        <div className="card p-6 max-md:first:rotate-[-1deg] md:first:rotate-1">
+          <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-lime px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em]">
+            BegFi for airdrops
+          </div>
+          <p className="text-[14px] leading-relaxed">
+            Fork a link, drop it under any airdrop thread, and sign. Whoever wants
+            to help, helps; straight to your wallet, no middleman taking a cut.
+          </p>
+        </div>
+
+        <div className="card p-6 max-md:first:rotate-[0.5deg] md:first:-rotate-1">
+          <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-blue px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] text-white">
+            The irl industry
+          </div>
+          <p className="text-[14px] leading-relaxed">
+            IRL begging is a huge industry. Street signs say "will work for
+            anything". BegFi just brings it onchain, with receipts.
+          </p>
+        </div>
+
+        <div className="card p-6 max-md:first:rotate-[-0.5deg] md:first:rotate-2">
+          <div className="mb-3 inline-block rounded-full border-2 border-beg-ink bg-beg-yellow px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em]">
+            Dear VC friends
+          </div>
+          <p className="text-[14px] leading-relaxed">
+            Any VC want to fund my decentralized e-begging protocol? No? Then
+            spare some Robinhood ETH. 🙏 Anything helps.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="safe-x mx-auto max-w-[1000px]">
       <main>
         <HomeHero />
+        <ManifestoSection />
         <LaunchSection />
       </main>
 
