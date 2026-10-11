@@ -165,7 +165,7 @@ export function HomeHero() {
     return (
       <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
         <div>
-          <h1 className="text-[clamp(56px,15vw,150px)] font-extrabold uppercase leading-[.82] tracking-[-.06em]">
+          <h1 className="text-[clamp(36px,7vw,72px)] font-extrabold uppercase leading-[1] tracking-[-.03em]">
             You have
             <br />
             <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">a link.</span>
