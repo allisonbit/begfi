@@ -7,23 +7,20 @@ import { BEG_CONFIGURED } from "@/lib/config";
 export const metadata: Metadata = {
   title: "BegFi: beg boldly, anything helps",
   description:
-    "The begging protocol, born on Crypto Twitter. BegFi turns the timeline's favorite hustle into an onchain ask. Your link, their $BEG, straight to your wallet. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
+    "The begging protocol, your road to free requests and airdrops. Everyone can launch a token on the BegFi launch pad and beg to earn onchain. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
 };
 
 /**
- * The launch section describes a product that does not exist yet, and says so.
- *
- * Spec §9.2 defines the fee model, and it is worth stating, because it is a
- * promise the product intends to keep. What it is NOT is live terms: no
- * contracts are deployed, no token has launched, and there is no form here that
- * could deploy anything. The wording below draws that line explicitly rather
- * than leaving a reader to infer it from a disabled button.
+ * The launch section describes live terms. Standard launch is open to every
+ * wallet on the shared factory (launch fee 0.0005 ETH, creator tax paid to the
+ * launcher). Genesis mode stays reserved for the dev wallet. The copy states
+ * exactly what is live rather than promising what is not.
  */
 function LaunchSection() {
   return (
     <section className="animate-wobble py-8 pb-16">
-      <span className="mb-5 inline-block rounded-full border-2 border-beg-ink bg-beg-yellow px-3 py-1 text-[11px] font-bold uppercase tracking-[.06em]">
-        Planned, not live
+      <span className="mb-5 inline-block rounded-full border-2 border-beg-ink bg-beg-lime px-3 py-1 text-[11px] font-bold uppercase tracking-[.06em]">
+        Live now
       </span>
 
       <h2 className="mb-6 text-[clamp(36px,8vw,64px)] font-extrabold uppercase leading-[.95] tracking-[-.03em]">
@@ -32,9 +29,9 @@ function LaunchSection() {
         Get paid on every trade.
       </h2>
 
-      <p className="-mt-3 mb-6 max-w-[62ch] text-[13px] text-beg-dim">
-        Planned. No contracts are deployed and no token has been launched. The fees below are the
-        intended design, not live terms.
+      <p className="-mt-3 mb-6 max-w-[62ch] text-beg-dim text-[13px]">
+        The launch pad is live. Every other person can launch, connect a wallet
+        and pick standard. Genesis stays reserved for the dev wallet.
       </p>
 
       <div className="grid gap-3.5 md:grid-cols-2">
@@ -45,7 +42,7 @@ function LaunchSection() {
             </div>
             <div>
               <b className="text-[19px]">$BEG</b>
-              <small className="block text-beg-dim">Intended first launch on BegFi</small>
+              <small className="block text-beg-dim">The genesis launch, dev wallet only</small>
             </div>
           </div>
           <div className="flex items-baseline gap-2">
@@ -64,7 +61,7 @@ function LaunchSection() {
             </div>
             <div>
               <b className="text-[19px]">Every other launch</b>
-              <small className="block text-beg-dim">Anyone can launch a token</small>
+              <small className="block text-beg-dim">Open to everyone, launch a token today</small>
             </div>
           </div>
           <div className="flex items-baseline gap-2">
@@ -78,15 +75,15 @@ function LaunchSection() {
       </div>
 
       {/*
-        No launch form. A form that cannot submit is a promise the page cannot
-        keep, and the honest version of "not yet" is a sentence, not a dead input.
+        The launch form lives on /launch. Standard mode is open to every wallet;
+        the fee is charged by the factory, not collected here.
       */}
       <p className="notice mt-3.5">
         The launch form is on the{" "}
         <Link href="/launch" className="text-beg-ink underline underline-offset-2">
           Launch page
         </Link>
-        .
+        . Every other person can launch, today.
       </p>
     </section>
   );
