@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  * read ever moves out of this page, the route falls into sane periodic
  * revalidation instead of a build-time snapshot.
  */
-export const revalidate = 120;
+export const revalidate = 20;
 
 /**
  * How the feed came back. Three states that must never be confused:

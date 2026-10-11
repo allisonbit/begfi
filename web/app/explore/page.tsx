@@ -17,8 +17,13 @@ export const metadata: Metadata = {
   description: "Tokens launched through BegFi on Robinhood Chain.",
 };
 
-/** Re-read every couple of minutes rather than on every request. */
-export const revalidate = 120;
+/**
+ * Live feed, not a brochure. People are trading, so this page re-reads every
+ * 20 seconds instead of every couple of minutes. 20 keeps the public RPC and
+ * the Supabase reads comfortably under their rate limits while making the
+ * numbers feel current on a page people refresh to watch a live coin.
+ */
+export const revalidate = 20;
 
 /**
  * Tokens launched from BegFi.
