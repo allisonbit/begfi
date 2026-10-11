@@ -209,7 +209,7 @@ export function HomeHero() {
   return (
     <section id="claim" className="grid items-center gap-9 py-11 max-md:grid-cols-1 md:grid-cols-[1.15fr_.85fr]">
       <div>
-        <h1 className="text-[clamp(56px,13vw,120px)] font-extrabold uppercase leading-[.86] tracking-[-.04em]">
+        <h1 className="text-[clamp(36px,7vw,72px)] font-extrabold uppercase leading-[1] tracking-[-.03em]">
           <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">BegFi.</span>
           <br />
           Your road to airdrops.
