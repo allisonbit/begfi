@@ -212,7 +212,7 @@ export function HomeHero() {
         <h1 className="text-[clamp(36px,7vw,72px)] font-extrabold uppercase leading-[1] tracking-[-.03em]">
           <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">BegFi.</span>
           <br />
-          Your road to airdrops.
+          Your road to freewill.
           <span aria-hidden className="caret" />
         </h1>
         <p className="mb-1.5 mt-4 max-w-[30ch] text-lg text-beg-dim">
