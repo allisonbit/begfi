@@ -6,7 +6,10 @@ import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, linkFor } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
 import { getLauncherDashboard, getOverview } from "@/lib/dashboard";
+import { getWatchlistRows } from "@/lib/watchlist-data";
+import { getWatchlist } from "@/lib/watchlist";
 import { getProfile } from "@/lib/session";
+import { WatchlistPanel } from "@/components/watchlist-panel";
 
 export const metadata: Metadata = { title: "Overview" };
 export const dynamic = "force-dynamic";
@@ -25,10 +28,19 @@ export default async function DashboardPage() {
   const profile = await getProfile();
   if (!profile) return null;
 
-  const [overview, launchesResult] = await Promise.all([
+  const [overview, launchesResult, watchRows] = await Promise.all([
     getOverview(profile.wallet_address),
     getLauncherDashboard(profile.wallet_address),
+    getWatchlist(),
   ]);
+
+  const watchlistData = await getWatchlistRows(
+    watchRows.map((w) => ({
+      tokenAddress: w.token_address,
+      alertOnMove: w.alert_on_move,
+      alertOnGraduation: w.alert_on_graduation,
+    })),
+  );
 
   const meterNumerator = overview.meterPooledWei ? Number(overview.meterPooledWei) : null;
   const meterDenominator = overview.meterThresholdWei ? Number(overview.meterThresholdWei) : null;
@@ -86,10 +98,13 @@ export default async function DashboardPage() {
         </section>
       ) : null}
 
+      <WatchlistPanel rows={watchlistData} />
+
       <CopyLink url={linkFor(profile.username)} />
 
       <section className="grid gap-2 sm:grid-cols-3">
         <TileLink href="/dashboard/begs" title="Your begs" subtitle="Write, edit and share what you are asking for" />
+        <TileLink href="/beg-to-launch" title="Beg to launch" subtitle="Open an ask supporters can fund toward your launch" />
         <TileLink href="/dashboard/launches" title="Launches" subtitle="Tokens this wallet launched, with live numbers" />
         <TileLink href="/dashboard/activity" title="Activity" subtitle="Everything that reached this account" />
       </section>

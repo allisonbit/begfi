@@ -3,7 +3,7 @@ import { createPublicClient, http, parseAbiItem, decodeEventLog } from "viem";
 import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { ponsCurveAbi } from "@/lib/curve";
-import { ponsFactoryAbi, PONS_FACTORY } from "@/lib/pons";
+import { ponsFactoryAbi, ponsEscrowAbi, PONS_FACTORY } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +85,7 @@ type TradeRow = {
   is_buy: boolean;
   quote_amount: string;
   token_amount: string;
+  tax_amount: string;
   block_number: number;
   block_time: string;
 };
@@ -123,13 +124,265 @@ export async function GET(request: Request) {
     const transfers = await indexTransfers(client, admin, safeHead);
     const trades = await indexTrades(client, admin, safeHead);
 
-    return NextResponse.json({ ok: true, transfers, trades });
+    // Alerts fire AFTER the scans, from what they recorded — never from a
+    // claim the scans did not back up.
+    const alerts = await raiseNotifications(admin);
+
+    return NextResponse.json({ ok: true, transfers, trades, alerts });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Cursors are deliberately NOT advanced on failure, so the next run
     // retries the same window rather than skipping it.
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Notifications, raised from the scans' own rows                            */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The bell's rows, all of them written here, none by the client.
+ *
+ * Sources, in order of what the chain can prove:
+ *  - begs received: transfer rows for profile wallets newer than the profile's
+ *    last "beg" notification (an anti-spam watermark, not "all transfers" —
+ *    re-running over an old window must not re-bell old news);
+ *  - launch confirmed: catalog rows whose launch notification has not been
+ *    written;
+ *  - fees claimable: threshold crossing. The contract decides the amount, the
+ *    tax rows decide the "worth checking" hint — one alert per crossing, and
+ *    only when the escrow balance plausibly holds something. Claiming remains
+ *    manual; the notification says "ready", not "done";
+ *  - watchlist alerts: graduation (a watched token left the curve) and a move
+ *    >= ALERT_MOVE_PCT inside the last 24h, gated by each row's own toggles.
+ *
+ * The ref-key rule: each notification carries payload.ref, and a duplicate
+ * write is skipped when a row with the same (profile, kind, ref) already
+ * exists — which is what makes a re-run of an old window re-bell nothing.
+ */
+const ALERT_MOVE_PCT = 25;
+
+async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
+  // Wallets to think about: everyone with a profile, small on a young product.
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, username, wallet_address")
+    .limit(2000);
+
+  const walletToProfile = new Map(
+    (profiles ?? []).map((p: { wallet_address: string; id: string }) => [p.wallet_address, p]),
+  );
+
+  let created = 0;
+
+  const push = async (
+    profileId: string,
+    kind: string,
+    title: string,
+    body: string,
+    ref: string,
+    href: string | null,
+  ) => {
+    // Deduplicate on (profile, kind, ref). The index is not unique (jsonb in a
+    // unique index is awkward across drivers), so check-then-insert is the
+    // rule; the cron is the only writer, so races do not exist by construction.
+    const { data: existing } = await admin
+      .from("notifications")
+      .select("id")
+      .eq("profile_id", profileId)
+      .eq("kind", kind)
+      .contains("payload", { ref })
+      .limit(1);
+    if (existing && existing.length > 0) return;
+
+    const { error } = await admin.from("notifications").insert({
+      profile_id: profileId,
+      kind,
+      title,
+      body,
+      payload: { ref },
+      href,
+    });
+    if (!error) created += 1;
+  };
+
+  // --- begs received: recent transfers to profile wallets -------------------
+  if (BEG_TOKEN_ADDRESS) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data: recent } = await admin
+      .from("transfers")
+      .select("from_address, to_address, amount, tx_hash, block_time")
+      .eq("token_address", BEG_TOKEN_ADDRESS)
+      .gte("block_time", since)
+      .order("block_time", { ascending: false })
+      .limit(500);
+
+    for (const t of recent ?? []) {
+      const profile = walletToProfile.get(t.to_address);
+      if (!profile) continue;
+      await push(
+        profile.id,
+        "beg",
+        "You received $BEG",
+        `${t.amount.slice(0, 12)}... base units from ${t.from_address.slice(0, 6)}...${t.from_address.slice(-4)}.`,
+        t.tx_hash,
+        "/dashboard/activity",
+      );
+    }
+  }
+
+  // --- launch confirmed: launches whose notification has not been written ---
+  const { data: freshLaunches } = await admin
+    .from("launches")
+    .select("token_address, name, ticker, launcher_wallet, tx_hash")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  for (const l of freshLaunches ?? []) {
+    const profile = walletToProfile.get(l.launcher_wallet);
+    if (!profile) continue;
+    await push(
+      profile.id,
+      "launch",
+      `${l.name} is live on BegFi`,
+      `The launch confirmed on-chain. Its page, share links and fees are ready.`,
+      l.tx_hash,
+      `/token/${l.token_address}`,
+    );
+  }
+
+  // --- fees claimable & watched tokens: need live escrow + curve reads ------
+  // Bounded: the escrow read is one call per profile with launches, and the
+  // move check is one reserves read per watched token.
+  const { data: launchers } = await admin
+    .from("launches")
+    .select("launcher_wallet, token_address, name, ticker")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  const escrowClient = createPublicClient({ chain: robinhoodChain, transport: http() });
+  let escrowAddress: string | null = null;
+  try {
+    escrowAddress = (await escrowClient.readContract({
+      abi: ponsFactoryAbi,
+      address: PONS_FACTORY,
+      functionName: "feeEscrow",
+    })) as unknown as string;
+  } catch {
+    escrowAddress = null;
+  }
+
+  if (escrowAddress) {
+    const byLauncher = new Map<string, string[]>();
+    for (const l of launchers ?? []) {
+      const list = byLauncher.get(l.launcher_wallet);
+      if (list) list.push(l.token_address);
+      else byLauncher.set(l.launcher_wallet, [l.token_address]);
+    }
+
+    for (const [wallet] of byLauncher) {
+      const profile = walletToProfile.get(wallet);
+      if (!profile) continue;
+      try {
+        const claimable = (await escrowClient.readContract({
+          abi: ponsEscrowAbi,
+          address: escrowAddress as `0x${string}`,
+          functionName: "balanceOf",
+          args: [wallet as `0x${string}`],
+        })) as unknown as bigint;
+
+        if (claimable > 10n ** 15n) {
+          await push(
+            profile.id,
+            "fees",
+            "Fees are ready to claim",
+            "Your escrow balance is above 0.001 ETH. Claiming is manual, from the Fees tab.",
+            `fees-claimable`,
+            "/dashboard/fees",
+          );
+        }
+      } catch {
+        /* the escrow read failed for this wallet; skip, no invention */
+      }
+    }
+  }
+
+  // --- watchlist graduation + big moves -----------------------------------
+  const { data: watchRows } = await admin
+    .from("watchlist")
+    .select("profile_id, token_address, alert_on_move, alert_on_graduation")
+    .limit(2000);
+
+  // Token graduation states and 24h price change, from the same sources the
+  // public pages use.
+  const tokenMeta = new Map<string, { phase: number; curve: string }>();
+  for (const l of launchers ?? []) {
+    try {
+      const record = await escrowClient.readContract({
+        abi: ponsFactoryAbi,
+        address: PONS_FACTORY,
+        functionName: "getLaunchedToken",
+        args: [l.token_address as `0x${string}`],
+      });
+      tokenMeta.set(l.token_address, { phase: Number(record.phase), curve: String(record.curve) });
+    } catch {
+      /* unreadable tokens contribute nothing */
+    }
+  }
+
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  for (const w of watchRows ?? []) {
+    const meta = tokenMeta.get(w.token_address);
+    if (!meta) continue;
+
+    if (w.alert_on_graduation && meta.phase !== 0) {
+      const launchName = (launchers ?? []).find((l) => l.token_address === w.token_address);
+      await push(
+        w.profile_id,
+        "graduation",
+        `A watched token graduated`,
+        `${launchName ? `${launchName.name} ($${launchName.ticker})` : "A token you watch"} left the curve and trades on the pool.`,
+        `grad-${w.token_address}`,
+        `/token/${w.token_address}`,
+      );
+    }
+
+    if (w.alert_on_move) {
+      const { data: dayTrades } = await admin
+        .from("trades")
+        .select("quote_amount, token_amount")
+        .eq("token_address", w.token_address)
+        .gte("block_time", dayAgo)
+        .order("block_time", { ascending: true })
+        .limit(10_000);
+
+      const priced = (dayTrades ?? [])
+        .filter((t) => t.token_amount !== "0" && t.quote_amount !== "0")
+        .map((t) => Number(BigInt(t.quote_amount)) / Number(BigInt(t.token_amount)));
+
+      if (priced.length >= 2) {
+        const change = (priced[priced.length - 1] / priced[0] - 1) * 100;
+        if (Math.abs(change) >= ALERT_MOVE_PCT) {
+          const launchName = (launchers ?? []).find((l) => l.token_address === w.token_address);
+          await push(
+            w.profile_id,
+            "move",
+            `A watched token moved ${change > 0 ? "+" : ""}${Math.round(change)}%`,
+            `${
+              launchName
+                ? `${launchName.name} ($${launchName.ticker}) moved past the alert threshold in 24h.`
+                : "A token you watch moved past the alert threshold in 24h."
+            }`,
+            `move-${w.token_address}-${Math.round(Math.abs(change) / ALERT_MOVE_PCT)}`, // re-alerts on each further 25% step
+            `/token/${w.token_address}`,
+          );
+        }
+      }
+    }
+  }
+
+  return { created };
 }
 
 /* ------------------------------------------------------------------------- */
@@ -329,10 +582,18 @@ async function indexTrades(
       quoteOut?: bigint;
       tokensOut?: bigint;
       tokensIn?: bigint;
+      fee?: bigint;
+      tax?: bigint;
     };
     const trader = String(isBuy ? a.buyer : a.seller).toLowerCase();
     const quote = isBuy ? a.quoteIn! : a.quoteOut!;
     const tokens = isBuy ? a.tokensOut! : a.tokensIn!;
+    // The creator tax side of the trade, recorded per row since 0010. It is
+    // the tax the curve event reports — the amount the creator's share grew
+    // by on this trade — and it is what the Fees tab's history chart is
+    // summed from. The curve fee (a.?fee, protocol side) is deliberately NOT
+    // recorded here: it is not the creator's.
+    const tax = a.tax ?? 0n;
 
     tradeRows.push({
       tx_hash: log.transactionHash,
@@ -343,6 +604,7 @@ async function indexTrades(
       is_buy: isBuy,
       quote_amount: quote.toString(),
       token_amount: tokens.toString(),
+      tax_amount: tax.toString(),
       block_number: Number(log.blockNumber),
       block_time: "", // filled below, with the rest of the timestamps
     });

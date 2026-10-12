@@ -10,6 +10,11 @@ import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import { getTradeAggregates } from "@/lib/queries";
+import { getWatchlist } from "@/lib/watchlist";
+import { getProfile } from "@/lib/session";
+import { getLevelForWallet } from "@/lib/level";
+import { WatchStar } from "@/components/watch-star";
+import { LevelChip } from "@/components/level-chip";
 import type { Launch } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -61,6 +66,8 @@ type Listed = Launch & {
   tradeCount24h: number | null;
   /** Percent change of the last trade price versus the window's first. */
   priceChange24h: number | null;
+  /** The launcher's level name, when computable. Empty when unknown. */
+  creatorLevel: string | null;
 };
 
 const SORTS = ["mc", "trending", "newest", "oldest"] as const;
@@ -200,8 +207,26 @@ async function recentLaunches(limit = 60): Promise<{ items: Listed[]; dbFailed: 
       volume24hEth: vol !== undefined ? formatEth(BigInt(vol)) : null,
       tradeCount24h: trades.get(item.token_address) ?? null,
       priceChange24h: priceChange.get(item.token_address) ?? null,
+      creatorLevel: null,
     };
   });
+
+  /*
+   * The launcher's level chip, deduplicated. One aggregate read per DISTINCT
+   * launcher, not per card: a creator with three visible tokens pays one
+   * query and all three chips agree, which is the point of a shared truth.
+   */
+  const distinctWallets = [...new Set(itemsWithTrades.map((i) => i.launcher_wallet.toLowerCase()))];
+  const levels = new Map<string, string>();
+  await Promise.all(
+    distinctWallets.slice(0, 30).map(async (wallet) => {
+      const lvl = await getLevelForWallet(wallet);
+      if (lvl) levels.set(wallet, lvl.name);
+    }),
+  );
+  for (const item of itemsWithTrades) {
+    item.creatorLevel = levels.get(item.launcher_wallet.toLowerCase()) ?? null;
+  }
 
   return { items: itemsWithTrades, dbFailed: false };
 }
@@ -268,6 +293,16 @@ export default async function ExplorePage({
 
   const { items, dbFailed } = await recentLaunches();
   const stats = await launchStats(items);
+
+  /*
+   * The signed-in visitor's watchlist, so their stars survive navigation and
+   * the WatchStar islands start in the state the database agrees with.
+   * getWatchlist reads through the caller's session and returns [] when no
+   * session exists, so this line is safe logged out too.
+   */
+  const watchRows = await getWatchlist();
+  const watchedSet = new Set(watchRows.map((w) => w.token_address.toLowerCase()));
+  const signedIn = (await getProfile()) !== null;
 
   /*
    * Ranking. "Market cap" is supply x live curve reserves; "Trending" is 24h
@@ -437,7 +472,15 @@ export default async function ExplorePage({
         <ul className="grid gap-3 sm:grid-cols-2">
           {sorted.map((item) => (
             <li key={item.token_address}>
-              <Link href={`/token/${item.token_address}`} className="card-hover card flex gap-3">
+              <div className="card-hover card relative flex gap-3">
+                <div className="absolute right-2.5 top-2.5 z-10">
+                  <WatchStar
+                    tokenAddress={item.token_address}
+                    initialWatched={watchedSet.has(item.token_address.toLowerCase())}
+                    signedIn={signedIn}
+                  />
+                </div>
+                <Link href={`/token/${item.token_address}`} className="flex min-w-0 flex-1 gap-3">
                 {item.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -457,6 +500,9 @@ export default async function ExplorePage({
                       {ageWords(item.created_at)} old
                     </span>
                   </div>
+                  {item.creatorLevel ? (
+                    <div className="mt-1"><LevelChip level={item.creatorLevel} rounded="rounded-full" /></div>
+                  ) : null}
                   <p className="mt-1 text-[13px] text-beg-dim">
                     by {shortAddress(item.launcher_wallet)}, ${item.ticker}
                   </p>
@@ -509,7 +555,8 @@ export default async function ExplorePage({
                     </p>
                   )}
                 </div>
-              </Link>
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

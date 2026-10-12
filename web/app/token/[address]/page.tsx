@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { createPublicClient, http, isAddress } from "viem";
 import { BuyPanel } from "@/components/buy-panel";
+import { HoldersList } from "@/components/holders-list";
 import { addressUrl, robinhoodChain, shortAddress } from "@/lib/chains";
 import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { erc20Abi } from "@/lib/erc20";
+import { getTopHolders } from "@/lib/holders";
 import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
@@ -84,12 +86,17 @@ async function getLaunchUncached(token: string) {
       address: token as `0x${string}`,
       functionName: "symbol",
     }),
+    client.readContract({
+      abi: erc20Abi,
+      address: token as `0x${string}`,
+      functionName: "totalSupply",
+    }),
   ]).catch(() => null);
 
   // A recorded token the chain no longer confirms — or a read that failed — is
   // refused rather than rendered from the row alone.
   if (!results) return null;
-  const [record, name, symbol] = results;
+  const [record, name, symbol, totalSupply] = results;
   if (!record.exists) return null;
 
   /*
@@ -130,7 +137,7 @@ async function getLaunchUncached(token: string) {
     }
   }
 
-  return { launch, record, name, symbol, curve };
+  return { launch, record, name, symbol, totalSupply, curve };
 }
 
 /** One set of chain reads per request: the metadata and the page share this. */
@@ -157,7 +164,26 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
   const found = await getLaunch(address);
   if (!found) notFound();
 
-  const { launch, record, name, symbol, curve } = found;
+  const { launch, record, name, symbol, curve, totalSupply } = found;
+
+  /*
+   * The holders leaderboard, computed from the token's own event history.
+   * Positioned after the buy panel and the facts list, before the warning: it
+   * is a figure like any other on this page, so it renders with the same
+   * honesty rules — a scan that fails leaves the section out rather than
+   * inventing a list.
+   */
+  let holders: Awaited<ReturnType<typeof getTopHolders>> | null = null;
+  try {
+    holders = await getTopHolders(
+      record.token,
+      record.curve,
+      totalSupply,
+      record.creatorFeeRecipient,
+    );
+  } catch {
+    holders = null;
+  }
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-12 py-8">
@@ -247,6 +273,14 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
             </Row>
           ) : null}
         </dl>
+
+        {holders && holders.holders.length > 0 ? (
+          <HoldersList
+            holders={holders.holders}
+            windowBlocks={holders.windowBlocks}
+            graduated={record.phase !== 0}
+          />
+        ) : null}
 
         <p className="notice">
           Launched through BegFi&apos;s launchpad, on Pons&apos; contracts. BegFi does not vet the

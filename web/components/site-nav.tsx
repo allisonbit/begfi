@@ -4,6 +4,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HandCoins, LayoutGrid, Rocket, User } from "lucide-react";
+import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { useAuth } from "@/lib/auth-context";
@@ -76,6 +77,7 @@ function AccountAction() {
   if (profile) {
     return (
       <>
+        <NotificationBell signedIn />
         <Link
           href="/dashboard"
           className="btn-ghost hidden px-3.5 py-2 text-[13px] font-bold text-beg-ink sm:inline-block"
@@ -101,6 +103,7 @@ function AccountAction() {
      */
     return (
       <>
+        <NotificationBell signedIn={false} />
         <Link href="/#claim" className="btn-primary px-4 py-2.5">
           Claim your link
         </Link>

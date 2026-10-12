@@ -30,9 +30,14 @@ export default async function LaunchesPage() {
           <h1 className="text-[clamp(28px,6vw,40px)] font-extrabold tracking-[-.05em]">Launches</h1>
           <p className="mt-1 text-beg-dim">Tokens launched from this wallet, with live numbers.</p>
         </div>
-        <Link href="/launch" className="btn-primary">
-          Launch a token
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/beg-to-launch" className="btn-ghost px-4 py-2.5 text-[13px] font-bold text-beg-ink">
+            Beg to launch first
+          </Link>
+          <Link href="/launch" className="btn-primary">
+            Launch a token
+          </Link>
+        </div>
       </header>
 
       {dbFailed ? (
