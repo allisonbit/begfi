@@ -75,7 +75,8 @@ create table if not exists begfi.notifications (
     'launch',         -- a launch from this wallet was recorded
     'graduation',     -- a watched token left the curve
     'move',           -- a watched token moved past a percent in the window
-    'claim'           -- a fee claim succeeded
+    'claim',          -- a fee claim succeeded
+    'digest'          -- the daily 24h summary, one per profile per day
   )),
 
   title text not null check (char_length(title) between 1 and 120),

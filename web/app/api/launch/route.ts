@@ -186,5 +186,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Couldn't save that. Try again." }, { status: 500 });
   }
 
+    /*
+   * The beg-to-launch close. The catalog row above is what proves the launch
+   * is real, so the open ask bound to THIS PROFILE is marked funded right
+   * here — by the same receipt, not by a browser's word and not by a cron
+   * window's timing. Two rules make this safe:
+   *
+   *  - the ask must belong to the same profile that launched (updates are
+   *    scoped by profile_id, not by wallet string); and
+   *  - funded_at / funded_tx come from the verified receipt, so the ask's
+   *    story on its page is the chain's story.
+   *
+   * The unique partial index means there is at most one open ask per profile,
+   * so an update keyed by profile touches at most that one row.
+   */
+  {
+    const { error: fundError } = await admin
+      .from("launch_begs")
+      .update({
+        funded_at: new Date().toISOString(),
+        funded_tx: txHash.toLowerCase(),
+      })
+      .eq("profile_id", profile.id)
+      .is("funded_at", null);
+
+    // A failure here does not fail the launch: the ask stays open and the
+    // cron's expedition rule closes it on the next sweep, but both paths
+    // originate in the same verified receipt.
+    void fundError;
+  }
+
   return NextResponse.json({ ok: true, token, curve, name, ticker });
 }

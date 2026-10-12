@@ -34,6 +34,7 @@ const KIND_LABELS: Record<string, string> = {
   graduation: "Graduated",
   move: "Moved",
   claim: "Claim",
+  digest: "Daily",
 };
 
 const KIND_BG: Record<string, string> = {
@@ -43,6 +44,7 @@ const KIND_BG: Record<string, string> = {
   graduation: "bg-beg-lime text-beg-ink",
   move: "bg-beg-yellow text-beg-ink",
   claim: "bg-beg-blue text-beg-ink",
+  digest: "bg-beg-card text-beg-ink",
 };
 
 export function NotificationBell({ signedIn }: { signedIn: boolean }) {

@@ -1,0 +1,50 @@
+# The indexer's heartbeat.
+#
+# Vercel's Hobby plan allows ONE cron, once a day — that is a platform limit,
+# not a code constraint, and the app's copy says so. This workflow is the other
+# honest path the code comment names: a scheduler outside Vercel that calls the
+# same /api/cron/indexer endpoint with the same bearer token, every 15 minutes.
+#
+# HOW THE SECRET TRAVELS. The token lives in the repository's Actions secrets
+# (Settings > Secrets and variables > Actions > CRON_SECRET). It is read at
+# runtime as an environment variable and never printed; bash history expansion
+# is off so a secret starting with a special character cannot be mangled. If
+# the secret is not set, the workflow fails LOUDLY at the guard rather than
+# silently calling an unauthorised endpoint.
+#
+# WHY 15 MINUTES. Notifications, 24h volume and watchlist alerts land on the
+# indexer's back; 15 minutes makes the bell feel current while keeping the
+# runs comfortably inside the public RPC's tolerance (each run scans one
+# bounded window, so runs cannot pile up work).
+#
+# GitHub's cron is approximate (can be a few minutes late under load); that is
+# fine here — the endpoint is idempotent and cursor-based, so a late run scans
+# a slightly bigger window, never a skipped one.
+
+name: indexer
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the BegFi indexer
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          INDEXER_URL: https://www.begfi.io/api/cron/indexer
+        run: |
+          set -euo pipefail
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET is not set in repository Actions secrets."
+            exit 1
+          fi
+          curl -fsS --max-time 55 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$INDEXER_URL" | tee /dev/stderr

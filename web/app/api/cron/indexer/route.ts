@@ -128,7 +128,11 @@ export async function GET(request: Request) {
     // claim the scans did not back up.
     const alerts = await raiseNotifications(admin);
 
-    return NextResponse.json({ ok: true, transfers, trades, alerts });
+    // The daily digest runs on the same sweep: once per profile per UTC day,
+    // summarising the same confirmed rows the scans just wrote.
+    const digests = await raiseDailyDigest(admin);
+
+    return NextResponse.json({ ok: true, transfers, trades, alerts, digests });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Cursors are deliberately NOT advanced on failure, so the next run
@@ -383,6 +387,127 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
   }
 
   return { created };
+}
+
+/* ------------------------------------------------------------------------- */
+/* The daily digest: once per profile per UTC day                            */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * One notification per profile per day, telling them what the chain says
+ * happened to them in the previous 24h: begs received ($BEG amount and
+ * count), fee-bearing trades on their launches (sum of recorded taxes), and
+ * launches recorded. Every figure is summed from the rows this cron itself
+ * maintains, so the digest cannot say anything the scans did not record.
+ *
+ * THE REF IS THE DATE (UTC). That is what enforces "once per day" without a
+ * separate watermark: a re-run during the same UTC day deduplicates against
+ * itself, and the next day's ref is a different key. The digest is skipped
+ * entirely for profiles whose 24h was empty — a notification that says
+ * "nothing happened" every day is a mute button in training.
+ */
+async function raiseDailyDigest(admin: ReturnType<typeof createAdminClient>) {
+  const dayKey = new Date().toISOString().slice(0, 10);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  let created = 0;
+
+  const { data: profiles } = await admin
+    .from("profiles")
+    .select("id, username")
+    .limit(2000);
+
+  for (const profile of profiles ?? []) {
+    created += await digestForProfile(admin, profile.id, profile.username, dayKey, since);
+  }
+
+  return { created };
+}
+
+/** One profile's digest from confirmed rows; returns 1 when written. */
+async function digestForProfile(
+  admin: ReturnType<typeof createAdminClient>,
+  profileId: string,
+  username: string,
+  dayKey: string,
+  since: string,
+): Promise<number> {
+  const { data: profileRow } = await admin
+    .from("profiles")
+    .select("wallet_address")
+    .eq("id", profileId)
+    .maybeSingle<{ wallet_address: string }>();
+  if (!profileRow) return 0;
+
+  const wallet = profileRow.wallet_address.toLowerCase();
+
+  const [transfers, tradesOut, launchesOut] = await Promise.all([
+    admin
+      .from("transfers")
+      .select("amount")
+      .eq("to_address", wallet)
+      .gte("block_time", since)
+      .limit(10_000),
+    admin
+      .from("launches")
+      .select("token_address, name, ticker")
+      .eq("launcher_wallet", wallet)
+      .limit(100),
+    admin
+      .from("launches")
+      .select("token_address", { count: "exact" })
+      .eq("launcher_wallet", wallet)
+      .gte("created_at", since)
+      .limit(0),
+  ]);
+
+  const tokens = (tradesOut.data ?? []).map((r: { token_address: string }) => r.token_address as string);
+
+  let begTotal = 0n;
+  let begCount = 0;
+  for (const t of transfers.data ?? []) {
+    begTotal += BigInt((t as { amount: string }).amount);
+    begCount += 1;
+  }
+
+  let taxTotal = 0n;
+  if (tokens.length > 0) {
+    const { data: dayTrades } = await admin
+      .from("trades")
+      .select("tax_amount")
+      .in("token_address", tokens)
+      .gte("block_time", since)
+      .limit(20_000);
+    for (const t of dayTrades ?? []) taxTotal += BigInt(t.tax_amount ?? "0");
+  }
+
+  const newLaunches = launchesOut.count ?? 0;
+
+  if (begCount === 0 && taxTotal === 0n && newLaunches === 0) return 0;
+
+  const parts: string[] = [];
+  if (begCount > 0) parts.push(`${begCount} $BEG ${begCount === 1 ? "send" : "sends"} to you`);
+  if (taxTotal > 0n) parts.push(`creator taxes on your tokens`);
+  if (newLaunches > 0) parts.push(`${newLaunches} ${newLaunches === 1 ? "launch" : "launches"} recorded`);
+
+  const { data: existing } = await admin
+    .from("notifications")
+    .select("id")
+    .eq("profile_id", profileId)
+    .eq("kind", "digest")
+    .contains("payload", { ref: dayKey })
+    .limit(1);
+  if (existing && existing.length > 0) return 0;
+
+  const { error } = await admin.from("notifications").insert({
+    profile_id: profileId,
+    kind: "digest",
+    title: `Your 24h, ${username}`,
+    body: `${parts.join(`, `)}. Confirmed on-chain, from your wallet's actual rows.`,
+    payload: { ref: dayKey, begs: begCount, fees: taxTotal.toString(), launches: newLaunches },
+    href: "/dashboard/activity",
+  });
+
+  return error ? 0 : 1;
 }
 
 /* ------------------------------------------------------------------------- */
