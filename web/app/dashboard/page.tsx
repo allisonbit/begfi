@@ -1,94 +1,97 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BegComposer } from "@/components/beg-composer";
+import { ClaimOverview } from "@/components/claim-overview";
 import { CopyLink } from "@/components/copy-link";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, linkFor } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
+import { getLauncherDashboard, getOverview } from "@/lib/dashboard";
 import { getProfile } from "@/lib/session";
-import { getRecentTransfers, getStats } from "@/lib/queries";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export const metadata: Metadata = { title: "Overview" };
 export const dynamic = "force-dynamic";
 
 /**
- * The overview: what you have received, who to share with, what you are asking
- * for.
+ * The Overview tab: everything someone checks in a reflex, in one screen.
  *
- * The gate and the navigation live in `layout.tsx`, so this page is only ever
- * reached by someone with a claimed username and does not re-implement either.
+ * Wallet, $BEG received, supporters, fees — all read from the chain or the
+ * indexer's confirmed rows, so a number here is a fact even when it is zero.
+ * The claimable figure and the BegFi meter are client/server splits on
+ * purpose: the escrow balance has to be read with the connected wallet
+ * (everything else would pay someone else), while totals belong to the server
+ * read.
  */
 export default async function DashboardPage() {
   const profile = await getProfile();
-  // The layout has already shown the right prompt; this is a type narrowing.
   if (!profile) return null;
 
-  const [stats, transfers] = await Promise.all([
-    getStats(profile.id),
-    getRecentTransfers(profile.wallet_address, 10),
+  const [overview, launchesResult] = await Promise.all([
+    getOverview(profile.wallet_address),
+    getLauncherDashboard(profile.wallet_address),
   ]);
+
+  const meterNumerator = overview.meterPooledWei ? Number(overview.meterPooledWei) : null;
+  const meterDenominator = overview.meterThresholdWei ? Number(overview.meterThresholdWei) : null;
+  const meterRatio = meterNumerator !== null && meterDenominator !== null && meterDenominator > 0
+    ? Math.min(1, meterNumerator / meterDenominator)
+    : null;
 
   return (
     <>
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">
-            @{profile.username}
-          </h1>
-          <p className="font-mono text-[13px] text-beg-dim" title={profile.wallet_address}>
-            {shortAddress(profile.wallet_address)}
-          </p>
-        </div>
+      <header className="grid gap-1">
+        <h1 className="text-[clamp(28px,6vw,40px)] font-extrabold tracking-[-.05em]">
+          @{profile.username}
+        </h1>
+        <p className="font-mono text-[13px] text-beg-dim" title={profile.wallet_address}>
+          {shortAddress(profile.wallet_address)}
+        </p>
       </header>
 
-      <section className="grid gap-3.5 sm:grid-cols-2">
-        <Stat label="$BEG received" value={formatAmount(BigInt(stats.total_received))} glow />
-        <Stat label="Supporters" value={String(stats.supporters)} />
-      </section>
+      {overview.dbFailed ? (
+        <p className="notice-dashed p-5">
+          Couldn&apos;t read your totals just now. This is a problem reaching the database, not an
+          empty account. Try again in a moment.
+        </p>
+      ) : (
+        <section className="grid gap-3 sm:grid-cols-2">
+          <Stat label="$BEG received" value={formatAmount(BigInt(overview.totalReceived))} glow />
+          <Stat label="Supporters" value={String(overview.supporters)} />
+        </section>
+      )}
 
       {!BEG_CONFIGURED ? (
         <p className="notice-dashed">
-          Sending isn&apos;t live yet because $BEG hasn&apos;t been launched, so no transfers can exist until
-          it is. Your link and your begs work now; the totals start moving the moment it does.
+          Sending isn&apos;t live yet because $BEG hasn&apos;t been launched, so $BEG totals stay at
+          zero until it is. Your launches and your link work now.
         </p>
+      ) : null}
+
+      <ClaimOverview wallet={launchesResult.launches.length > 0 ? profile.wallet_address : null} />
+
+      {meterRatio !== null && launchesResult.launches.length > 0 ? (
+        <section className="card grid gap-2">
+          <div className="flex items-baseline justify-between">
+            <b className="text-[14px]">BegFi meter</b>
+            <span className="text-[12px] text-beg-dim">
+              {Math.round(meterRatio * 100)}% toward graduation, across your tokens
+            </span>
+          </div>
+          <div className="progress">
+            <div className="progress-fill" style={{ width: `${Math.max(2, meterRatio * 100)}%` }} />
+          </div>
+          <p className="text-[12px] text-beg-dim">
+            Pooled ETH across the tokens this wallet launched, against their combined graduation
+            thresholds. Read live from the curves.
+          </p>
+        </section>
       ) : null}
 
       <CopyLink url={linkFor(profile.username)} />
 
-      {/*
-        The composer sits above the activity deliberately: writing a beg is what a
-        person comes here to do, and the totals are what they check afterwards.
-      */}
-      <section className="grid gap-3">
-        <h2 className="text-xl font-extrabold tracking-[-.03em]">Write a beg</h2>
-        <BegComposer />
-      </section>
-
-      <section className="grid gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-extrabold tracking-[-.03em]">Recent activity</h2>
-          <Link href="/dashboard/activity" className="text-[13px] text-beg-dim underline underline-offset-2">
-            See all
-          </Link>
-        </div>
-
-        {transfers.length === 0 ? (
-          <p className="rounded-2xl border-[1.5px] border-beg-line p-5 text-[13px] text-beg-dim">
-            Nothing yet. Share your link and the first send shows up here.
-          </p>
-        ) : (
-          <ul className="grid gap-2">
-            {transfers.map((t) => (
-              <li
-                key={`${t.tx_hash}-${t.log_index}`}
-                className="card-sm flex items-center justify-between text-[13px]"
-              >
-                <span className="font-mono text-beg-dim">{shortAddress(t.from_address)}</span>
-                <span className="font-bold text-beg-ink">{formatAmount(BigInt(t.amount))} $BEG</span>
-              </li>
-            ))}
-          </ul>
-        )}
+      <section className="grid gap-2 sm:grid-cols-3">
+        <TileLink href="/dashboard/begs" title="Your begs" subtitle="Write, edit and share what you are asking for" />
+        <TileLink href="/dashboard/launches" title="Launches" subtitle="Tokens this wallet launched, with live numbers" />
+        <TileLink href="/dashboard/activity" title="Activity" subtitle="Everything that reached this account" />
       </section>
     </>
   );
@@ -104,5 +107,14 @@ function Stat({ label, value, glow = false }: { label: string; value: string; gl
         {value}
       </div>
     </div>
+  );
+}
+
+function TileLink({ href, title, subtitle }: { href: string; title: string; subtitle: string }) {
+  return (
+    <Link href={href} className="card-hover card-sm block">
+      <b className="text-[15px] text-beg-ink">{title}</b>
+      <p className="mt-1 text-[12px] text-beg-dim">{subtitle}</p>
+    </Link>
   );
 }
