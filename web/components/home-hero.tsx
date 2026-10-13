@@ -212,11 +212,18 @@ export function HomeHero() {
         <h1 className="text-[clamp(36px,7vw,72px)] font-extrabold uppercase leading-[1] tracking-[-.03em]">
           <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">BegFi.</span>
           <br />
-          Your road to freewill.
+          The e-Begging protocol.
           <span aria-hidden className="caret" />
         </h1>
-        <p className="mb-1.5 mt-4 max-w-[30ch] text-lg text-beg-dim">
-          The e-Begging protocol. Ask onchain. Get paid. Launch tokens.
+        {/*
+         * The three verbs sit one beat under the headline, smaller on purpose
+         * — a headline shouts and a tagline talks. `text-2xl` keeps it big
+         * enough to read as part of the brand voice but clearly a step down
+         * from the `clamp()` line above; `max-w` wraps it to three short
+         * lines rather than one long one on desktop.
+         */}
+        <p className="mb-1.5 mt-4 max-w-[24ch] text-2xl font-bold tracking-[-.01em] text-beg-ink">
+          Ask onchain. Get paid. Launch tokens.
         </p>
 
         <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[3px] border-beg-ink bg-beg-card p-2 pl-[18px] shadow-glow focus-within:border-beg-blue max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
