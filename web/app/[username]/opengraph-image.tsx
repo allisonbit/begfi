@@ -56,21 +56,30 @@ export default async function Image({ params }: { params: Promise<Params> }) {
   if (SUPABASE_CONFIGURED && /^[a-z0-9_]{3,20}$/.test(username)) {
     try {
       const sb = createAdminClient();
-      const { data, error } = await sb
-        .from("profiles")
-        .select("username, display_name, bio, profile_stats(supporters)")
-        .eq("username", username)
-        .maybeSingle<{
-          username: string;
-          display_name: string | null;
-          bio: string | null;
-          profile_stats: { supporters: number } | { supporters: number }[] | null;
-        }>();
 
-      if (!error && data) {
-        displayName = data.display_name ?? `@${data.username}`;
-        bio = data.bio;
-        const stats = Array.isArray(data.profile_stats) ? data.profile_stats[0] : data.profile_stats;
+      /*
+       * Two reads, not one embedded join. `begfi.profile_stats` is a VIEW
+       * keyed by profile_id with no declared foreign key, so PostgREST cannot
+       * relate it to `profiles` — an embedded `profile_stats(supporters)`
+       * select fails with PGRST200 and (before this fix) silently degraded
+       * every claimed profile to the fallback card. The parallel shape the
+       * page itself uses (getProfileByUsername) reads them the same way.
+       */
+      const { data: profile, error: profileError } = await sb
+        .from("profiles")
+        .select("id, username, display_name, bio")
+        .eq("username", username)
+        .maybeSingle<{ id: string; username: string; display_name: string | null; bio: string | null }>();
+
+      if (!profileError && profile) {
+        displayName = profile.display_name ?? `@${profile.username}`;
+        bio = profile.bio;
+
+        const { data: stats } = await sb
+          .from("profile_stats")
+          .select("profile_id, supporters")
+          .eq("profile_id", profile.id)
+          .maybeSingle<{ profile_id: string; supporters: number }>();
         supporters = stats?.supporters ?? 0;
       }
     } catch {
