@@ -135,7 +135,7 @@ export function EarnSubmitBox({
         </p>
       ) : (
         <p className="text-[13px] text-beg-dim">
-          {disabledReason ?? "Every post is reviewed before it pays. Keep the post up until it shows Approved."}
+          {disabledReason ?? "Submitting starts the payout automatically — the $BEGFI is sent to your wallet. One post a day."}
         </p>
       )}
     </section>

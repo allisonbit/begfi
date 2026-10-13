@@ -176,7 +176,12 @@ export function earningsFromSubmissions(rows: EarnSubmission[]): MyEarnings {
   return { earned, pending, claimable };
 }
 
-/** Submissions this account made since the day began (UTC). */
+/**
+ * Submissions this account made since the day began (UTC), any status
+ * included: a rejected post consumed the day's slot, so rejections cannot be
+ * farmed. With the daily limit now 1, this is the whole “one post per user
+ * per day” rule at the API.
+ */
 export async function countTodaySubmissions(userId: string): Promise<number> {
   if (!SUPABASE_CONFIGURED) return 0;
   const admin = createAdminClient();

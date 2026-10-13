@@ -24,6 +24,10 @@ export const dynamic = "force-dynamic";
  *   stage (`claimed_at`) -> transfer -> record (`payout_tx`).
  * A retry picks up rows with claimed_at set and no payout_tx and pays exactly
  * those, so between marking and paying the money can go nowhere twice.
+ *
+ * SUBMIT-AND-CLAIM: the submit route now stages rows at birth, so the claim
+ * route is purely the payout leg — the retry path for a transfer that failed
+ * and the collector for a fresh submission. Nothing is review-gated.
  */
 export async function POST() {
   const profile = await getProfile();

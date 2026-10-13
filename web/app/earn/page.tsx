@@ -19,7 +19,7 @@ import { getProfile } from "@/lib/session";
 export const metadata: Metadata = {
   title: "Earn",
   description:
-    "Post about BegFi on X, drop the link, get approved, claim $BEGFI. The feed of posts people dropped is public; payouts go wallet to wallet.",
+    "Post about BegFi on X, drop the link, and get paid automatically — 10,000 $BEGFI per post from a daily 1,000,000 pool. The feed of posts people dropped is public.",
 };
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ const STEPS = [
   { n: "1", label: "Log in and set your username" },
   { n: "2", label: "Post about BegFi on X" },
   { n: "3", label: "Paste your post link" },
-  { n: "4", label: "Get approved and claim your $BEGFI" },
+  { n: "4", label: "Get paid automatically" },
 ] as const;
 
 export default async function EarnPage() {
@@ -104,15 +104,15 @@ export default async function EarnPage() {
       <section className="mt-4 notice">
         <b className="text-beg-ink">Rules</b>
         <ul className="mt-2 grid list-disc gap-1 pl-5 text-[13px]">
-          <li>{reward} $BEGFI per approved post</li>
+          <li>{reward} $BEGFI per post, paid automatically on submit</li>
           <li>Post must be public and must mention BegFi or $BEGFI</li>
           <li>The same link can&apos;t be submitted twice</li>
-          <li>{settings?.dailyLimit ?? 3} submissions a day per account</li>
-          <li>Every submission is reviewed before it pays</li>
+          <li>1 post a day per account — the pool refills every day</li>
+          <li>{settings ? formatAmount(settings.poolRemaining) : "…"} $BEGFI left in today&apos;s pool</li>
         </ul>
       </section>
 
-      {/* 4. Rewards pool meter */}
+      {/* 4. Rewards pool meter — today's 1,000,000, until tomorrow */}
       {settings ? (
         <section className="mt-4 card grid gap-2">
           <div className="flex items-baseline justify-between">
