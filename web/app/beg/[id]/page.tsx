@@ -141,11 +141,11 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
         <section className="card grid gap-2">
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-[13px] text-beg-dim">Raised</span>
-            <span className="text-[13px] text-beg-dim">Goal {formatAmount(goal)} $BEG</span>
+            <span className="text-[13px] text-beg-dim">Goal {formatAmount(goal)} $BEGFI</span>
           </div>
 
           <div className="text-[28px] font-extrabold tracking-[-.04em] text-beg-ink">
-            {formatAmount(beg.raised)} $BEG
+            {formatAmount(beg.raised)} $BEGFI
           </div>
 
           <div
@@ -193,7 +193,7 @@ export default async function BegPage({ params }: { params: Promise<Params> }) {
         href={`/${beg.profiles.username}`}
         className="rounded-full bg-beg-lime p-4 text-center text-[17px] font-bold text-beg-ink"
       >
-        Send {who.split(" ")[0]} some $BEG
+        Send {who.split(" ")[0]} some $BEGFI
       </Link>
 
       <p className="text-center text-[12px] text-beg-dim">

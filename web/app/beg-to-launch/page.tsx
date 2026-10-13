@@ -29,7 +29,7 @@ export default async function BegsToLaunchPage() {
       <header>
         <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">Begs to launch</h1>
         <p className="mt-1 max-w-[62ch] text-beg-dim">
-          Open asks. Send $BEG to the creator&apos;s wallet to back one; BegFi never holds the
+          Open asks. Send $BEGFI to the creator&apos;s wallet to back one; BegFi never holds the
           money. Every figure here is confirmed transfers since that ask opened.
         </p>
       </header>
@@ -59,7 +59,7 @@ export default async function BegsToLaunchPage() {
                 </div>
                 <p className="mt-1 line-clamp-2 text-[13px] text-beg-dim">{b.one_liner}</p>
                 <p className="mt-2 text-[12px] text-beg-dim">
-                  by @{b.username} · goal {compactAmount(Number(BigInt(b.goal) / 10n ** 12n))} $BEG ·
+                  by @{b.username} · goal {compactAmount(Number(BigInt(b.goal) / 10n ** 12n))} $BEGFI ·
                   opened {ageWords(b.created_at)} ago
                 </p>
               </Link>

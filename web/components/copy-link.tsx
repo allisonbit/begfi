@@ -16,7 +16,7 @@ export function CopyLink({ url }: { url: string }) {
   const [copied, setCopied] = useState(false);
 
   const absolute = url.startsWith("http") ? url : `https://${url}`;
-  const shareText = encodeURIComponent("Send me some $BEG");
+  const shareText = encodeURIComponent("Send me some $BEGFI");
 
   async function copy() {
     try {

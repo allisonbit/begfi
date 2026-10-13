@@ -3,6 +3,16 @@
 Everything visual the site and future agents need. The mascot is the brand;
 everything else in the sticker palette serves it.
 
+## The ecosystem
+
+- **Name:** BegFi
+- **Positioning:** The e-Begging protocol. Ask onchain. Get paid. Launch tokens.
+- **Token:** $BEGFI — BegFi's own token, launched from the genesis wallet.
+- **Genesis launcher wallet:** `0x38e2F47D9b2Eb233c035Dcbc2D40857D9517933A` (also
+  baked into `web/lib/config.ts` as `GENESIS_LAUNCHER_WALLET`). Once the launch
+  confirms, set `NEXT_PUBLIC_BEG_TOKEN_ADDRESS` to the new contract and deploy;
+  the send flow, indexer and digests switch onto $BEGFI from that env var.
+
 ## Source files (canonical)
 
 | File | What it is |
@@ -23,6 +33,7 @@ The mascot: a coin with big teary begging eyes, wearing Robinhood's green cap
 | `web/app/opengraph-image.tsx` | Site-level share card (what crawlers show when begfi.io is posted). |
 | `web/app/[username]/opengraph-image.tsx` | **The link card**: what people see when begfi.io/username is shared. |
 | `web/app/beg/[id]/opengraph-image.tsx` | Pre-existing per-beg card (dark variant). |
+| `web/lib/config.ts` | Positions the product in copy: "The e-Begging protocol. Ask onchain. Get paid. Launch tokens." |
 
 ## Regenerate
 

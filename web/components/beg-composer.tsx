@@ -83,7 +83,7 @@ export function BegComposer() {
           <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-[13px] font-bold text-beg-ink">Your beg is live</p>
           <p className="mt-2 text-[15px] text-beg-ink">{body}</p>
           {share.goal ? (
-            <p className="mt-2 text-[13px] text-beg-dim">Asking for {share.goal} $BEG</p>
+            <p className="mt-2 text-[13px] text-beg-dim">Asking for {share.goal} $BEGFI</p>
           ) : null}
         </div>
 
@@ -130,7 +130,7 @@ export function BegComposer() {
             placeholder="1000"
             className="min-w-0 flex-1 bg-transparent text-[16px] font-bold text-beg-ink outline-none placeholder:font-normal placeholder:text-beg-dim"
           />
-          <span className="text-[13px] font-bold text-beg-dim">$BEG</span>
+          <span className="text-[13px] font-bold text-beg-dim">$BEGFI</span>
         </div>
         <span className="text-[12px] text-beg-dim">
           Set a target and your page shows how far along you are. Leave it blank to beg open endedly.

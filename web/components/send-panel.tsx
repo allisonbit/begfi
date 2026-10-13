@@ -20,12 +20,12 @@ import { erc20Abi, formatAmount, parseAmount } from "@/lib/erc20";
  * The send flow (spec §5.2, §7.2).
  *
  * A sender needs no account: open the link, connect a wallet, enter an amount,
- * send. The wallet calls `transfer` on the $BEG contract directly and BegFi
+ * send. The wallet calls `transfer` on the $BEGFI contract directly and BegFi
  * never touches the funds.
  *
  * Every precondition is checked and named before the button is usable, because
  * the failure modes here are not interchangeable: being on the wrong network,
- * having no ETH for gas, and not having enough $BEG are three different problems
+ * having no ETH for gas, and not having enough $BEGFI are three different problems
  * with three different fixes, and a generic "transaction failed" tells the
  * person nothing.
  */
@@ -133,7 +133,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-center">
         <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-lg font-extrabold text-beg-ink">Sent</p>
         <p className="mt-1.5 text-[13px] text-beg-dim">
-          {parsed ? `${formatAmount(parsed)} $BEG` : "$BEG"} to @{username}. Confirmed on-chain.
+          {parsed ? `${formatAmount(parsed)} $BEGFI` : "$BEGFI"} to @{username}. Confirmed on-chain.
         </p>
         <a
           href={txUrl(hash)}
@@ -168,7 +168,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
     return (
       <div className="grid gap-3">
         <p className="text-center text-[13px] text-beg-dim">
-          Your wallet is on another network. $BEG only exists on {robinhoodChain.name}.
+          Your wallet is on another network. $BEGFI only exists on {robinhoodChain.name}.
         </p>
         <button
           type="button"
@@ -203,7 +203,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
       </div>
 
       <label className="grid gap-1.5">
-        <span className="text-[13px] text-beg-dim">Amount in $BEG</span>
+        <span className="text-[13px] text-beg-dim">Amount in $BEGFI</span>
         <input
           value={amount}
           onChange={(e) => {
@@ -224,7 +224,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
 
       {tokenBalance !== undefined ? (
         <p className="text-center text-[13px] text-beg-dim">
-          You hold {formatAmount(tokenBalance)} $BEG
+          You hold {formatAmount(tokenBalance)} $BEGFI
         </p>
       ) : null}
 
@@ -236,7 +236,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
 
       {insufficientToken ? (
         <p className="rounded-2xl border-[1.5px] border-beg-line p-3 text-center text-[13px] text-beg-ink">
-          Not enough $BEG for that amount.
+          Not enough $BEGFI for that amount.
         </p>
       ) : null}
 
@@ -259,7 +259,7 @@ export function SendPanel({ recipient, username }: { recipient: string; username
         disabled={!canSend}
         className="btn-primary w-full p-4 text-[17px] disabled:opacity-40"
       >
-        {isPending ? "Confirm in your wallet…" : confirming ? "Sending…" : `Send ${amount || "0"} $BEG`}
+        {isPending ? "Confirm in your wallet…" : confirming ? "Sending…" : `Send ${amount || "0"} $BEGFI`}
       </button>
 
       <p className="text-center text-[13px] text-beg-dim">

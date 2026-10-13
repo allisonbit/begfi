@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   if (!found) return { title: "Not found" };
 
   const name = found.profile.display_name ?? `@${found.profile.username}`;
-  const description = found.profile.bio ?? `Send ${name} some $BEG on Robinhood Chain.`;
+  const description = found.profile.bio ?? `Send ${name} some $BEGFI on Robinhood Chain.`;
 
   return {
     title: name,
@@ -137,7 +137,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
             {formatAmount(BigInt(stats.total_received))}
           </div>
           <div className="mb-5 text-center text-[13px] text-beg-dim">
-            $BEG received from {stats.supporters === 1 ? "1 supporter" : `${stats.supporters} supporters`}
+            $BEGFI received from {stats.supporters === 1 ? "1 supporter" : `${stats.supporters} supporters`}
           </div>
 
           {BEG_CONFIGURED ? (
@@ -220,7 +220,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
 }
 
 /**
- * Rendered instead of the send UI while `$BEG` has no address.
+ * Rendered instead of the send UI while `$BEGFI` has no address.
  *
  * This is the no-fake-data rule in its most important form: no send button, no
  * amount buttons, no disabled form implying that pressing things would work.
@@ -231,7 +231,7 @@ function NotLaunchYet() {
     <div className="rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-center">
       <p className="font-bold text-beg-ink">Sending isn&apos;t live yet</p>
       <p className="mt-1.5 text-[13px] text-beg-dim">
-        $BEG hasn&apos;t been launched, so there is no token to send. This page becomes a payment page
+        $BEGFI hasn&apos;t been launched, so there is no token to send. This page becomes a payment page
         the moment it is.
       </p>
     </div>

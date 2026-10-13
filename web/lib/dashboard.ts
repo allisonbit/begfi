@@ -324,7 +324,7 @@ export async function getActivityFeed(wallet: string, limit = 100): Promise<{
       kind: "beg",
       at: t.block_time,
       tx: t.tx_hash,
-      text: `Received ${formatAmount(BigInt(t.amount))} $BEG from ${t.from_address.slice(0, 6)}…${t.from_address.slice(-4)}`,
+      text: `Received ${formatAmount(BigInt(t.amount))} $BEGFI from ${t.from_address.slice(0, 6)}…${t.from_address.slice(-4)}`,
     });
   }
 

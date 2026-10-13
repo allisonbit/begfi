@@ -28,7 +28,7 @@ export function OwnBegList({ begs }: { begs: OwnBeg[] }) {
           </div>
           <p className="mt-1.5 line-clamp-2 text-[13px] text-beg-dim">{b.body}</p>
           <p className="mt-1 text-[12px] text-beg-dim">
-            Goal: {b.goal ? `${formatAmount(BigInt(b.goal))} $BEG` : "open ended"}
+            Goal: {b.goal ? `${formatAmount(BigInt(b.goal))} $BEGFI` : "open ended"}
           </p>
           <span className="font-mono text-[11px] text-beg-dim">begfi.io/beg/{b.id}</span>
         </li>

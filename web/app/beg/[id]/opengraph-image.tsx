@@ -159,7 +159,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           <div style={{ display: F, flexDirection: "column", marginBottom: 32 }}>
             <div style={{ display: F, justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
               <div style={{ display: F, color: LIME, fontSize: 40, fontWeight: 700 }}>
-                {amount(raised)} $BEG
+                {amount(raised)} $BEGFI
               </div>
               <div style={{ display: F, color: DIM, fontSize: 28 }}>
                 of {amount(goal)} goal

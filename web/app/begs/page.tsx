@@ -196,8 +196,8 @@ export default async function BegsPage() {
                     beg.progressKnown ? (
                       <div className="grid gap-2">
                         <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                          <span className="font-bold text-beg-ink">{formatAmount(raised)} $BEG</span>
-                          <span className="text-beg-dim">of {formatAmount(goal)} $BEG</span>
+                          <span className="font-bold text-beg-ink">{formatAmount(raised)} $BEGFI</span>
+                          <span className="text-beg-dim">of {formatAmount(goal)} $BEGFI</span>
                         </div>
                         <div className="progress" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`Progress toward ${who}'s goal`}>
                           <div className="progress-fill" style={{ width: `${pct}%` }} />
@@ -253,7 +253,7 @@ export default async function BegsPage() {
                       href={`/${beg.username}`}
                       className="btn-primary px-4 py-2 text-[13px]"
                     >
-                      Send $BEG
+                      Send $BEGFI
                     </Link>
                   </div>
                 </li>

@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: "BegFi", template: "%s | BegFi" },
   description:
-    "Your link. Their $BEG. Straight to your wallet. Noncustodial payment links and token launches on Robinhood Chain.",
+    "BegFi. The e-Begging protocol. Ask onchain, get paid in $BEGFI, and launch tokens on Robinhood Chain. Noncustodial — funds never pass through BegFi.",
   applicationName: "BegFi",
   openGraph: { type: "website", siteName: "BegFi" },
   twitter: { card: "summary_large_image" },

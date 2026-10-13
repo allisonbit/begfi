@@ -142,8 +142,8 @@ export async function POST(request: Request) {
 
   // The blocklist (spec §9.5) is enforced here, server-side, against the
   // on-chain name and ticker — but only for standard launches. Genesis skips
-  // it by design: the genesis launch is $BEG itself, and the form cannot reach
-  // that mode until $BEG exists.
+  // it by design: the genesis launch is $BEGFI itself, and the form cannot reach
+  // that mode until $BEGFI exists.
   if (mode === "standard") {
     const { data: blocked } = await admin.from("launch_blocklist").select("term");
     const terms = (blocked ?? []).map((row) => row.term.toLowerCase());

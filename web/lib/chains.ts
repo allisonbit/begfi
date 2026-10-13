@@ -38,7 +38,7 @@ export const robinhoodChain = defineChain({
 });
 
 /**
- * One chain only. $BEG is a single-chain token, and a link that could resolve on
+ * One chain only. $BEGFI is a single-chain token, and a link that could resolve on
  * two networks is a way to send money to the wrong place.
  */
 export const SUPPORTED_CHAINS = [robinhoodChain] as const;

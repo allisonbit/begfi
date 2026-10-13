@@ -48,7 +48,7 @@ export const erc20Abi = [
   {
     /**
      * The send. Wallet to wallet, no router, no approval, no BegFi fee — the
-     * sender's wallet calls this directly on the $BEG contract and BegFi never
+     * sender's wallet calls this directly on the $BEGFI contract and BegFi never
      * touches the funds (spec §7.1, §7.2).
      */
     type: "function",
@@ -71,7 +71,7 @@ export const erc20Abi = [
   },
 ] as const;
 
-/** 18 decimals is the ERC-20 default and what $BEG uses. */
+/** 18 decimals is the ERC-20 default and what $BEGFI uses. */
 export const TOKEN_DECIMALS = 18;
 
 /**

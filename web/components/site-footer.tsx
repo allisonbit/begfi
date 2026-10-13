@@ -45,7 +45,7 @@ export function SiteFooter() {
             <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
-            Noncustodial $BEG payment links and token launches on Robinhood Chain.
+            Noncustodial $BEGFI payment links and token launches on Robinhood Chain.
           </p>
         </div>
 

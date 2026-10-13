@@ -14,11 +14,11 @@ import { isAddress, normaliseAddress } from "./chains";
 const addr = (value: string | undefined): string | null =>
   isAddress(value) ? normaliseAddress(value!) : null;
 
-/** The $BEG token. Null until $BEG is actually launched (spec §9.4 / §14). */
+/** The $BEGFI token. Null until $BEGFI is actually launched (spec §9.4 / §14). */
 export const BEG_TOKEN_ADDRESS = addr(process.env.NEXT_PUBLIC_BEG_TOKEN_ADDRESS);
 
 /**
- * True only when the app can really move $BEG. Gates the entire send flow and
+ * True only when the app can really move $BEGFI. Gates the entire send flow and
  * the launch section. While false the product is honest about being unfinished
  * rather than simulating the parts that need a token.
  */
@@ -26,14 +26,14 @@ export const BEG_CONFIGURED = BEG_TOKEN_ADDRESS !== null;
 
 /**
  * The one wallet allowed to run BegFi's own genesis launch — the dev wallet for
- * $BEG (spec §9.2: 5% creator tax, all of it to the dev wallet).
+ * $BEGFI (spec §9.2: 5% creator tax, all of it to the dev wallet).
  *
  * GENESIS OTHERWISE DEADLOCKS. The form used to lock genesis mode for everyone
- * "until $BEG exists", but $BEG comes into existence THROUGH a genesis launch:
+ * "until $BEGFI exists", but $BEGFI comes into existence THROUGH a genesis launch:
  * the reservation, read absolutely, forbade the one launch it was reserving
  * space for. Naming the wallet in advance is the way out that keeps the
  * reservation honest — every other wallet still sees genesis locked, and this
- * address stops being special the moment $BEG exists, because a configured
+ * address stops being special the moment $BEGFI exists, because a configured
  * token address locks genesis for everyone including the dev.
  *
  * The address is lowercase and compared lowercase. Set from the deployment
@@ -43,7 +43,7 @@ export const GENESIS_LAUNCHER_WALLET =
   process.env.NEXT_PUBLIC_GENESIS_LAUNCHER_WALLET?.trim().toLowerCase() ||
   // The dev wallet in code, not only in the environment. It is public by
   // nature — the on-chain creator-fee recipient, readable from the token
-  // record the moment $BEG exists — so a build cache that predates the env
+  // record the moment $BEGFI exists — so a build cache that predates the env
   // var can never strand genesis mode behind a stale bundle. The env var
   // still wins where it is set.
   "0x38e2f47d9b2eb233c035dcbc2d40857d9517933a";

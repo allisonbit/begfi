@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 import { MASCOT_BASE64 } from "@/lib/og/mascot";
 
 export const runtime = "nodejs";
-export const alt = "BegFi — your road to freewill";
+export const alt = "BegFi — the e-Begging protocol";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -65,7 +65,7 @@ export default function Image() {
                 <span style={{ display: F, color: GREEN }}>fi</span>
               </div>
               <div style={{ display: F, fontSize: 40, color: "#59626F" }}>
-                Your road to freewill.
+                The e-Begging protocol.
               </div>
             </div>
           </div>
@@ -90,7 +90,7 @@ export default function Image() {
            fourth (or moving the domain pill here, as an earlier version had)
            pushes the last chip off the canvas — Satori overflows, never wraps. */}
         <div style={{ display: F, alignItems: "flex-start", gap: 32 }}>
-          {["/yourname pays", "/launch a token", "/begs that compound"].map((chip) => (
+          {["/ask onchain", "/get paid", "/launch tokens"].map((chip) => (
             <div
               key={chip}
               style={{

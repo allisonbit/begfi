@@ -172,7 +172,7 @@ export default async function Image({ params }: { params: Promise<Params> }) {
               maxWidth: 700,
             }}
           >
-            Send $BEG — straight to their wallet
+            Send $BEGFI — straight to their wallet
           </div>
           <div style={{ display: F, flexDirection: "column", alignItems: "flex-end" }}>
             {supporters === null ? null : (

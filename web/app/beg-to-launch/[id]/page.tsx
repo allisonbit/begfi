@@ -21,7 +21,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
  * One beg-to-launch at its own URL.
  *
  * THE MONEY PATH, stated once and everywhere the same way: supporters send
- * $BEG from their wallet to the creator's wallet, exactly as any send on this
+ * $BEGFI from their wallet to the creator's wallet, exactly as any send on this
  * site works. The progress bar counts confirmed on-chain transfers that
  * arrived after the ask opened; the supporter list shows them. Nothing is
  * escrowed, nothing is refundable, and the launch itself happens later through
@@ -135,7 +135,7 @@ export default async function LaunchBegPage({ params }: { params: Promise<Params
         <div className="flex items-baseline justify-between">
           <b className="text-[15px]">Progress</b>
           <span className="text-[13px] text-beg-dim">
-            {formatAmount(raised)} of {formatAmount(goal)} $BEG
+            {formatAmount(raised)} of {formatAmount(goal)} $BEGFI
           </span>
         </div>
         <div className="progress">
@@ -161,7 +161,7 @@ export default async function LaunchBegPage({ params }: { params: Promise<Params
           <div className="rounded-2xl border-[1.5px] border-dashed border-beg-line p-5 text-center">
             <p className="font-bold text-beg-ink">Sending isn&apos;t live yet</p>
             <p className="mt-1.5 text-[13px] text-beg-dim">
-              $BEG hasn&apos;t been launched, so there is no token to send toward this beg. The
+              $BEGFI hasn&apos;t been launched, so there is no token to send toward this beg. The
               ask still shows its supporters the moment it is.
             </p>
           </div>
@@ -184,7 +184,7 @@ export default async function LaunchBegPage({ params }: { params: Promise<Params
               >
                 <span className="font-mono text-beg-dim">{shortAddress(s.from_address)}</span>
                 <span className="text-beg-dim">{new Date(s.block_time).toLocaleString("en-GB")}</span>
-                <span className="font-bold text-beg-ink">{formatAmount(BigInt(s.amount))} $BEG</span>
+                <span className="font-bold text-beg-ink">{formatAmount(BigInt(s.amount))} $BEGFI</span>
               </li>
             ))}
           </ul>

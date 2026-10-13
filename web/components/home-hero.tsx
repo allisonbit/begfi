@@ -173,7 +173,7 @@ export function HomeHero() {
           </h1>
           <p className="mb-1.5 mt-4 max-w-[34ch] text-xl text-beg-dim">
             Beg boldly, anything helps. Share your link and anyone can send you
-            $BEG, straight to your wallet. 🙏
+            $BEGFI, straight to your wallet. 🙏
           </p>
 
           <div className="flex max-w-[420px] items-center gap-2 rounded-full border-[3px] border-beg-ink bg-beg-card py-1.5 pl-[18px] pr-1.5 shadow-glow">
@@ -194,7 +194,7 @@ export function HomeHero() {
             ) : (
               <>
                 {claimed ? "That's yours. " : null}
-                Your profile page is at this address. Sending isn&apos;t live yet because $BEG hasn&apos;t
+                Your profile page is at this address. Sending isn&apos;t live yet because $BEGFI hasn&apos;t
                 been launched.
               </>
             )}
@@ -216,8 +216,7 @@ export function HomeHero() {
           <span aria-hidden className="caret" />
         </h1>
         <p className="mb-1.5 mt-4 max-w-[30ch] text-lg text-beg-dim">
-          The begging protocol. Free requests and airdrops, straight from the
-          tl 🙏
+          The e-Begging protocol. Ask onchain. Get paid. Launch tokens.
         </p>
 
         <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[3px] border-beg-ink bg-beg-card p-2 pl-[18px] shadow-glow focus-within:border-beg-blue max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">
@@ -287,7 +286,7 @@ function PhonePreview({ name }: { name: string }) {
       </div>
 
       <div className="mb-0.5 mt-4 text-center text-[44px] font-extrabold tracking-[-.04em] text-beg-blue">0</div>
-      <div className="mb-4 text-center text-[13px] text-beg-dim">$BEG received, no supporters yet</div>
+      <div className="mb-4 text-center text-[13px] text-beg-dim">$BEGFI received, no supporters yet</div>
 
       <p className="text-center text-[13px] text-beg-dim">
         Illustration only. No account, balance or payment sits behind this, and sends aren&apos;t live.

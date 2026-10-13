@@ -5,9 +5,9 @@ import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
-  title: "BegFi: beg boldly, anything helps",
+  title: "BegFi: the e-Begging protocol",
   description:
-    "The begging protocol, your road to free requests and airdrops. Everyone can launch a token on the BegFi launch pad and beg to earn onchain. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
+    "Ask onchain. Get paid. Launch tokens. BegFi is the e-Begging protocol on Robinhood Chain: claim your link, receive $BEGFI straight to your wallet, and launch a token from the same app. No roadmap to riches, just the audacity to ask. Anything helps 🙏",
 };
 
 /**
@@ -41,7 +41,7 @@ function LaunchSection() {
               B
             </div>
             <div>
-              <b className="text-[19px]">$BEG</b>
+              <b className="text-[19px]">$BEGFI</b>
               <small className="block text-beg-dim">The genesis launch, dev wallet only</small>
             </div>
           </div>
@@ -162,7 +162,7 @@ export default function HomePage() {
           <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
         </span>
         <span className="text-sm">
-          Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEG is live" : "$BEG not launched yet"}
+          Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEGFI is live" : "$BEGFI not launched yet"}
         </span>
       </footer>
     </div>

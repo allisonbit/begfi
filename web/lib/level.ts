@@ -7,7 +7,7 @@ import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
  * Creator levels.
  *
  * THE RULE THE CHIP OBEYS: a level is a name for real on-chain aggregates —
- * confirmed $BEG received, confirmed supporters, recorded trade volume across
+ * confirmed $BEGFI received, confirmed supporters, recorded trade volume across
  * launched tokens — and never a badge someone earns by doing nothing on
  * chain. There is no badge collection: exactly one chip, computed the same
  * way everywhere it shows, and the thresholds below are the only place the
@@ -20,7 +20,7 @@ import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
  */
 export type Level = {
   name: string;
-  /** Minimum confirmed $BEG received, in base units. */
+  /** Minimum confirmed $BEGFI received, in base units. */
   minReceived: bigint;
   /** Minimum distinct confirmed senders. */
   minSupporters: number;
@@ -28,7 +28,7 @@ export type Level = {
   minVolumeWei: bigint;
 };
 
-// In base units (18 decimals). 1_000_000 $BEG etc. Volume in quote wei.
+// In base units (18 decimals). 1_000_000 $BEGFI etc. Volume in quote wei.
 const MILLION = 1_000_000n * 10n ** 18n;
 const HUNDRED_K = 100_000n * 10n ** 18n;
 const TEN_K = 10_000n * 10n ** 18n;

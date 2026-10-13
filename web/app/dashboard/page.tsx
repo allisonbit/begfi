@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 /**
  * The Overview tab: everything someone checks in a reflex, in one screen.
  *
- * Wallet, $BEG received, supporters, fees — all read from the chain or the
+ * Wallet, $BEGFI received, supporters, fees — all read from the chain or the
  * indexer's confirmed rows, so a number here is a fact even when it is zero.
  * The claimable figure and the BegFi meter are client/server splits on
  * purpose: the escrow balance has to be read with the connected wallet
@@ -66,14 +66,14 @@ export default async function DashboardPage() {
         </p>
       ) : (
         <section className="grid gap-3 sm:grid-cols-2">
-          <Stat label="$BEG received" value={formatAmount(BigInt(overview.totalReceived))} glow />
+          <Stat label="$BEGFI received" value={formatAmount(BigInt(overview.totalReceived))} glow />
           <Stat label="Supporters" value={String(overview.supporters)} />
         </section>
       )}
 
       {!BEG_CONFIGURED ? (
         <p className="notice-dashed">
-          Sending isn&apos;t live yet because $BEG hasn&apos;t been launched, so $BEG totals stay at
+          Sending isn&apos;t live yet because $BEGFI hasn&apos;t been launched, so $BEGFI totals stay at
           zero until it is. Your launches and your link work now.
         </p>
       ) : null}

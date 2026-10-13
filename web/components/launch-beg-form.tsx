@@ -31,7 +31,7 @@ export function LaunchBegForm() {
       return setError("The ticker is 2 to 10 letters or digits.");
     }
     if (!oneLiner.trim()) return setError("Say in one line what supporters are funding.");
-    if (!goalOk) return setError("Set a $BEG goal supporters can see progress toward.");
+    if (!goalOk) return setError("Set a $BEGFI goal supporters can see progress toward.");
 
     setBusy(true);
     try {
@@ -67,7 +67,7 @@ export function LaunchBegForm() {
       <div>
         <b className="text-[16px] text-beg-ink">Beg to launch</b>
         <p className="mt-1 text-[13px] text-beg-dim">
-          Ask supporters to send $BEG toward your launch. Sends go wallet to wallet; BegFi never
+          Ask supporters to send $BEGFI toward your launch. Sends go wallet to wallet; BegFi never
           holds them and cannot return them.
         </p>
       </div>
@@ -101,7 +101,7 @@ export function LaunchBegForm() {
       </label>
 
       <label className="grid gap-1.5">
-        <span className="text-[13px] text-beg-dim">Goal, in $BEG</span>
+        <span className="text-[13px] text-beg-dim">Goal, in $BEGFI</span>
         <input
           value={goal}
           onChange={(e) => setGoal(e.target.value.replace(/[^0-9.]/g, ""))}
@@ -110,7 +110,7 @@ export function LaunchBegForm() {
           placeholder="1000000"
         />
         {goal.trim() !== "" && goalOk ? (
-          <span className="text-[12px] text-beg-dim">{formatAmount(cleanGoal!)} $BEG</span>
+          <span className="text-[12px] text-beg-dim">{formatAmount(cleanGoal!)} $BEGFI</span>
         ) : goal.trim() !== "" ? (
           <span className="text-[12px] text-beg-ink">Not a valid amount.</span>
         ) : null}

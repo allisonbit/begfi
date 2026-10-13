@@ -59,7 +59,7 @@ export const MAX_CREATOR_TAX_BPS = 1_000n;
  */
 export const STANDARD_CREATOR_TAX_BPS = 300n;
 
-/** BegFi's creator tax on the $BEG launch itself: 5%, all of it to the dev wallet. */
+/** BegFi's creator tax on the $BEGFI launch itself: 5%, all of it to the dev wallet. */
 export const GENESIS_CREATOR_TAX_BPS = 500n;
 
 /**

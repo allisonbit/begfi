@@ -1,7 +1,7 @@
 {
   "name": "begfi-web",
   "version": "1.0.0",
-  "description": "BegFi: a non-custodial $BEG payment link on Robinhood Chain, plus a token launchpad.",
+  "description": "BegFi: a non-custodial $BEGFI payment link on Robinhood Chain, plus a token launchpad.",
   "private": true,
   "type": "module",
   "scripts": {

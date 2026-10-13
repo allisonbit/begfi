@@ -14,7 +14,7 @@ export const maxDuration = 60;
  *
  * Two independent scans, one cursor each:
  *
- *  1. TRANSFERS. Reads `Transfer` events of the $BEG contract and records the
+ *  1. TRANSFERS. Reads `Transfer` events of the $BEGFI contract and records the
  *     ones addressed to a registered wallet. Totals and supporter counts are
  *     computed from what this writes, so the rule that matters is here:
  *     **a transfer counts only once it is confirmed on-chain.** The browser is
@@ -120,7 +120,7 @@ export async function GET(request: Request) {
     const safeHead = head > CONFIRMATIONS ? head - CONFIRMATIONS : 0n;
 
     // The scans are independent and either may be skipped: transfers need a
-    // $BEG address to exist at all, trades need at least one catalog row.
+    // $BEGFI address to exist at all, trades need at least one catalog row.
     const transfers = await indexTransfers(client, admin, safeHead);
     const trades = await indexTrades(client, admin, safeHead);
 
@@ -228,7 +228,7 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
       await push(
         profile.id,
         "beg",
-        "You received $BEG",
+        "You received $BEGFI",
         `${t.amount.slice(0, 12)}... base units from ${t.from_address.slice(0, 6)}...${t.from_address.slice(-4)}.`,
         t.tx_hash,
         "/dashboard/activity",
@@ -395,7 +395,7 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
 
 /**
  * One notification per profile per day, telling them what the chain says
- * happened to them in the previous 24h: begs received ($BEG amount and
+ * happened to them in the previous 24h: begs received ($BEGFI amount and
  * count), fee-bearing trades on their launches (sum of recorded taxes), and
  * launches recorded. Every figure is summed from the rows this cron itself
  * maintains, so the digest cannot say anything the scans did not record.
@@ -485,7 +485,7 @@ async function digestForProfile(
   if (begCount === 0 && taxTotal === 0n && newLaunches === 0) return 0;
 
   const parts: string[] = [];
-  if (begCount > 0) parts.push(`${begCount} $BEG ${begCount === 1 ? "send" : "sends"} to you`);
+  if (begCount > 0) parts.push(`${begCount} $BEGFI ${begCount === 1 ? "send" : "sends"} to you`);
   if (taxTotal > 0n) parts.push(`creator taxes on your tokens`);
   if (newLaunches > 0) parts.push(`${newLaunches} ${newLaunches === 1 ? "launch" : "launches"} recorded`);
 
@@ -511,7 +511,7 @@ async function digestForProfile(
 }
 
 /* ------------------------------------------------------------------------- */
-/* Scan 1: $BEG transfers to registered wallets                              */
+/* Scan 1: $BEGFI transfers to registered wallets                              */
 /* ------------------------------------------------------------------------- */
 
 async function indexTransfers(
@@ -520,9 +520,9 @@ async function indexTransfers(
   safeHead: bigint,
 ) {
   if (!BEG_TOKEN_ADDRESS) {
-    // Expected until $BEG is actually launched. Not an error: there is nothing
+    // Expected until $BEGFI is actually launched. Not an error: there is nothing
     // to index, and saying so is more useful than a stack trace.
-    return { skipped: "no $BEG token address configured" };
+    return { skipped: "no $BEGFI token address configured" };
   }
 
   const from = (await readCursor(admin, TRANSFER_CURSOR_KEY)) ?? safeHead;

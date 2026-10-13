@@ -32,9 +32,9 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 font-bold text-beg-ink">$BEG has not been launched</h2>
+            <h2 className="mb-2 font-bold text-beg-ink">$BEGFI has not been launched</h2>
             <p>
-              There is no $BEG token. No contract exists, no address is deployed, and nothing on this
+              There is no $BEGFI token. No contract exists, no address is deployed, and nothing on this
               site can send or receive it. Any page or account claiming otherwise is not us.
             </p>
           </section>

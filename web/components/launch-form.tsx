@@ -207,7 +207,7 @@ export function LaunchForm() {
    * wallet, named in the deployment environment. Everyone else sees the mode
    * locked: the factory would happily accept a 5%-to-self launch from any
    * wallet, which is exactly the thing the label must not invite. The lock is
-   * lifted for the genesis wallet alone, and once $BEG is configured it stays
+   * lifted for the genesis wallet alone, and once $BEGFI is configured it stays
    * shut for everyone (a second genesis would not be BegFi's launch).
    */
   const isGenesisWallet =
@@ -228,7 +228,7 @@ export function LaunchForm() {
     const problem = validate();
     if (problem) return setError(problem);
     if (expectedEconomics === undefined) return setError("Still reading the launch terms. Try again in a moment.");
-    if (genesisReserved) return setError("The $BEG launch is reserved. Standard mode is open to any wallet.");
+    if (genesisReserved) return setError("The $BEGFI launch is reserved. Standard mode is open to any wallet.");
     if (launchEnabled === false) return setError("This factory is switched off right now; launches are not possible.");
     if (canLaunch === false) return setError("This wallet isn't permitted to launch right now.");
     if (taxTooHigh) return setError("The creator tax is above the cap this factory allows.");
@@ -361,7 +361,7 @@ export function LaunchForm() {
           {(
             [
               ["standard", "Standard", "3% creator tax to you"],
-              ["genesis", "$BEG itself (reserved)", "BegFi's own launch, not open"],
+              ["genesis", "$BEGFI itself (reserved)", "BegFi's own launch, not open"],
             ] as const
           ).map(([value, label, note]) => (
             <button
@@ -384,11 +384,11 @@ export function LaunchForm() {
         isGenesisWallet ? (
           <p className="notice p-4">
             Genesis mode, for the dev wallet. The 5% creator tax goes to this wallet, and this
-            launch becomes $BEG site wide once its address is set.
+            launch becomes $BEGFI site wide once its address is set.
           </p>
         ) : (
           <p className="notice p-4">
-            $BEG has not launched, so there is no genesis launch to join. And when it happens, the
+            $BEGFI has not launched, so there is no genesis launch to join. And when it happens, the
             5% goes to BegFi&apos;s dev wallet, not to whoever has this form open. Standard is the
             mode open to any wallet.
           </p>

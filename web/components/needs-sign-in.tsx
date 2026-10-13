@@ -50,7 +50,7 @@ export function NeedsUsername() {
 
       <p className="text-beg-dim">
         You&apos;re signed in, but you haven&apos;t picked a username yet. That username is your
-        payment link, the thing people open to send you $BEG.
+        payment link, the thing people open to send you $BEGFI.
       </p>
 
       <a
