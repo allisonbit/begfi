@@ -56,7 +56,11 @@ export function TokenChart({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-baseline gap-2">
           <span className="text-[19px] font-extrabold text-beg-ink">
-            {currentPrice !== null ? `${currentPrice.toPrecision(4)} ETH` : "—"}
+            {currentPrice !== null
+              ? currentPrice > 0 && currentPrice < 0.000001
+                ? `${currentPrice.toFixed(12).replace(/0+$/, "")} ETH`
+                : `${currentPrice.toPrecision(4)} ETH`
+              : "—"}
           </span>
           {changePct !== null ? (
             <span className={`text-[13px] font-bold ${up ? "text-[#0a8f4c]" : "text-[#d33]"}`}>
@@ -132,7 +136,7 @@ export function TokenChart({
       <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-beg-dim">
         <span>
           {hover
-            ? `${new Date(hover.t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · o ${hover.o.toPrecision(4)} h ${hover.h.toPrecision(4)} l ${hover.l.toPrecision(4)} c ${hover.c.toPrecision(4)}`
+            ? `${new Date(hover.t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })} · c ${hover.c > 0 && hover.c < 0.000001 ? hover.c.toFixed(12).replace(/0+$/, "") : hover.c.toPrecision(4)}`
             : `${series.trades} trades · ${series.quoteVolumeEth !== null ? `${series.quoteVolumeEth.toFixed(3)} ETH volume` : ""}`}
         </span>
       </div>

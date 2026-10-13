@@ -16,6 +16,7 @@ import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import { compactAmount } from "@/lib/format";
+import { formatAmount } from "@/lib/erc20";
 import type { Launch } from "@/lib/types";
 
 type Params = { address: string };
@@ -217,11 +218,31 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
     : null;
   const displayPrice = lastTradePrice ?? priceNum;
 
+  /*
+   * The strip's price label. Exponential notation is a fact, not a UI:
+   * 4.383e-9 is unreadable, so sub-micro prices spell out their decimals
+   * (0.000000004383) while anything bigger keeps the compact form.
+   */
+  const priceLabel = (() => {
+    if (displayPrice === null || !Number.isFinite(displayPrice)) return "—";
+    if (displayPrice > 0 && displayPrice < 0.000001) {
+      return `${displayPrice.toFixed(12).replace(/0+$/, "")} Ξ`;
+    }
+    return `${displayPrice.toPrecision(4)} Ξ`;
+  })();
+
   /* Market cap: live price x supply. A sticker, as everywhere else. */
   const mc = displayPrice !== null && Number.isFinite(displayPrice)
     ? compactAmount(displayPrice * Number(totalSupply))
     : null;
-  const supplyCompact = compactAmount(Number(totalSupply));
+
+  /*
+   * Supply reads, not shouts: 1,000,000,000 formatted with the shared 18-dec
+   * formatter, compacted for the strip. Raw BigInt-to-Number conversion of
+   * the raw base units (1e27) prints as 1000000000000000000 — a string a
+   * person cannot read and a double cannot hold exactly.
+   */
+  const supplyCompact = formatAmount(totalSupply);
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
@@ -260,7 +281,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">Price</dt>
               <dd className="text-[15px] font-extrabold text-beg-ink">
-                {displayPrice !== null ? `${displayPrice.toPrecision(4)} Ξ` : "—"}
+                {priceLabel}
               </dd>
             </div>
             <div>
