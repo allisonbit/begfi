@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ClaimCard } from "@/components/claim-card";
 import { useAuth } from "@/lib/auth-context";
 import { useWalletSignIn } from "@/lib/useWalletSignIn";
 
@@ -36,6 +37,7 @@ export function EarnSubmitBox({
   const [messageKind, setMessageKind] = useState<"info" | "error">("info");
   const [remaining, setRemaining] = useState(remainingToday);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [cardAmount, setCardAmount] = useState<string | null>(null);
 
   useEffect(() => {
     setRemaining(remainingToday);
@@ -127,11 +129,22 @@ export function EarnSubmitBox({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ post_url: postUrl.trim(), fp: fingerprint ?? "" }),
       });
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; remaining?: number } | null;
+      const body = (await res.json().catch(() => null)) as
+        | { ok?: boolean; error?: string; remaining?: number; reward?: string }
+        | null;
 
       if (res.ok && body?.ok) {
-        setMessage("Submitted! Pending review.");
-        setMessageKind("info");
+        /*
+         * The receipt card is the exit, not the message line: it leads with
+         * the amount, the share buttons lead it, and closing is allowed but
+         * last. `reward` arrives in base units from the server, formatted
+         * here where the client already knows the display convention.
+         */
+        const rewardText = body.reward 
+          ? (BigInt(body.reward) / 10n ** 18n).toLocaleString("en-GB")
+          : "10,000";
+        setCardAmount(rewardText);
+        setMessage(null);
         setPostUrl("");
         if (typeof body.remaining === "number") setRemaining(body.remaining);
       } else {
@@ -146,6 +159,61 @@ export function EarnSubmitBox({
     }
   }
 
+  if (cardAmount && profile) {
+    return (
+      <>
+        <ClaimCard amount={cardAmount} username={profile.username} onClose={() => setCardAmount(null)} />
+        {/* Keep the submit box mounted underneath so a closed card reveals it. */}
+        <SubmitForm
+          postUrl={postUrl}
+          setPostUrl={setPostUrl}
+          submitting={submitting}
+          message={message}
+          messageKind={messageKind}
+          remaining={remaining}
+          dailyLimit={dailyLimit}
+          blocked={blocked}
+          disabledReason={disabledReason}
+          looksValid={looksValid}
+          onSubmit={() => void submit()}
+        />
+      </>
+    );
+  }
+
+  return (
+    <SubmitForm
+      postUrl={postUrl}
+      setPostUrl={setPostUrl}
+      submitting={submitting}
+      message={message}
+      messageKind={messageKind}
+      remaining={remaining}
+      dailyLimit={dailyLimit}
+      blocked={blocked}
+      disabledReason={disabledReason}
+      looksValid={looksValid}
+      onSubmit={() => void submit()}
+    />
+  );
+}
+
+type SubmitFormProps = {
+  postUrl: string;
+  setPostUrl: (v: string) => void;
+  submitting: boolean;
+  message: string | null;
+  messageKind: "info" | "error";
+  remaining: number;
+  dailyLimit: number;
+  blocked: boolean;
+  disabledReason: string | null;
+  looksValid: boolean;
+  onSubmit: () => void;
+};
+
+/** The form proper, stripped of the three auth states handled above. */
+function SubmitForm({ postUrl, setPostUrl, submitting, message, messageKind, remaining, dailyLimit, blocked, disabledReason, looksValid, onSubmit }: SubmitFormProps) {
   return (
     <section className="card grid gap-3 p-6">
       <div className="flex items-baseline justify-between">
@@ -165,7 +233,7 @@ export function EarnSubmitBox({
           disabled={blocked}
           className="min-w-0 flex-1 bg-transparent py-2.5 text-[14px] font-bold text-beg-ink outline-none placeholder:font-normal placeholder:text-beg-dim disabled:opacity-40"
         />
-        <button type="button" onClick={() => void submit()} disabled={blocked || submitting} className="btn-primary max-sm:justify-self-stretch max-sm:px-4 max-sm:py-2.5 max-sm:text-[13px] sm:px-5 sm:py-3 sm:text-[14px]">
+        <button type="button" onClick={onSubmit} disabled={blocked || submitting} className="btn-primary max-sm:justify-self-stretch max-sm:px-4 max-sm:py-2.5 max-sm:text-[13px] sm:px-5 sm:py-3 sm:text-[14px]">
           {submitting ? "Submitting…" : "Submit"}
         </button>
       </div>
