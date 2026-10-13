@@ -43,52 +43,31 @@ export default function Image() {
           color: INK,
         }}
       >
-        {/* top row: the mascot and the name it belongs to */}
-        <div style={{ display: F, alignItems: "center", gap: 40 }}>
-          <img
-            src={MASCOT_BASE64}
-            width={220}
-            height={220}
-            style={{ borderRadius: 48, border: `6px solid ${INK}` }}
-          />
-          <div style={{ display: F, flexDirection: "column" }}>
-            <div
-              style={{
-                display: F,
-                fontSize: 96,
-                fontWeight: FEET_HEX_BOLD,
-                letterSpacing: "-0.05em",
-              }}
-            >
-              <span style={{ display: F }}>beg</span>
-              <span style={{ display: F, color: GREEN }}>fi</span>
-            </div>
-            <div style={{ display: F, fontSize: 40, color: "#59626F" }}>
-              Your road to freewill.
-            </div>
-          </div>
-        </div>
-
-        {/* bottom row: the three things the product does, on card-stock chips */}
-        <div style={{ display: F, alignItems: "flex-end", justifyContent: "space-between" }}>
-          <div style={{ display: F, gap: 16 }}>
-            {["/yourname pays", "/launch a token", "/begs that compound"].map((chip) => (
+        {/* top row: the mascot, the name, and the domain on the far right */}
+        <div style={{ display: F, alignItems: "flex-start", justifyContent: "space-between", gap: 40 }}>
+          <div style={{ display: F, alignItems: "center", gap: 40 }}>
+            <img
+              src={MASCOT_BASE64}
+              width={220}
+              height={220}
+              style={{ borderRadius: 48, border: `6px solid ${INK}` }}
+            />
+            <div style={{ display: F, flexDirection: "column" }}>
               <div
-                key={chip}
                 style={{
                   display: F,
-                  padding: "18px 30px",
-                  background: CARD,
-                  border: `4px solid ${INK}`,
-                  borderRadius: 999,
-                  boxShadow: "8px 8px 0 0 " + INK,
-                  fontSize: 34,
-                  fontWeight: 600,
+                  fontSize: 96,
+                  fontWeight: FEET_HEX_BOLD,
+                  letterSpacing: "-0.05em",
                 }}
               >
-                {chip}
+                <span style={{ display: F }}>beg</span>
+                <span style={{ display: F, color: GREEN }}>fi</span>
               </div>
-            ))}
+              <div style={{ display: F, fontSize: 40, color: "#59626F" }}>
+                Your road to freewill.
+              </div>
+            </div>
           </div>
           <div
             style={{
@@ -104,6 +83,30 @@ export default function Image() {
           >
             begfi.io
           </div>
+        </div>
+
+        {/* bottom row: the three things the product does, on card-stock chips.
+           Three chips is the max that fits 1056px of content width; adding a
+           fourth (or moving the domain pill here, as an earlier version had)
+           pushes the last chip off the canvas — Satori overflows, never wraps. */}
+        <div style={{ display: F, alignItems: "flex-start", gap: 32 }}>
+          {["/yourname pays", "/launch a token", "/begs that compound"].map((chip) => (
+            <div
+              key={chip}
+              style={{
+                display: F,
+                padding: "18px 28px",
+                background: CARD,
+                border: `4px solid ${INK}`,
+                borderRadius: 999,
+                boxShadow: "8px 8px 0 0 " + INK,
+                fontSize: 32,
+                fontWeight: 600,
+              }}
+            >
+              {chip}
+            </div>
+          ))}
         </div>
       </div>
     ),
