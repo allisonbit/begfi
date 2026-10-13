@@ -16,6 +16,7 @@ const COLUMNS = [
       { href: "/", label: "Home" },
       { href: "/begs", label: "Begs" },
       { href: "/earn", label: "Earn" },
+      { href: "/leaderboard", label: "Leaderboard" },
       { href: "/explore", label: "Explore tokens" },
       { href: "/launch", label: "Launch a token" },
     ],

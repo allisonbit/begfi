@@ -132,6 +132,7 @@ export const RESERVED_USERNAMES = new Set([
   "begfi",
   "dashboard",
   "help",
+  "leaderboard",
   "hood",
   "launch",
   "login",

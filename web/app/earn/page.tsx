@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { ClaimButton } from "@/components/claim-button";
 import { EarnSubmitBox } from "@/components/earn-submit";
@@ -223,6 +224,16 @@ export default async function EarnPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="mt-4 card-hover card-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-[15px] font-bold text-beg-ink">See who the pool reached</p>
+          <p className="mt-1 text-[12px] text-beg-dim">The leaderboard ranks confirmed receipts — payouts and begs alike.</p>
+        </div>
+        <Link href="/leaderboard" className="btn-ghost shrink-0 px-4 py-2 text-[13px] font-bold text-beg-ink">
+          Open the board →
+        </Link>
       </section>
 
       <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">
