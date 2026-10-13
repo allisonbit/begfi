@@ -231,9 +231,13 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
     return `${displayPrice.toPrecision(4)} Ξ`;
   })();
 
-  /* Market cap: live price x supply. A sticker, as everywhere else. */
+  /*
+   * Market cap, in ETH — the chain quotes in ETH and BegFi has no USD feed,
+   * so a "$MC" would have to invent an exchange rate. ETH x tokens is the
+   * number anyone can verify from the curve reserves alone.
+   */
   const mc = displayPrice !== null && Number.isFinite(displayPrice)
-    ? compactAmount(displayPrice * Number(totalSupply))
+    ? compactAmount(displayPrice * (Number(totalSupply) / 1e18))
     : null;
 
   /*
@@ -286,7 +290,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
             </div>
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">MC</dt>
-              <dd className="text-[15px] font-extrabold text-beg-ink">{mc ? `$${mc}` : "—"}</dd>
+              <dd className="text-[15px] font-extrabold text-beg-ink">{mc ? `${mc} Ξ` : "—"}</dd>
             </div>
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">Supply</dt>
