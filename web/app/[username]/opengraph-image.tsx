@@ -151,28 +151,36 @@ export default async function Image({ params }: { params: Promise<Params> }) {
           </div>
         ) : null}
 
-        {/* the action bar: what a visitor does after clicking */}
-        <div style={{ display: F, alignItems: "flex-end", justifyContent: "space-between" }}>
+        {/*
+         * The action bar: what a visitor does after clicking. The chip carries
+         * the ask; the supporters count sits as its own column to the right —
+         * two lines rather than an inline list, because in Satori a wide chip
+         * and a long string on one row will overlap rather than wrap.
+         */}
+        <div style={{ display: F, alignItems: "flex-end", justifyContent: "space-between", gap: 32 }}>
           <div
             style={{
               display: F,
-              padding: "20px 34px",
+              padding: "22px 34px",
               background: LIME,
               border: `4px solid ${INK}`,
               borderRadius: 999,
               boxShadow: "8px 8px 0 0 " + INK,
-              fontSize: 38,
+              fontSize: 36,
               fontWeight: 700,
+              lineHeight: 1.15,
+              maxWidth: 700,
             }}
           >
             Send $BEG — straight to their wallet
           </div>
-          <div style={{ display: F, fontSize: 30, color: DIM, fontWeight: 600 }}>
-            {supporters === null
-              ? "on Robinhood Chain"
-              : supporters === 1
-                ? "1 supporter · Robinhood Chain"
-                : `${supporters} supporters · Robinhood Chain`}
+          <div style={{ display: F, flexDirection: "column", alignItems: "flex-end" }}>
+            {supporters === null ? null : (
+              <div style={{ display: F, fontSize: 30, fontWeight: 700, color: INK }}>
+                {supporters === 1 ? "1 supporter" : `${supporters} supporters`}
+              </div>
+            )}
+            <div style={{ display: F, fontSize: 26, color: DIM, fontWeight: 600 }}>Robinhood Chain</div>
           </div>
         </div>
       </div>
