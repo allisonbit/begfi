@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CommunityLinks } from "@/components/community-links";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
 
 /**
@@ -14,6 +15,7 @@ const COLUMNS = [
     links: [
       { href: "/", label: "Home" },
       { href: "/begs", label: "Begs" },
+      { href: "/earn", label: "Earn" },
       { href: "/explore", label: "Explore tokens" },
       { href: "/launch", label: "Launch a token" },
     ],
@@ -47,6 +49,7 @@ export function SiteFooter() {
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
             Noncustodial $BEGFI payment links and token launches on Robinhood Chain.
           </p>
+          <CommunityLinks className="mt-4" />
         </div>
 
         {COLUMNS.map((column) => (

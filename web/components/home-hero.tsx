@@ -194,8 +194,8 @@ export function HomeHero() {
             ) : (
               <>
                 {claimed ? "That's yours. " : null}
-                Your profile page is at this address. Sending isn&apos;t live yet because $BEGFI hasn&apos;t
-                been launched.
+                Your profile page is at this address. Sending is
+                {" "}<span className="font-bold">live</span> — send $BEGFI from any wallet.
               </>
             )}
           </p>

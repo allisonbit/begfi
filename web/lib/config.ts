@@ -49,6 +49,16 @@ export const GENESIS_LAUNCHER_WALLET =
   "0x38e2f47d9b2eb233c035dcbc2d40857d9517933a";
 
 /**
+ * Community channels, shown wherever the site asks someone to follow along.
+ *
+ * Defaults in code rather than env-only, so a build cache or a missing env var
+ * still shows the real channels — they are public by nature and would otherwise
+ * silently vanish from the footer.
+ */
+export const TELEGRAM_URL = process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim() || "https://t.me/BegFihood";
+export const X_URL = process.env.NEXT_PUBLIC_X_URL?.trim() || "https://x.com/BegFihood";
+
+/**
  * Public origin, used to build shareable links and Open Graph URLs.
  *
  * Blank is treated as unset (`||`, not `??`), because `.env` files routinely

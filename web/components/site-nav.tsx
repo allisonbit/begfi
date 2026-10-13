@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, LayoutGrid, Rocket, User } from "lucide-react";
+import { HandCoins, Coins, LayoutGrid, Rocket, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -26,9 +26,10 @@ import { useAuth } from "@/lib/auth-context";
 
 const links = [
   { href: "/begs", label: "Begs", Icon: HandCoins },
+  { href: "/earn", label: "Earn", Icon: Coins },
   { href: "/explore", label: "Tokens", Icon: LayoutGrid },
   { href: "/launch", label: "Launch", Icon: Rocket },
-  { href: "/dashboard", label: "Dashboard", Icon: User },
+  { href: "/dashboard", label: "You", Icon: User },
 ] as const;
 
 /** One dock tab: icon over label, active state via `aria-current`. */
@@ -40,7 +41,7 @@ function DockTab({ href, label, Icon }: { href: string; label: string; Icon: typ
     <Link
       href={href}
       aria-current={isActive ? "page" : undefined}
-      className={`flex min-w-[64px] flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[11px] font-bold transition-colors ${
+      className={`flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-2.5 py-2 text-[11px] font-bold transition-colors ${
         isActive ? "bg-beg-lime text-beg-ink shadow-glow" : "text-beg-dim hover:text-beg-ink"
       }`}
     >
