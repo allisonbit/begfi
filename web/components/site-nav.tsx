@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, Coins, LayoutGrid, Rocket, User } from "lucide-react";
+import { HandCoins, Coins, LayoutGrid, Rocket, Trophy, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -27,6 +27,7 @@ import { useAuth } from "@/lib/auth-context";
 const links = [
   { href: "/begs", label: "Begs", Icon: HandCoins },
   { href: "/earn", label: "Earn", Icon: Coins },
+  { href: "/leaderboard", label: "Board", Icon: Trophy },
   { href: "/explore", label: "Tokens", Icon: LayoutGrid },
   { href: "/launch", label: "Launch", Icon: Rocket },
   { href: "/dashboard", label: "You", Icon: User },
@@ -147,7 +148,7 @@ export function SiteDock() {
       aria-label="Primary"
       className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t-[3px] border-beg-ink bg-beg-bg/95 backdrop-blur-md md:inset-x-auto md:bottom-5 md:left-1/2 md:-translate-x-1/2 md:rounded-full md:border-[3px] md:shadow-glow-strong"
     >
-      <div className="safe-x mx-auto flex max-w-[420px] items-center justify-around md:px-2">
+      <div className="safe-x mx-auto flex max-w-[480px] items-center justify-around md:px-2">
         {links.map(({ href, label, Icon }) => (
           <DockTab key={href} href={href} label={label} Icon={Icon} />
         ))}
