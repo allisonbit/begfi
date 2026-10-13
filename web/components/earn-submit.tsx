@@ -35,10 +35,55 @@ export function EarnSubmitBox({
   const [message, setMessage] = useState<string | null>(null);
   const [messageKind, setMessageKind] = useState<"info" | "error">("info");
   const [remaining, setRemaining] = useState(remainingToday);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
 
   useEffect(() => {
     setRemaining(remainingToday);
   }, [remainingToday]);
+
+  /*
+   * The device fingerprint, computed once per mount. Coarse ON PURPOSE —
+   * screen size, language, time zone, platform, and a canvas hash — because
+   * the goal is "one device", not surveillance. It is hashed with a server
+   * pepper before it is stored, so the site holds a tag that only means
+   * "this same browser came back today" and nothing more personal.
+   *
+   * localStorage remembers it so it stays stable across visits to the same
+   * browser: a refresh that yields a different canvas hash (some GPUs vary)
+   * would still rate-limit as the same device.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const stored = localStorage.getItem("begfi-earn-fp");
+        if (stored) {
+          setFingerprint(stored);
+          return;
+        }
+        const canvasEl = document.createElement("canvas");
+        const ctx = canvasEl.getContext("2d");
+        ctx?.fillText("begfi_fp", 2, 2);
+        const parts = [
+          navigator.language,
+          Intl.DateTimeFormat().resolvedOptions().timeZone ?? "",
+          `${screen.width}x${screen.height}x${screen.colorDepth}`,
+          navigator.platform ?? "",
+          canvasEl.toDataURL().slice(-64) || "nocanvas",
+        ].join("|");
+        if (!cancelled) {
+          localStorage.setItem("begfi-earn-fp", parts);
+          setFingerprint(parts);
+        }
+      } catch {
+        /* no fingerprint: the device limit falls back to "no-fp", which is
+           itself capped, and the IP limit still applies. */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!profile) {
     return (          <section className="card grid justify-items-center gap-2 p-6 text-center">
@@ -80,7 +125,7 @@ export function EarnSubmitBox({
       const res = await fetch("/api/earn/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ post_url: postUrl.trim() }),
+        body: JSON.stringify({ post_url: postUrl.trim(), fp: fingerprint ?? "" }),
       });
       const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; remaining?: number } | null;
 
