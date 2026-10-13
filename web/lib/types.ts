@@ -58,6 +58,14 @@ export type Launch = {
   splitter_address: string | null;
   tx_hash: string;
   created_at: string;
+  /** What the launcher's socials struct carried, as submitted. Null for old rows. */
+  socials?: {
+    twitter?: string;
+    telegram?: string;
+    discord?: string;
+    website?: string;
+    farcaster?: string;
+  } | null;
 };
 
 /** Public profile + its on-chain aggregates, as rendered on `/:username`. */

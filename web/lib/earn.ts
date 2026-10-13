@@ -351,8 +351,31 @@ export async function updateEarnSettings(patch: SettingsPatch): Promise<{ ok: bo
 }
 
 /**
- * The pending queue for the review console, oldest first: review in the order
- * it arrived, like a queue rather than a lottery.
+ * The payout ledger, for the admin audit panel: every submission that has
+ * ever been claimable, newest first. A row is 'paid' when payout_tx is set
+ * (clickable to the explorer), 'sending' when claimed_at is set but no tx
+ * has landed yet, and 'waiting' when the payout has not started — the three
+ * states of the claim path, visible instead of guessed.
+ */
+export async function getPayoutLedger(limit = 100): Promise<EarnSubmission[]> {
+  if (!SUPABASE_CONFIGURED) return [];
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from("earn_submissions")
+    .select("id, username, wallet_address, post_url, status, reward_amount::text, created_at, reviewed_at, claimed_at, payout_tx")
+    .in("status", ["approved", "rejected"])
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+  return data.map(asSubmission);
+}
+
+/**
+ * The pending queue for the review console (legacy label kept for the
+ * settings view): pending rows now only exist while the automatic payout
+ * path is offline.
  */
 export async function listPendingSubmissions(limit = 100): Promise<EarnSubmission[]> {
   if (!SUPABASE_CONFIGURED) return [];

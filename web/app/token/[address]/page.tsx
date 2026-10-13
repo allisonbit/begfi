@@ -5,13 +5,17 @@ import { cache } from "react";
 import { createPublicClient, http, isAddress } from "viem";
 import { BuyPanel } from "@/components/buy-panel";
 import { HoldersList } from "@/components/holders-list";
+import { TokenChart } from "@/components/token-chart";
+import { TokenSocials } from "@/components/token-socials";
 import { addressUrl, robinhoodChain, shortAddress } from "@/lib/chains";
+import { getChart, type ChartWindow } from "@/lib/chart-data";
 import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { erc20Abi } from "@/lib/erc20";
 import { getTopHolders } from "@/lib/holders";
 import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
+import { compactAmount } from "@/lib/format";
 import type { Launch } from "@/lib/types";
 
 type Params = { address: string };
@@ -185,37 +189,117 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
     holders = null;
   }
 
+  /*
+   * The chart windows, from the indexer's confirmed trades. One read per
+   * window per render — three pooled queries, each bounded like explore.
+   * A window with no trades serves an empty series and the chart says so;
+   * nothing is interpolated between buckets.
+   */
+  const chartData = await (async () => {
+    const windows: ChartWindow[] = ["24h", "7d", "30d"];
+    const out = {} as Record<ChartWindow, Awaited<ReturnType<typeof getChart>>>;
+    for (const w of windows) {
+      out[w] = await getChart(record.token, w);
+    }
+    return out;
+  })();
+
+  /*
+   * Price for the big readout and the latest line: the chart's last close
+   * when trades exist, otherwise the live curve quote. Both are ETH per
+   * token; the difference is "confirmed by a trade" vs "confirmed by the
+   * reserves", and the chart prefers the trade since it is what people
+   * actually transacted at.
+   */
+  const lastTradePrice = chartData["24h"].candles.at(-1)?.c ?? null;
+  const priceNum = curve && curve.price !== "n/a" && curve.price !== "<0.000000001"
+    ? Number(curve.price)
+    : null;
+  const displayPrice = lastTradePrice ?? priceNum;
+
+  /* Market cap: live price x supply. A sticker, as everywhere else. */
+  const mc = displayPrice !== null && Number.isFinite(displayPrice)
+    ? compactAmount(displayPrice * Number(totalSupply))
+    : null;
+  const supplyCompact = compactAmount(Number(totalSupply));
+
   return (
-    <div className="safe-x mx-auto grid max-w-[1000px] gap-12 py-8">
-      <div className="mx-auto grid w-full max-w-[560px] gap-6">
-        <header className="grid justify-items-center gap-3 text-center">
-          {launch?.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={launch.image_url}
-              alt=""
-              className="size-16 rounded-2xl border-[1.5px] border-beg-line object-cover"
-            />
-          ) : (
-            <div className="grid size-16 place-items-center rounded-2xl bg-beg-lime text-2xl font-extrabold text-beg-ink">
-              {name[0]?.toUpperCase() ?? "?"}
+    <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
+      <div className="mx-auto grid w-full max-w-[640px] gap-4">
+        <header className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {launch?.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={launch.image_url}
+                alt=""
+                className="size-14 rounded-2xl border-[1.5px] border-beg-line object-cover"
+              />
+            ) : (
+              <div className="grid size-14 place-items-center rounded-2xl bg-beg-lime text-2xl font-extrabold text-beg-ink">
+                {name[0]?.toUpperCase() ?? "?"}
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="truncate text-[clamp(24px,5vw,36px)] font-extrabold tracking-[-.04em]">{name}</h1>
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-beg-dim">
+                <span className="font-bold">${symbol}</span>
+                <span className="rounded-md bg-beg-lime px-1.5 py-0.5 text-[11px] font-bold text-beg-ink">Launched on BegFi</span>
+                {record.phase !== 0 ? <span className="rounded-md bg-beg-blue px-1.5 py-0.5 text-[11px] font-bold text-beg-ink">Graduated</span> : null}
+              </div>
             </div>
-          )}
-          <div>
-            <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">{name}</h1>
-            <p className="text-beg-dim">${symbol}</p>
           </div>
-          <p className="font-mono text-[13px] text-beg-dim" title={record.token}>
-            {shortAddress(record.token)}
+
+          {/*
+            The dense stat strip: one row on a phone, wrapping on desktop.
+            Price reads first because it is what a trader scans for; MC and
+            supply flank it. Every figure here is defined where it is computed
+            above — none is invented for the layout's sake.
+          */}
+          <dl className="grid grid-cols-3 gap-2 rounded-2xl border-[1.5px] border-beg-line bg-beg-card px-3 py-2.5 text-center sm:text-left">
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">Price</dt>
+              <dd className="text-[15px] font-extrabold text-beg-ink">
+                {displayPrice !== null ? `${displayPrice.toPrecision(4)} Ξ` : "—"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">MC</dt>
+              <dd className="text-[15px] font-extrabold text-beg-ink">{mc ? `$${mc}` : "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">Supply</dt>
+              <dd className="text-[15px] font-extrabold text-beg-ink">{supplyCompact}</dd>
+            </div>
+          </dl>
+
+          {/*
+            The contract address is the one identifier a buyer must verify
+            against an explorer, so it stays copyable at a glance — the
+            page-level rule stated once, enforced everywhere.
+          */}
+          <p className="text-center font-mono text-[12px] text-beg-dim" title={record.token}>
+            <a href={addressUrl(record.token)} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-beg-ink">
+              {shortAddress(record.token)}
+            </a>
           </p>
-          <p className="rounded-md bg-beg-lime px-1.5 py-0.5 text-[12px] font-bold text-beg-ink">Launched on BegFi</p>
+
+          {launch?.socials ? <TokenSocials socials={launch.socials} /> : null}
         </header>
 
-        <div className="card p-6">
+        <div className="card p-4 sm:p-5">
+          <TokenChart
+            data={chartData}
+            currentPrice={displayPrice}
+            tokenSymbol={name}
+          />
+        </div>
+
+        <div className="card p-4 sm:p-5">
           <BuyPanel token={record.token} curve={record.curve} pairToken={record.pairToken} />
         </div>
 
-        <dl className="card grid gap-2 text-[13px]">
+        <dl className="card grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px] p-4 sm:p-5">
           {launch ? (
             <Row label="Launcher">
               <a
@@ -238,9 +322,6 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
               {shortAddress(record.creatorFeeRecipient)}
             </a>{" "}
             ({Number(record.creatorTaxBps) / 100}% of each trade)
-          </Row>
-          <Row label="Status">
-            {record.phase === 0 ? "On the curve" : "Graduated"}
           </Row>
           {curve ? (
             <>

@@ -1,42 +1,68 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { getLeaderboard } from "@/lib/leaderboard";
+import { getLeaderboard, type LeaderRow } from "@/lib/leaderboard";
 import { formatAmount } from "@/lib/erc20";
 
 export const metadata: Metadata = {
   title: "Leaderboard",
   description:
-    "The wallets $BEGFI actually reached, ranked by confirmed on-chain receipts. Every figure is a transfer the indexer has recorded — nothing is estimated.",
+    "The wallets $BEGFI actually reached, ranked by confirmed on-chain receipts. Weekly and all-time. Every figure is a transfer the indexer has recorded — nothing is estimated.",
 };
 
 export const dynamic = "force-dynamic";
 
 /**
- * /leaderboard — who $BEGFI actually reached.
+ * /leaderboard — who $BEGFI actually reached, in two time slices.
  *
- * ONE FACT PER ROW, VERIFIABLE BY ANYONE. A rank is the wallet's confirmed
- * receipts, from the same `profile_stats` view the public profiles show, so
- * the leaderboard and `/username` can never disagree about the same wallet.
- * It ranks receiving, not claiming: what the chain says arrived, not what
- * someone said they would earn.
- *
- * The empty state is a real state — a young pool may not have paid anyone
- * yet — and it says that rather than inventing tiers or placeholders.
+ * TABS ARE WINDOWS, NOT LIES. `All time` ranks what the chain says ever
+ * arrived; `This week` sums confirmed transfers since (-7 days) fresh per
+ * request. The window is on every row, so a number is never ambiguous about
+ * what period it claims — the mistake that makes leaderboards feel rigged.
  */
-export default async function LeaderboardPage() {
-  const { rows, dbFailed } = await getLeaderboard(25);
+export default async function LeaderboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ w?: string }>;
+}) {
+  const { w } = await searchParams;
+  const window = w === "week" ? "week" : "all";
+  const { rows, dbFailed } = await getLeaderboard(25, window);
+
+  const emptyCopy =
+    window === "week"
+      ? "No confirmed $BEGFI moved to a visible profile this week. The board fills the moment the first transfer confirms."
+      : "Nobody has received $BEGFI yet. The first confirmed send starts the board.";
 
   return (
     <div className="safe-x mx-auto max-w-[1000px] py-10">
       <header className="max-w-[700px]">
         <h1 className="text-[clamp(32px,7vw,64px)] font-extrabold leading-[1] tracking-[-.04em]">
           The board.
-          <span aria-hidden className="caret" />
         </h1>
         <p className="mt-3 text-lg text-beg-dim">
-          Who $BEGFI actually reached — ranked by confirmed on-chain receipts, supporters second.
+          Who $BEGFI actually reached — ranked by confirmed on-chain receipts.
         </p>
+        <div className="mt-5 inline-flex rounded-full border-2 border-beg-ink bg-beg-card p-1">
+          <Link
+            href="/leaderboard"
+            aria-current={window === "all" ? "page" : undefined}
+            className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
+              window === "all" ? "bg-beg-lime text-beg-ink shadow-glow" : "text-beg-dim hover:text-beg-ink"
+            }`}
+          >
+            All time
+          </Link>
+          <Link
+            href="/leaderboard?w=week"
+            aria-current={window === "week" ? "page" : undefined}
+            className={`rounded-full px-4 py-2 text-[13px] font-bold transition-colors ${
+              window === "week" ? "bg-beg-lime text-beg-ink shadow-glow" : "text-beg-dim hover:text-beg-ink"
+            }`}
+          >
+            This week
+          </Link>
+        </div>
       </header>
 
       {dbFailed ? (
@@ -45,9 +71,9 @@ export default async function LeaderboardPage() {
         </p>
       ) : rows.length === 0 ? (
         <p className="notice-dashed mt-8">
-          Nobody has received $BEGFI yet. The first confirmed send starts the board —{" "}
+          {emptyCopy}{" "}
           <Link href="/earn" className="underline underline-offset-2 hover:text-beg-ink">
-            earn some
+            Earn some
           </Link>{" "}
           or{" "}
           <Link href="/begs" className="underline underline-offset-2 hover:text-beg-ink">
@@ -85,7 +111,7 @@ export default async function LeaderboardPage() {
                 <div className="text-right">
                   <span className="font-extrabold text-beg-ink">{formatAmount(BigInt(row.total_received))} $BEGFI</span>
                   <span className="ml-2 text-[12px] text-beg-dim">
-                    {row.supporters === 1 ? "1 supporter" : `${row.supporters} supporters`}
+                    {supportersCopy(row, window)}
                   </span>
                 </div>
               </Link>
@@ -96,9 +122,23 @@ export default async function LeaderboardPage() {
 
       <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">
         Ranks come from confirmed transfers the indexer recorded on Robinhood Chain — the same
-        totals shown on every profile. Earnings from the pool and begs are both receipts; the
-        chain does not distinguish and neither does this board.
+        totals shown on every profile. {window === "week" ? "This week = the last 7 days, UTC." : "All time = everything the indexer has on file."}{" "}
+        Earnings from the pool and begs are both receipts; the chain does not distinguish and
+        neither does this board.
       </p>
     </div>
   );
+}
+
+/**
+ * The supporter line, worded for the window. A weekly row counts senders
+ * within the week — a wallet could have had fifty supporters all time and
+ * three this week, and the row must not blur those.
+ */
+function supportersCopy(row: LeaderRow, window: "all" | "week"): string {
+  if (window === "week") {
+    const n = row.windowSupporters ?? row.supporters;
+    return n === 1 ? "1 sender this week" : `${n} senders this week`;
+  }
+  return row.supporters === 1 ? "1 supporter" : `${row.supporters} supporters`;
 }
