@@ -327,6 +327,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
           <TokenChart
             data={chartData}
             currentPrice={displayPrice}
+            currentPriceUsd={priceUsd}
             tokenSymbol={name}
           />
         </div>
