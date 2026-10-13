@@ -40,6 +40,13 @@ export type EarnSubmission = {
 };
 
 type SettingsRow = {
+  /*
+   * NUMERICS ARE READ AS TEXT. PostgREST serializes numeric(78,0) as a JSON
+   * number, and a JSON number has 53 bits of mantissa — a 26-digit base-unit
+   * amount arrives polluted (1e25 returned 10000000000000000905969664 with
+   * phantom decimals). `::text` keeps the exact digits; BigInt parses it.
+   * The same cast applies to every big-integer column below.
+   */
   reward_per_post: string;
   pool_total: string;
   pool_remaining: string;
@@ -72,7 +79,7 @@ export async function getEarnSettings(): Promise<EarnSettings | null> {
 
   const { data, error } = await admin
     .from("earn_settings")
-    .select("reward_per_post, pool_total, pool_remaining, daily_limit, is_active")
+    .select("reward_per_post::text, pool_total::text, pool_remaining::text, daily_limit, is_active")
     .maybeSingle<SettingsRow>();
 
   if (error || !data) return null;
@@ -93,7 +100,7 @@ export async function getEarnFeed(limit = 30): Promise<{ items: EarnSubmission[]
 
   const { data, error } = await admin
     .from("earn_submissions")
-    .select("id, username, wallet_address, post_url, status, reward_amount, created_at, reviewed_at, claimed_at, payout_tx")
+    .select("id, username, wallet_address, post_url, status, reward_amount::text, created_at, reviewed_at, claimed_at, payout_tx")
     .in("status", ["pending", "approved"])
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -114,7 +121,7 @@ export async function getEarnStats(): Promise<{ totalPosts: number; totalPaid: b
 
   const { data: paid, error: paidError } = await admin
     .from("earn_submissions")
-    .select("reward_amount")
+    .select("reward_amount::text")
     .eq("status", "approved")
     .limit(10_000);
 
@@ -132,7 +139,7 @@ export async function getMySubmissions(userId: string, limit = 50): Promise<{ ro
 
   const { data, error } = await admin
     .from("earn_submissions")
-    .select("id, username, wallet_address, post_url, status, reward_amount, created_at, reviewed_at, claimed_at, payout_tx")
+    .select("id, username, wallet_address, post_url, status, reward_amount::text, created_at, reviewed_at, claimed_at, payout_tx")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -230,7 +237,7 @@ export async function reviewSubmission(id: string, action: "approve" | "reject")
 
   const { data: row } = await admin
     .from("earn_submissions")
-    .select("id, status, reward_amount")
+    .select("id, status, reward_amount::text")
     .eq("id", id)
     .maybeSingle<{ id: string; status: string; reward_amount: string }>();
 
@@ -286,7 +293,7 @@ export async function updateEarnSettings(patch: SettingsPatch): Promise<{ ok: bo
 
   const { data: row } = await admin
     .from("earn_settings")
-    .select("reward_per_post, pool_total, pool_remaining, daily_limit, is_active")
+    .select("reward_per_post::text, pool_total::text, pool_remaining::text, daily_limit, is_active")
     .maybeSingle<SettingsRow>();
   if (!row) return { ok: false, error: "db" };
 
@@ -348,7 +355,7 @@ export async function listPendingSubmissions(limit = 100): Promise<EarnSubmissio
 
   const { data, error } = await admin
     .from("earn_submissions")
-    .select("id, username, wallet_address, post_url, status, reward_amount, created_at, reviewed_at, claimed_at, payout_tx")
+    .select("id, username, wallet_address, post_url, status, reward_amount::text, created_at, reviewed_at, claimed_at, payout_tx")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(limit);
