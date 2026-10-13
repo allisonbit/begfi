@@ -237,9 +237,10 @@ export default async function EarnPage() {
       </section>
 
       <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">
-        Rewards come from BegFi&apos;s own pool, paid on-chain by the BegFi payout wallet after a human
-        review. A post is the ask; approval is BegFi&apos;s, not an entitlement. Nothing here is
-        financial advice, and BegFi is not affiliated with Robinhood.
+        Rewards come from BegFi&apos;s own daily pool and pay on-chain from the BegFi payout wallet,
+        automatically on submit. One post per account, per device, per day — the caps are the
+        whole rulebook. Nothing here is financial advice, and BegFi is not affiliated with
+        Robinhood.
       </p>
     </div>
   );
