@@ -12,6 +12,7 @@ import { getChart, type ChartWindow } from "@/lib/chart-data";
 import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { erc20Abi } from "@/lib/erc20";
 import { getTopHolders } from "@/lib/holders";
+import { getEthUsd, usdPriceLabel, usdCompactLabel } from "@/lib/eth-price";
 import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
@@ -219,26 +220,36 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
   const displayPrice = lastTradePrice ?? priceNum;
 
   /*
-   * The strip's price label. Exponential notation is a fact, not a UI:
-   * 4.383e-9 is unreadable, so sub-micro prices spell out their decimals
-   * (0.000000004383) while anything bigger keeps the compact form.
+   * ETH/USD, server-fetched with a 60s shared cache. The one currency
+   * conversion on the page: price and MC both derive from the same ETH-per-
+   * token figure times this single rate, so they can never disagree. A null
+   * feed (source down, throttled) keeps the ETH labels — the fallback is a
+   * currency choice, not a hidden lie or a NaN leak.
    */
-  const priceLabel = (() => {
+  const ethUsd = await getEthUsd();
+  const priceUsd = displayPrice !== null && Number.isFinite(displayPrice) && ethUsd !== null
+    ? displayPrice * ethUsd
+    : null;
+
+  /*
+   * The strip's price label. Sub-nano USD prices die in generic formatters
+   * (exponent notation shipped here once already), so the rules in
+   * usdPriceLabel handle < $1 by spelling out decimals; the ETH fallback
+   * keeps its old spelled-out path.
+   */
+  const ethPriceLabel = (() => {
     if (displayPrice === null || !Number.isFinite(displayPrice)) return "—";
     if (displayPrice > 0 && displayPrice < 0.000001) {
       return `${displayPrice.toFixed(12).replace(/0+$/, "")} Ξ`;
     }
     return `${displayPrice.toPrecision(4)} Ξ`;
   })();
-
-  /*
-   * Market cap, in ETH — the chain quotes in ETH and BegFi has no USD feed,
-   * so a "$MC" would have to invent an exchange rate. ETH x tokens is the
-   * number anyone can verify from the curve reserves alone.
-   */
-  const mc = displayPrice !== null && Number.isFinite(displayPrice)
-    ? compactAmount(displayPrice * (Number(totalSupply) / 1e18))
-    : null;
+  const priceLabel = priceUsd !== null ? usdPriceLabel(priceUsd) : ethPriceLabel;
+  const mc = priceUsd !== null
+    ? usdCompactLabel(priceUsd * (Number(totalSupply) / 1e18))
+    : displayPrice !== null && Number.isFinite(displayPrice)
+      ? compactAmount(displayPrice * (Number(totalSupply) / 1e18))
+      : null;
 
   /*
    * Supply reads, not shouts: 1,000,000,000 formatted with the shared 18-dec
@@ -290,7 +301,7 @@ export default async function TokenPage({ params }: { params: Promise<Params> })
             </div>
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">MC</dt>
-              <dd className="text-[15px] font-extrabold text-beg-ink">{mc ? `${mc} Ξ` : "—"}</dd>
+              <dd className="text-[15px] font-extrabold text-beg-ink">{mc ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-[10px] font-bold uppercase tracking-[.06em] text-beg-dim">Supply</dt>
