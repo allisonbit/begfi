@@ -20,13 +20,14 @@ const TABS = [
   { slug: "activity", label: "Activity" },
 ] as const;
 
-export function DashboardTabs() {
+export function DashboardTabs({ extraTabs = [] }: { extraTabs?: { slug: string; label: string }[] }) {
   const pathname = usePathname();
+  const all = [...TABS, ...extraTabs];
 
   return (
     <nav aria-label="Dashboard sections" className="overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       <ul className="flex min-w-max gap-2">
-        {TABS.map((tab) => {
+        {all.map((tab) => {
           const href = tab.slug ? `/dashboard/${tab.slug}` : "/dashboard";
           const active = tab.slug ? pathname === href : pathname === "/dashboard";
 

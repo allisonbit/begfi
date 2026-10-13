@@ -1,185 +1,259 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { CommunityLinks } from "@/components/community-links";
-import { CopyText } from "@/components/copy-text";
-import { LevelChip } from "@/components/level-chip";
+
+import { ClaimButton } from "@/components/claim-button";
+import { EarnSubmitBox } from "@/components/earn-submit";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
-import { BEG_TOKEN_ADDRESS } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import {
+  countTodaySubmissions,
+  earningsFromSubmissions,
+  getEarnFeed,
+  getEarnSettings,
+  getEarnStats,
+  getMySubmissions,
+  rewardDisplay,
+} from "@/lib/earn";
 import { formatAmount } from "@/lib/erc20";
-import { addressUrl } from "@/lib/chains";
-import { getLevelForWallet } from "@/lib/level";
-import { getOverview } from "@/lib/dashboard";
 import { getProfile } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Earn",
   description:
-    "Three honest ways to get paid on BegFi: ask at your own link, beg a token launch into existence, and launch a token that pays a creator tax on every trade.",
+    "Post about BegFi on X, drop the link, get approved, claim $BEGFI. The feed of posts people dropped is public; payouts go wallet to wallet.",
 };
 
 export const dynamic = "force-dynamic";
 
 /**
- * /earn — the page that answers "how do I actually get paid here?".
+ * /earn — post to earn.
  *
- * It describes the three ways money moves on this protocol. Every way points at
- * a thing that already exists (your link, a beg-to-launch, a launch plus the fee
- * escrow), and every number it shows — when the reader is signed in — is read
- * from confirmed on-chain rows, so an earnings page is not a tiered promise in
- * disguise: there are no points, streaks or airdrop checkpoints, because BegFi
- * has nothing to grant.
+ * THE FLIP SIDE OF BEGGING: instead of asking, people earn by talking about
+ * the protocol. Every number here is read from the database the same way the
+ * rest of the site reads the chain: the settings row decides the reward, the
+ * pool, the limit and the switch, and submissions are exactly what was
+ * submitted — no seeded example rows, no invented usernames.
+ *
+ * PUBLIC BY DESIGN. A visitor can see everything before signing in — how it
+ * works, who is earning, what the pool has. Only submitting, their own
+ * earnings and their own rejected rows are behind a session.
  */
 
-/** Ways to earn, each of them a real destination that exists today. */
-const WAYS = [
-  {
-    n: "1",
-    tint: "bg-beg-lime",
-    title: "Ask at your own link.",
-    body: "Claim a username, share the link anywhere a street sign would go, and anyone who sends does it wallet-to-wallet — $BEGFI lands straight in your wallet. BegFi never holds it and never takes a cut of a send.",
-    href: "/dashboard/begs",
-    cta: "Write your begs",
-  },
-  {
-    n: "2",
-    tint: "bg-beg-blue",
-    title: "Beg a launch into existence.",
-    body: "Open a goal ask for a token you have not launched yet. Supporters send real $BEGFI toward it while the ask is open, the page shows every confirmed transfer, and you close it by actually launching.",
-    href: "/beg-to-launch",
-    cta: "Open an ask",
-  },
-  {
-    n: "3",
-    tint: "bg-beg-yellow",
-    title: "Launch a token. Get paid on every trade.",
-    body: "Every launch through the pad sets a creator tax — 3% on a standard launch — that accrues to your wallet as the token trades, claimable from the fee escrow whenever you like. No cap, no lockup: it earns as long as the token trades.",
-    href: "/launch",
-    cta: "Launch a token",
-  },
+const STEPS = [
+  { n: "1", label: "Log in and set your username" },
+  { n: "2", label: "Post about BegFi on X" },
+  { n: "3", label: "Paste your post link" },
+  { n: "4", label: "Get approved and claim your $BEGFI" },
 ] as const;
 
 export default async function EarnPage() {
   const profile = await getProfile();
 
-  /* Real reads, only when there is a wallet behind the session. */
-  const [overview, level] = profile
-    ? await Promise.all([getOverview(profile.wallet_address), getLevelForWallet(profile.wallet_address)])
-    : [null, null];
+  const [settings, stats, feed] = await Promise.all([getEarnSettings(), getEarnStats(), getEarnFeed(24)]);
+
+  const mine = profile ? await getMySubmissions(profile.id) : { rows: [], dbFailed: false };
+  const postedToday = profile ? await countTodaySubmissions(profile.id) : 0;
+
+  const reward = settings ? rewardDisplay(settings.rewardPerPost) : "—";
+  const poolOut = settings && settings.poolRemaining < settings.rewardPerPost;
+  const submitBlocked =
+    settings === null
+      ? "Earn is not set up yet."
+      : !settings.isActive
+        ? "Earn is paused. Check back soon."
+        : poolOut
+          ? "Rewards pool is empty, check back soon."
+          : null;
+
+  const remainingToday = settings ? Math.max(0, settings.dailyLimit - postedToday) : 0;
+  const payoutConfigured = Boolean(DISTRIBUTOR_PRIVATE_KEY) && Boolean(BEG_TOKEN_ADDRESS);
+
+  const my = earningsFromSubmissions(mine.rows);
 
   return (
     <div className="safe-x mx-auto max-w-[1000px] py-10">
-      <header className="max-w-[700px]">
-        <h1 className="text-[clamp(36px,8vw,72px)] font-extrabold uppercase leading-[.95] tracking-[-.04em]">
-          Earn.
-          <span aria-hidden className="caret" />
+      {/* 1. Hero */}
+      <header className="max-w-[720px]">
+        <h1 className="text-[clamp(32px,7vw,64px)] font-extrabold leading-[1] tracking-[-.04em]">
+          Post about BegFi.
+          <br />
+          <span className="animate-wobble inline-block rounded-[18px] border-[3px] border-beg-ink bg-beg-lime px-[0.14em] text-beg-ink shadow-glow">Get paid in $BEGFI.</span>
         </h1>
-        <p className="mt-3 text-xl text-beg-dim">
-          The e-Begging protocol pays three ways. Nothing is locked, granted or
-          promised — it all lands in your wallet.
-        </p>
+        <p className="mt-4 text-lg text-beg-dim">Make a post on X, drop the link, earn.</p>
+        <div className="mt-5 inline-flex animate-pop-in items-center rounded-full border-[3px] border-beg-ink bg-beg-yellow px-5 py-2.5 text-[16px] font-extrabold text-beg-ink shadow-glow">
+          {reward} $BEGFI per approved post
+          <RobinhoodFeather className="ml-2 text-beg-logo" />
+        </div>
       </header>
 
-      {/* Your earnings, from the indexer's confirmed rows. Signed in only. */}
+      {/* 2. How it works */}
       <section className="mt-8">
-        {profile && overview ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat label="$BEGFI received" value={formatAmount(BigInt(overview.totalReceived))} glow />
-            <Stat label="Supporters" value={String(overview.supporters)} />
-            <div className="card">
-              <div className="text-[13px] text-beg-dim">Creator level</div>
-              <div className="mt-2">
-                {level ? <LevelChip level={level.name} /> : <span className="text-[15px] font-bold text-beg-ink">—</span>}
-              </div>
-              <Link href="/dashboard" className="mt-2 inline-block text-[12px] text-beg-dim underline underline-offset-2 hover:text-beg-ink">
-                See your dashboard
-              </Link>
+        <h2 className="mb-3 text-xl font-extrabold tracking-[-.03em]">How it works</h2>
+        <div className="grid gap-3 sm:grid-cols-4">
+          {STEPS.map((step) => (
+            <div key={step.n} className="card-sm flex items-start gap-3">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg border-2 border-beg-ink bg-beg-lime text-[13px] font-extrabold text-beg-ink">
+                {step.n}
+              </span>
+              <span className="text-[13px] font-bold text-beg-ink">{step.label}</span>
             </div>
-          </div>
-        ) : (
-          <div className="card grid gap-2 p-6 sm:grid-cols-[1fr_auto] sm:items-center">
-            <div>
-              <b className="text-[17px] text-beg-ink">Claim a link and the numbers start</b>
-              <p className="mt-1 max-w-[52ch] text-[13px] text-beg-dim">
-                Sign in with your wallet here, claim a username, and this page tracks what
-                reached you — confirmed transfers only, never a promise.
-              </p>
-            </div>
-            <Link href="/#claim" className="btn-primary justify-self-start px-6 py-3 text-[15px] sm:justify-self-end">
-              Sign in &amp; claim
-            </Link>
-          </div>
-        )}
+          ))}
+        </div>
       </section>
 
-      {/* The three ways. */}
-      <section className="mt-4 grid gap-3.5 md:grid-cols-3">
-        {WAYS.map((way) => (
-          <div key={way.n} className="card flex flex-col p-6">
-            <div
-              className={`mb-4 grid size-[40px] place-items-center rounded-xl border-2 border-beg-ink font-extrabold text-beg-ink ${way.tint}`}
-            >
-              {way.n}
-            </div>
-            <b className="text-[17px] leading-snug text-beg-ink">{way.title}</b>
-            <p className="mt-2 flex-1 text-[13.5px] leading-relaxed text-beg-dim">{way.body}</p>
-            <Link
-              href={way.href}
-              className="btn-ghost mt-4 w-fit px-4 py-2 text-[13px] font-bold text-beg-ink"
-            >
-              {way.cta} <span aria-hidden>→</span>
-            </Link>
-          </div>
-        ))}
+      {/* 3. Rules */}
+      <section className="mt-4 notice">
+        <b className="text-beg-ink">Rules</b>
+        <ul className="mt-2 grid list-disc gap-1 pl-5 text-[13px]">
+          <li>{reward} $BEGFI per approved post</li>
+          <li>Post must be public and must mention BegFi or $BEGFI</li>
+          <li>The same link can&apos;t be submitted twice</li>
+          <li>{settings?.dailyLimit ?? 3} submissions a day per account</li>
+          <li>Every submission is reviewed before it pays</li>
+        </ul>
       </section>
 
-      {/* The token itself: live now, with the address anyone needs to trade it. */}
-      {BEG_TOKEN_ADDRESS ? (
-        <section className="mt-4 card grid gap-3 p-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full border-2 border-beg-ink bg-beg-lime px-2.5 py-1 text-[10px] font-bold uppercase tracking-[.06em] text-beg-ink">
-              Live on Robinhood Chain
-              <RobinhoodFeather className="ml-1 text-beg-logo" />
+      {/* 4. Rewards pool meter */}
+      {settings ? (
+        <section className="mt-4 card grid gap-2">
+          <div className="flex items-baseline justify-between">
+            <b className="text-[15px]">Rewards pool</b>
+            <span className="text-[12px] text-beg-dim">
+              {formatAmount(settings.poolRemaining)} of {formatAmount(settings.poolTotal)} $BEGFI remaining
             </span>
-            <b className="text-[17px] text-beg-ink">$BEGFI</b>
           </div>
-          <CopyText text={BEG_TOKEN_ADDRESS} />
-          <div className="flex flex-wrap gap-2 text-[13px]">
-            <Link href={`/token/${BEG_TOKEN_ADDRESS}`} className="rounded-full border-[1.5px] border-beg-line px-4 py-2 text-beg-dim hover:border-beg-lime hover:text-beg-ink">
-              Trade $BEGFI →
-            </Link>
-            <a href={addressUrl(BEG_TOKEN_ADDRESS)} target="_blank" rel="noreferrer noopener" className="rounded-full border-[1.5px] border-beg-line px-4 py-2 text-beg-dim hover:border-beg-lime hover:text-beg-ink">
-              View on explorer ↗
-            </a>
+          <div className="progress">
+            <div
+              className="progress-fill"
+              style={{
+                width: `${Math.max(2, Math.min(100, (Number(settings.poolRemaining) / Math.max(1, Number(settings.poolTotal))) * 100))}%`,
+              }}
+            />
           </div>
           <p className="text-[12px] text-beg-dim">
-            The contract address is the one fact among many: whoever sends, anywhere on
-            BegFi, sends this token. Verify it against the explorer before sending anything.
+            {stats.dbFailed ? null : `${stats.totalPosts} posts submitted · ${formatAmount(stats.totalPaid)} $BEGFI paid to date.`}
+            {poolOut ? " The pool is empty right now." : ""}
           </p>
         </section>
       ) : null}
 
-      {/* Follow along. */}
-      <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border-[3px] border-beg-ink bg-beg-card p-6">
-        <div>
-          <b className="text-[17px] text-beg-ink">Follow the beg</b>
-          <p className="mt-1 text-[13px] text-beg-dim">Asks, launches and the occasionally-shameless plea, on the timeline.</p>
-        </div>
-        <CommunityLinks />
+      {/* 5. Submit box — the three states live inside the component */}
+      <section className="mt-4">
+        <EarnSubmitBox disabledReason={submitBlocked} remainingToday={remainingToday} dailyLimit={settings?.dailyLimit ?? 3} />
       </section>
 
-      <p className="mt-4 max-w-[70ch] text-[12px] text-beg-dim">
-        Nothing here is financial advice. Begs are asks, not owed anything; a blockchain
-        send cannot be undone. BegFi is not affiliated with Robinhood.
+      {/* 6. My earnings — logged in only */}
+      {profile ? (
+        <section className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          <div className="card grid gap-3 p-6">
+            <b className="text-[16px] text-beg-ink">My earnings</b>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div className="text-[24px] font-extrabold text-beg-ink">{formatAmount(my.earned)}</div>
+                <div className="text-[11px] text-beg-dim">Total earned</div>
+              </div>
+              <div>
+                <div className="text-[24px] font-extrabold text-beg-ink">{formatAmount(my.claimable)}</div>
+                <div className="text-[11px] text-beg-dim">Claimable now</div>
+              </div>
+              <div>
+                <div className="text-[24px] font-extrabold text-beg-ink">{formatAmount(my.pending)}</div>
+                <div className="text-[11px] text-beg-dim">Pending</div>
+              </div>
+            </div>
+          </div>
+          <div className="card p-6">
+            <ClaimButton claimableDisplay={formatAmount(my.claimable)} payoutConfigured={payoutConfigured} />
+          </div>
+        </section>
+      ) : null}
+
+      {/* 7. My submissions — logged in only */}
+      {profile ? (
+        <section className="mt-4">
+          <h2 className="mb-3 text-xl font-extrabold tracking-[-.03em]">My submissions</h2>
+          {mine.rows.length === 0 ? (
+            <p className="notice-dashed">No submissions yet. Make your first post.</p>
+          ) : (
+            <ul className="grid gap-2">
+              {mine.rows.map((row) => (
+                <li key={row.id} className="card-sm flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                  <a href={row.post_url} target="_blank" rel="noreferrer noopener" className="min-w-0 flex-1 truncate text-beg-dim underline underline-offset-2 hover:text-beg-ink">
+                    {row.post_url.replace(/^https?:\/\/(www\.)?/, "")}
+                  </a>
+                  <StatusChip status={row.status} />
+                  <span className="font-bold text-beg-ink">{formatAmount(BigInt(row.reward_amount))} $BEGFI</span>
+                  <span className="shrink-0 text-[11px] text-beg-dim">
+                    {new Date(row.created_at).toLocaleDateString("en-GB")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
+
+      {/* 8. Live feed — public */}
+      <section className="mt-6">
+        <h2 className="mb-3 text-xl font-extrabold tracking-[-.03em]">Posts people dropped</h2>
+        {feed.dbFailed ? (
+          <p className="notice-dashed">Couldn&apos;t load the feed right now. That&apos;s the database, not the feed being empty.</p>
+        ) : feed.items.length === 0 ? (
+          <p className="notice-dashed">
+            Nobody has dropped a post yet. Yours would be first.
+          </p>
+        ) : (
+          <ul className="grid gap-2">
+            {feed.items.map((row) => (
+              <li
+                key={row.id}
+                className={`card-sm flex flex-wrap items-center justify-between gap-2 text-[13px] ${
+                  row.status === "approved" ? "bg-beg-lime/20" : ""
+                }`}
+              >
+                <span className="font-bold text-beg-ink">@{row.username}</span>
+                <a href={row.post_url} target="_blank" rel="noreferrer noopener" className="min-w-0 flex-1 truncate text-beg-dim underline underline-offset-2 hover:text-beg-ink">
+                  {row.post_url.replace(/^https?:\/\/(www\.)?/, "")}
+                </a>
+                <StatusChip status={row.status} />
+                {row.status === "approved" ? (
+                  <span className="font-bold text-beg-ink">+{formatAmount(BigInt(row.reward_amount))} $BEGFI</span>
+                ) : null}
+                <TimeAgo iso={row.created_at} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">
+        Rewards come from BegFi&apos;s own pool, paid on-chain by the BegFi payout wallet after a human
+        review. A post is the ask; approval is BegFi&apos;s, not an entitlement. Nothing here is
+        financial advice, and BegFi is not affiliated with Robinhood.
       </p>
     </div>
   );
 }
 
-function Stat({ label, value, glow = false }: { label: string; value: string; glow?: boolean }) {
+/**
+ * Status chip: pending yellow, approved green, rejected red. The rejected red
+ * stays a literal because the sticker palette has no red — a one-off shade,
+ * refused as a token, is the honest way to mark "declined".
+ */
+function StatusChip({ status }: { status: "pending" | "approved" | "rejected" }) {
+  const bg =
+    status === "pending" ? "bg-beg-yellow" : status === "approved" ? "bg-beg-lime" : "bg-[#ff6b6b]";
+
   return (
-    <div className="card">
-      <div className="text-[13px] text-beg-dim">{label}</div>
-      <div className={`mt-1 text-[36px] font-extrabold tracking-[-.04em] text-beg-ink ${glow ? "text-glow" : ""}`}>{value}</div>
-    </div>
+    <span className={`rounded-full border-2 border-beg-ink px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[.04em] text-beg-ink ${bg}`}>
+      {status}
+    </span>
   );
+}
+
+/** "3h"-style age, matching the ageWords vocabulary used elsewhere. */
+function TimeAgo({ iso }: { iso: string }) {
+  const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
+  const text =
+    mins < 60 ? `${mins}m` : mins < 1440 ? `${Math.floor(mins / 60)}h` : `${Math.floor(mins / 1440)}d`;
+  return <span className="shrink-0 text-[11px] text-beg-dim">{text}</span>;
 }

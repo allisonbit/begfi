@@ -1,5 +1,6 @@
 import { DashboardTabs } from "@/components/dashboard-tabs";
 import { NeedsSignIn, NeedsUsername } from "@/components/needs-sign-in";
+import { isAdminWallet } from "@/lib/earn";
 import { getProfile, getSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -21,9 +22,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     return signedIn ? <NeedsUsername /> : <NeedsSignIn what="your dashboard" />;
   }
 
+  /* The Earn Review console is an admin tab and only renders for one. */
+  const isAdmin = isAdminWallet(profile.wallet_address);
+
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
-      <DashboardTabs />
+      <DashboardTabs extraTabs={isAdmin ? [{ slug: "earn", label: "Earn review" }] : []} />
       {children}
     </div>
   );

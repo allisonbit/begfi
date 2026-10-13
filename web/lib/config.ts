@@ -59,6 +59,27 @@ export const TELEGRAM_URL = process.env.NEXT_PUBLIC_TELEGRAM_URL?.trim() || "htt
 export const X_URL = process.env.NEXT_PUBLIC_X_URL?.trim() || "https://x.com/BegFihood";
 
 /**
+ * Post-to-earn: the wallets allowed to run the Earn review.
+ *
+ * The allowlist is a server-side env (comma-separated), defaulting to the dev
+ * wallet so the review console is reachable the day the feature ships. Admin
+ * routes check the SIGNED-IN account's wallet, never a client-claimed value.
+ */
+export const EARN_ADMIN_WALLETS = new Set(
+  (process.env.EARN_ADMIN_WALLETS?.trim().split(",") ?? [])
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .concat([GENESIS_LAUNCHER_WALLET]),
+);
+
+/**
+ * The wallet that pays Earn claims, on-chain, on approval. Its key lives only
+ * in the environment (Vercel / .env.local), never in code or the repo, and
+ * never as a NEXT_PUBLIC_ value.
+ */
+export const DISTRIBUTOR_PRIVATE_KEY = process.env.DISTRIBUTOR_PRIVATE_KEY?.trim() || "";
+
+/**
  * Public origin, used to build shareable links and Open Graph URLs.
  *
  * Blank is treated as unset (`||`, not `??`), because `.env` files routinely
