@@ -132,7 +132,11 @@ export async function GET(request: Request) {
     // summarising the same confirmed rows the scans just wrote.
     const digests = await raiseDailyDigest(admin);
 
-    return NextResponse.json({ ok: true, transfers, trades, alerts, digests });
+    // Freeze last week's Beg Battle Top-3, once, the first run after the
+    // Monday boundary.
+    const battles = await freezeLastWeekBattle(admin);
+
+    return NextResponse.json({ ok: true, transfers, trades, alerts, digests, battles });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Cursors are deliberately NOT advanced on failure, so the next run
@@ -387,6 +391,90 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
   }
 
   return { created };
+}
+
+/* ------------------------------------------------------------------------- */
+/* Weekly Beg Battle: freeze last week's Top-3                                */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * The battle ranking is computed fresh per request from confirmed
+ * transfers, but the BADGE has to outlive the week: a profile checks
+ * "am I a Top Beggar?" against a frozen record, not against a live
+ * window that has since reset. So the first run after a Monday 00:00 UTC
+ * boundary writes the now-closed week's Top-3 into begfi.battle_winners
+ * — once, keyed by the week's Monday date; a re-run never rewrites it.
+ */
+async function freezeLastWeekBattle(admin: ReturnType<typeof createAdminClient>) {
+  const now = new Date();
+  // Monday 00:00 UTC of the week containing now.
+  const thisWeek = (() => {
+    const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    utc.setUTCDate(utc.getUTCDate() - ((utc.getUTCDay() + 6) % 7));
+    return utc.toISOString().slice(0, 10);
+  })();
+  const d = new Date(`${thisWeek}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 7);
+  const lastWeek = d.toISOString().slice(0, 10);
+
+  // Already frozen? Then there is nothing to do — idempotency by key.
+  const { data: existing } = await admin
+    .from("battle_winners")
+    .select("week_start")
+    .eq("week_start", lastWeek)
+    .maybeSingle<{ week_start: string }>();
+  if (existing) return { frozen: false, week: lastWeek };
+
+  const since = `${lastWeek}T00:00:00Z`;
+  const until = `${thisWeek}T00:00:00Z`;
+
+  const { data: rows, error } = await admin
+    .from("transfers")
+    .select("to_address, amount")
+    .gte("block_time", since)
+    .lt("block_time", until)
+    .limit(20_000);
+  if (error) return { frozen: false, error: error.message };
+
+  const byWallet = new Map<string, bigint>();
+  for (const row of (rows ?? []) as { to_address: string; amount: string }[]) {
+    const w = row.to_address.toLowerCase();
+    byWallet.set(w, (byWallet.get(w) ?? 0n) + BigInt(row.amount));
+  }
+
+  // Names for the top wallets only. A wallet with no visible profile is
+  // skipped, not renamed.
+  const top = [...byWallet.entries()]
+    .sort((a, b) => (a[1] > b[1] ? -1 : a[1] < b[1] ? 1 : 0))
+    .slice(0, 3);
+  const winners = [];
+  if (top.length > 0) {
+    const wallets = top.map(([w]) => w);
+    const { data: profiles } = await admin
+      .from("profiles")
+      .select("username, wallet_address")
+      .in("wallet_address", wallets)
+      .eq("is_hidden", false)
+      .limit(3);
+    const nameByWallet = new Map(
+      ((profiles ?? []) as { username: string; wallet_address: string }[]).map((p) => [
+        p.wallet_address.toLowerCase(),
+        p.username,
+      ]),
+    );
+    for (const [wallet, amount] of top) {
+      const username = nameByWallet.get(wallet);
+      if (username) winners.push({ username, wallet, received: amount.toString() });
+      if (winners.length >= 3) break;
+    }
+  }
+
+  const { error: insertError } = await admin
+    .from("battle_winners")
+    .upsert({ week_start: lastWeek, winners, frozen_at: new Date().toISOString() });
+  if (insertError) return { frozen: false, error: insertError.message };
+
+  return { frozen: true, week: lastWeek, winners: winners.length };
 }
 
 /* ------------------------------------------------------------------------- */

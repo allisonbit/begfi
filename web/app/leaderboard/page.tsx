@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { getLeaderboard, type LeaderRow } from "@/lib/leaderboard";
 import { formatAmount } from "@/lib/erc20";
+import { getWeeklyLeaders, weekBounds } from "@/lib/battles";
+import { BattleCountdown } from "@/components/battle-countdown";
 
 export const metadata: Metadata = {
   title: "Leaderboard",
@@ -28,6 +30,7 @@ export default async function LeaderboardPage({
   const { w } = await searchParams;
   const window = w === "week" ? "week" : "all";
   const { rows, dbFailed } = await getLeaderboard(25, window);
+  const battle = await getWeeklyLeaders(10);
 
   const emptyCopy =
     window === "week"
@@ -64,6 +67,51 @@ export default async function LeaderboardPage({
           </Link>
         </div>
       </header>
+
+      {/*
+        WEEKLY BEG BATTLES. The ranking is this week's confirmed receipts,
+        Monday-UTC based, computed per request. The countdown resets with it.
+      */}
+      <section className="mt-8 card grid gap-3 p-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <b className="text-[17px]">This week's Beg Battle</b>
+          <BattleCountdown endsAtIso={`${weekBounds()[1]}T00:00:00Z`} />
+        </div>
+        <p className="text-[12px] text-beg-dim">
+          Top receivers since Monday 00:00 UTC. The top 3 take the Top Beggar
+          badge for the following week.
+        </p>
+        {battle.dbFailed ? (
+          <p className="notice-dashed p-4">Couldn&apos;t read this week's battle just now. Try again in a moment.</p>
+        ) : battle.rows.length === 0 ? (
+          <p className="notice-dashed p-4">
+            No confirmed $BEGFI has been received this week yet. The first send starts the battle.
+          </p>
+        ) : (
+          <ol className="grid gap-2">
+            {battle.rows.slice(0, 3).map((row: { username: string; received: bigint }, i: number) => (
+              <li key={row.username}>
+                <Link
+                  href={`/${row.username}`}
+                  className={`card-sm flex items-center justify-between gap-3 ${i === 0 ? "border-[3px] bg-beg-lime/20" : ""}`}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span
+                      className={`grid size-7 shrink-0 place-items-center rounded-full border-2 border-beg-ink text-[12px] font-extrabold ${
+                        i === 0 ? "bg-beg-yellow" : "bg-beg-lime"
+                      }`}
+                    >
+                      {i + 1}
+                    </span>
+                    <span className="truncate font-bold text-beg-ink">@{row.username}</span>
+                  </span>
+                  <span className="font-extrabold text-beg-ink">{formatAmount(row.received)} $BEGFI</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        )}
+      </section>
 
       {dbFailed ? (
         <p className="notice-dashed mt-8">

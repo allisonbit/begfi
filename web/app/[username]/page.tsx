@@ -6,7 +6,8 @@ import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, USERNAME_PATTERN, isReserved } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
-import { getProfileByUsername } from "@/lib/queries";
+import { getProfileByUsername, getSupporterList } from "@/lib/queries";
+import { isTopBeggar } from "@/lib/battles";
 import { getActivityFeed } from "@/lib/dashboard";
 import { getLevelForWallet } from "@/lib/level";
 import { LevelChip } from "@/components/level-chip";
@@ -71,9 +72,11 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
    * the feed of everything that reached this wallet. Everything hangs off the
    * wallet address, and a failed read drops its section rather than faking it.
    */
-  const [level, feed] = await Promise.all([
+  const [level, feed, supporters, topBeggar] = await Promise.all([
     getLevelForWallet(profile.wallet_address),
     getActivityFeed(profile.wallet_address, 30),
+    getSupporterList(profile.wallet_address, 20),
+    isTopBeggar(profile.wallet_address),
   ]);
 
   return (
@@ -111,23 +114,66 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
 
           {level ? <LevelChip level={level.name} /> : null}
 
+          {topBeggar ? (
+            <span
+              title={`Top 3 receiver the week of ${topBeggar.received ? "the previous week" : ""}`}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-full border-2 border-beg-ink bg-beg-yellow px-3 py-1 text-[11px] font-extrabold uppercase tracking-[.06em] text-beg-ink"
+            >
+              🏆 Top Beggar
+            </span>
+          ) : null}
+
           {profile.bio ? <p className="mx-auto mt-4 max-w-[46ch] text-beg-dim">{profile.bio}</p> : null}
 
           {/*
-            The X handle, as a link out. It is the one place a visitor can check
-            that this is a real person with a history, which matters more here than
-            on most sites: they are about to send money to an address, and a name
-            alone proves nothing.
+            Links out: X (with the verified tick when it is), Telegram, website.
+            A visitor can check that this is a real person with a history, which
+            matters more here than on most sites: they are about to send money
+            to an address, and a name alone proves nothing.
           */}
-          {xHandle ? (
-            <a
-              href={`https://x.com/${xHandle}`}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="mt-3 inline-block text-[13px] text-beg-dim underline underline-offset-2 hover:text-beg-ink"
-            >
-              @{xHandle} on X
-            </a>
+          {xHandle || profile.telegram_handle || profile.website_url ? (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-[13px]">
+              {xHandle ? (
+                <a
+                  href={`https://x.com/${xHandle}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-beg-dim underline underline-offset-2 hover:text-beg-ink"
+                >
+                  @{xHandle} on X
+                  {/* The tick: this handle completed BegFi's X verification. */}
+                  {profile.x_verified_at ? (
+                    <span
+                      title="Verified — the owner posted a BegFi code from this handle"
+                      aria-label="Verified X account"
+                      className="ml-1 not-italic text-beg-ink"
+                    >
+                      ✔️
+                    </span>
+                  ) : null}
+                </a>
+              ) : null}
+              {profile.telegram_handle ? (
+                <a
+                  href={`https://t.me/${profile.telegram_handle}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-beg-dim underline underline-offset-2 hover:text-beg-ink"
+                >
+                  Telegram
+                </a>
+              ) : null}
+              {profile.website_url ? (
+                <a
+                  href={/^https?:\/\//i.test(profile.website_url) ? profile.website_url : `https://${profile.website_url}`}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-beg-dim underline underline-offset-2 hover:text-beg-ink"
+                >
+                  Website
+                </a>
+              ) : null}
+            </div>
           ) : null}
         </header>
 
@@ -147,6 +193,29 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
         </div>
 
         <QRShare username={profile.username} />
+
+        {/*
+          Supporters: the real sends this wallet has received, newest first,
+          with each sender's note when one came attached. A hidden note stays
+          hidden from this public page by the recipient's choice.
+        */}
+        {supporters.length > 0 ? (
+          <section className="grid gap-3">
+            <h2 className="text-xl font-extrabold tracking-[-.03em]">Supporters</h2>
+            <ul className="grid gap-2">
+              {supporters.map((s, i) => (
+                <li
+                  key={`${s.from_address}-${s.block_time}-${i}`}
+                  className="card-sm flex flex-wrap items-center justify-between gap-2 text-[13px]"
+                >
+                  <span className="font-mono text-beg-dim">{shortAddress(s.from_address)}</span>
+                  {s.message ? <span className="min-w-0 flex-1 italic text-beg-ink">“{s.message}”</span> : <span className="min-w-0 flex-1" />}
+                  <span className="whitespace-nowrap font-bold text-beg-ink">{formatAmount(s.amount)} $BEGFI</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {/*
           Combined feed: everything that reached this wallet, newest first, straight
