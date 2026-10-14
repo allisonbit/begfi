@@ -177,26 +177,32 @@ export function earningsFromSubmissions(rows: EarnSubmission[]): MyEarnings {
 }
 
 /**
- * Submissions this account made since the day began (UTC), any status
- * included: a rejected post consumed the day's slot, so rejections cannot be
- * farmed. With the daily limit now 1, this is the whole “one post per user
- * per day” rule at the API.
+ * Has THIS WALLET ever claimed? ONE READ, ONE ANSWER.
+ *
+ * The wallet-once rule's home: eligibility is decided only by the wallet
+ * address, lowercased before it is compared, exactly as it is stored. A
+ * wallet with a record has claimed; a wallet without one is always allowed —
+ * no “come back tomorrow” exists anywhere in this rulebook.
+ *
+ * PUBLIC TABLE, READ DIRECTLY: RLS exposes earn_claims read-only, but the
+ * server read here is the one the API trusts; the direct table read is for
+ * the page's own badge.
  */
-export async function countTodaySubmissions(userId: string): Promise<number> {
-  if (!SUPABASE_CONFIGURED) return 0;
+export async function hasWalletClaimed(wallet: string): Promise<boolean> {
+  if (!SUPABASE_CONFIGURED) return false;
   const admin = createAdminClient();
 
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
+  const { data, error } = await admin
+    .from("earn_claims")
+    .select("id")
+    .eq("wallet_address", wallet.toLowerCase())
+    .maybeSingle<{ id: string }>();
 
-  const { count, error } = await admin
-    .from("earn_submissions")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .gte("created_at", since.toISOString());
-
-  if (error) return 0;
-  return count ?? 0;
+  // A read error is treated as CLAIMABLE — false — because a wallet that
+  // has genuinely never claimed must never be blocked by a flaky read. The
+  // insert-side UNIQUE constraint is what actually stops a double claim.
+  if (error) return false;
+  return data !== null;
 }
 
 /**

@@ -6,12 +6,12 @@ import { EarnSubmitBox } from "@/components/earn-submit";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import {
-  countTodaySubmissions,
   earningsFromSubmissions,
   getEarnFeed,
   getEarnSettings,
   getEarnStats,
   getMySubmissions,
+  hasWalletClaimed,
   rewardDisplay,
 } from "@/lib/earn";
 import { formatAmount } from "@/lib/erc20";
@@ -20,7 +20,7 @@ import { getProfile } from "@/lib/session";
 export const metadata: Metadata = {
   title: "Earn",
   description:
-    "Post about BegFi on X, drop the link, and get paid automatically — 10,000 $BEGFI per post from a daily 1,000,000 pool. The feed of posts people dropped is public.",
+    "Post about BegFi on X, drop the link, and get paid automatically — 10,000 $BEGFI per post. One claim per wallet, ever. The feed of posts people dropped is public.",
 };
 
 export const dynamic = "force-dynamic";
@@ -52,7 +52,7 @@ export default async function EarnPage() {
   const [settings, stats, feed] = await Promise.all([getEarnSettings(), getEarnStats(), getEarnFeed(24)]);
 
   const mine = profile ? await getMySubmissions(profile.id) : { rows: [], dbFailed: false };
-  const postedToday = profile ? await countTodaySubmissions(profile.id) : 0;
+  const walletClaimed = profile ? await hasWalletClaimed(profile.wallet_address) : false;
 
   const reward = settings ? rewardDisplay(settings.rewardPerPost) : "—";
   const poolOut = settings && settings.poolRemaining < settings.rewardPerPost;
@@ -65,7 +65,6 @@ export default async function EarnPage() {
           ? "Rewards pool is empty, check back soon."
           : null;
 
-  const remainingToday = settings ? Math.max(0, settings.dailyLimit - postedToday) : 0;
   const payoutConfigured = Boolean(DISTRIBUTOR_PRIVATE_KEY) && Boolean(BEG_TOKEN_ADDRESS);
 
   const my = earningsFromSubmissions(mine.rows);
@@ -108,8 +107,8 @@ export default async function EarnPage() {
           <li>{reward} $BEGFI per post, paid automatically on submit</li>
           <li>Post must be public and must mention BegFi or $BEGFI</li>
           <li>The same link can&apos;t be submitted twice</li>
-          <li>1 post a day per account — the pool refills every day</li>
-          <li>{settings ? formatAmount(settings.poolRemaining) : "…"} $BEGFI left in today&apos;s pool</li>
+          <li>ONE claim per wallet, ever — not per day, not per device</li>
+          <li>{settings ? formatAmount(settings.poolRemaining) : "…"} $BEGFI left in the pool</li>
         </ul>
       </section>
 
@@ -137,9 +136,9 @@ export default async function EarnPage() {
         </section>
       ) : null}
 
-      {/* 5. Submit box — the three states live inside the component */}
+      {/* 5. Submit box — the states live inside the component */}
       <section className="mt-4">
-        <EarnSubmitBox disabledReason={submitBlocked} remainingToday={remainingToday} dailyLimit={settings?.dailyLimit ?? 3} />
+        <EarnSubmitBox disabledReason={walletClaimed ? "This wallet has already claimed." : submitBlocked} />
       </section>
 
       {/* 6. My earnings — logged in only */}
@@ -236,11 +235,9 @@ export default async function EarnPage() {
         </Link>
       </section>
 
-      <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">
-        Rewards come from BegFi&apos;s own daily pool and pay on-chain from the BegFi payout wallet,
-        automatically on submit. One post per account, per device, per day — the caps are the
-        whole rulebook. Nothing here is financial advice, and BegFi is not affiliated with
-        Robinhood.
+      <p className="mt-6 max-w-[70ch] text-[12px] text-beg-dim">        Rewards come from BegFi&apos;s own pool and pay on-chain from the BegFi payout wallet,
+        automatically on submit. One claim per wallet, ever — decided only by the wallet address.
+        Nothing here is financial advice, and BegFi is not affiliated with Robinhood.
       </p>
     </div>
   );

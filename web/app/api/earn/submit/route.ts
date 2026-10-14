@@ -4,7 +4,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
-import { isPostUrl, getEarnSettings, countTodaySubmissions } from "@/lib/earn";
+import { isPostUrl, getEarnSettings } from "@/lib/earn";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/session";
 
@@ -13,59 +13,28 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/earn/submit — a post link, and nothing else.
  *
- * Every rule from the spec is enforced HERE, not just in the UI: session +
- * username, earn active, pool funded, daily limit, duplicate link, and the
- * URL shape itself. The UI mirrors these checks so the feedback is instant,
- * but a request that skips the UI runs into the same wall.
+ * THE ONE RULE. Eligibility is decided ONLY by the wallet address: a wallet
+ * with no record in begfi.earn_claims may always claim; a wallet with a
+ * record may never claim again. There is no daily limit, no per-device or
+ * per-IP budget, no account-age gate, no session fingerprint. The previous
+ * version budgeted the day per device fingerprint and per IP (0014), which
+ * meant a family phone, a campus NAT or any shared exit node told wallets
+ * that had never claimed to "come back tomorrow" — the bug this rewrite
+ * removes at the root.
  *
- * The insert goes through the service role after the checks, the same way the
- * indexer writes: RLS already restricts browser-direct inserts; this route is
- * the one path a submission is allowed to exist through.
+ * STILL ENFORCED:
+ *   * session + username,
+ *   * earn active and pool funded,
+ *   * the wallet-once rule, checked before insert AND enforced by a UNIQUE
+ *     constraint inside the claim record insert — two racing requests from
+ *     the same wallet cannot both win,
+ *   * the post URL shape, and one submission per post link, ever.
  *
- * SUBMIT IS THE APPROVAL. The reward is claimable the moment this returns ok:
- * the row is born with claimed_at set (its claim batch, ready for the payout
- * path), and the pool is debited by the refill function
- * begfi.earn_refill_pool() — which first tops the pool back to its daily
- * total when the UTC day has rolled over. The daily pool is the whole
- * budget: spent fast, it is gone until tomorrow.
- *
- * ONE PERSON, ONE DEVICE, ONE CLAIM. The account cap is only 1/day, which a
- * wallet farm defeats, so the day is also budgeted per DEVICE and per IP
- * through the site's existing transactional rate limiter:
- *
- *   * `earn_device` — the browser fingerprint the client sends (screen,
- *     locale, time zone, canvas jitter), hashed with a server pepper before
- *     it is compared, so neither the raw fingerprint nor its hash is
- *     meaningful outside this route.
- *   * `earn_ip` — the client IP as Vercel saw it. This is the control that
- *     does not depend on client cooperation at all.
- *
- * Both share the account's 1/day shape: three wallets on one phone make ONE
- * device submission a day and one IP submission a day, not three.
+ * OTHER FAILURES SAY WHAT FAILED. A network error, a database error, or a
+ * missing setting returns its own message, never "come back tomorrow" and
+ * never "already claimed" — those two states belong to exactly one situation
+ * each and must not absorb unrelated failures.
  */
-
-const DEVICE_LIMIT = 1;
-const IP_LIMIT = 1;
-
-/** The pepper, server-side only, for hashing device fingerprints. */
-const FINGERPRINT_PEPPER = process.env.EARN_FINGERPRINT_PEPPER?.trim() || "begfi-earn-v1";
-
-async function deviceHash(fingerprint: string): Promise<string> {
-  const data = new TextEncoder().encode(`${FINGERPRINT_PEPPER}:${fingerprint}`);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function clientIp(request: Request): string {
-  // Vercel sets these. The first present wins; unknown IPs (local dev) share
-  // the "unknown" subject, which is itself capped — a dev box is a device too.
-  const h = request.headers;
-  return (
-    h.get("x-real-ip") ??
-    h.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    "unknown"
-  );
-}
 
 export async function POST(request: Request) {
   const profile = await getProfile();
@@ -92,7 +61,8 @@ export async function POST(request: Request) {
    * money. If the distributor wallet is not wired or cannot cover the
    * payout, the submission is refused: promising claimable rewards the site
    * cannot pay is exactly the fake-number pattern the rest of the product
-   * refuses.
+   * refuses. This is its own state with its own message — a Retry here is
+   * honest, because the pool being funded may fix it.
    */
   const payoutReady = await payoutWalletReady(settings.rewardPerPost);
   if (!payoutReady) {
@@ -102,54 +72,38 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { post_url?: string; fp?: string } | null = null;
+  let body: { post_url?: string } | null = null;
   try {
-    body = (await request.json()) as { post_url?: string; fp?: string };
+    body = (await request.json()) as { post_url?: string };
   } catch {
     body = null;
   }
   const postUrl = body?.post_url?.trim() ?? "";
-  const fp = typeof body?.fp === "string" ? body!.fp! : "";
 
   if (!isPostUrl(postUrl)) {
     return NextResponse.json({ error: "That is not an X post link. Paste a x.com/twitter.com status URL." }, { status: 400 });
   }
 
+  // Lowercase BEFORE any read or write: the wallet-once rule compares
+  // lowercase, always.
+  const wallet = profile.wallet_address.toLowerCase();
   const admin = createAdminClient();
 
-  // DEVICE AND IP BUDGET — before anything else is written. A day is a UTC
-  // day and each of the three limits counts independently:
-  //   1 per account, 1 per device, 1 per IP. Any one of them hitting its cap
-  // is refused with the same "one per day" copy — it never says which limit
-  // tripped, so a farm learns nothing about which of its angles was caught.
+  // ALLOWED TO CLAIM? The claims table is the whole answer. A read error here
+  // is a FAILURE, not a denial: failing open (allowing) could double-pay and
+  // failing closed would insult a wallet that has a real record but a flaky
+  // read — either way the request dies with its own message and a Retry.
+  const { data: priorClaim, error: claimReadError } = await admin
+    .from("earn_claims")
+    .select("id")
+    .eq("wallet_address", wallet)
+    .maybeSingle<{ id: string }>();
 
-  const dayWindow = "1 day" as const;
-  const ip = clientIp(request);
-  const deviceSubject = fp ? await deviceHash(fp) : "no-fp";
-
-  const [deviceOk, ipOk] = await Promise.all([
-    admin.rpc("check_rate_limit", { p_bucket: "earn_device", p_subject: deviceSubject, p_max: DEVICE_LIMIT, p_window: dayWindow }),
-    admin.rpc("check_rate_limit", { p_bucket: "earn_ip", p_subject: ip, p_max: IP_LIMIT, p_window: dayWindow }),
-  ]);
-
-  if (deviceOk.data === false || ipOk.data === false) {
-    // Roll back whichever succeeded so a retry the same day is still refused
-    // for the same reason instead of being blocked by a stale device entry.
-    if (deviceOk.data === true) {
-      await admin.from("rate_limits").delete().eq("bucket", "earn_device").eq("subject", deviceSubject);
-    }
-    return NextResponse.json(
-      { error: "One claim per person per day. Come back tomorrow." },
-      { status: 429 },
-    );
+  if (claimReadError) {
+    return NextResponse.json({ error: "Could not check your claim record. Try again in a moment." }, { status: 500 });
   }
-
-  const postedToday = await countTodaySubmissions(profile.id);
-  if (postedToday >= settings.dailyLimit) {
-    return NextResponse.json(
-      { error: `Daily limit reached — ${settings.dailyLimit} submissions a day.` },
-      { status: 429 },
-    );
+  if (priorClaim) {
+    return NextResponse.json({ error: "This wallet has already claimed." }, { status: 409 });
   }
 
   const { data: duplicate } = await admin
@@ -169,47 +123,74 @@ export async function POST(request: Request) {
    */
   const { data: remainingAfterRefill, error: refillError } = await admin.rpc("earn_refill_pool");
   if (refillError || remainingAfterRefill === null) {
-    return NextResponse.json({ error: "Could not reserve from the pool. Try again." }, { status: 500 });
+    return NextResponse.json({ error: "Could not reserve from the pool. Try again in a moment." }, { status: 500 });
   }
   const remainingBig = BigInt(remainingAfterRefill as string);
   if (remainingBig < settings.rewardPerPost) {
     return NextResponse.json({ error: "Rewards pool is empty, check back soon." }, { status: 409 });
   }
 
-  /* Submit IS the approval: claimed_at at birth, approved status, pool debit. */
-  const { error: insertError } = await admin
+  /* Submit IS the approval: claimed_at at birth, approved status. */
+  const { data: inserted, error: insertError } = await admin
     .from("earn_submissions")
     .insert({
       user_id: profile.id,
       username: profile.username,
-      wallet_address: profile.wallet_address.toLowerCase(),
+      wallet_address: wallet,
       post_url: postUrl,
       status: "approved",
       reviewed_at: new Date().toISOString(),
       claimed_at: new Date().toISOString(),
       reward_amount: settings.rewardPerPost.toString(),
-    });
+    })
+    .select("id")
+    .single<{ id: string }>();
 
-  if (insertError) {
-    // The unique index on post_url is a second line of defence; treat a
-    // constraint hit like the duplicate check above.
-    if (insertError.code === "23505") {
+  if (insertError || !inserted) {
+    // The unique index on post_url is the second line of defence on the
+    // link; treat a constraint hit like the duplicate check above.
+    if (insertError?.code === "23505") {
       return NextResponse.json({ error: "This post was already submitted." }, { status: 409 });
     }
-    // The insert failed for a non-duplicate reason: release the device and IP
-    // slots so the day's budget is not consumed by a request that recorded
-    // nothing.
-    await admin.from("rate_limits").delete().eq("bucket", "earn_device").eq("subject", deviceSubject);
-    await admin.from("rate_limits").delete().eq("bucket", "earn_ip").eq("subject", ip);
-    return NextResponse.json({ error: "Could not record that. Try again." }, { status: 500 });
+    return NextResponse.json({ error: "Could not record that. Try again in a moment." }, { status: 500 });
+  }
+
+  /*
+   * THE CLAIM RECORD. This is the once-per-wallet gate: inserting it here,
+   * with the UNIQUE constraint live, means a second request that raced past
+   * the SELECT above is rejected by the database itself — no amount of
+   * parallel requests can make one wallet claim twice.
+   */
+  const { error: claimError } = await admin.from("earn_claims").insert({
+    wallet_address: wallet,
+    user_id: profile.id,
+    username: profile.username,
+    last_submission_id: inserted.id,
+    total_reward: settings.rewardPerPost.toString(),
+  });
+
+  if (claimError) {
+    if (claimError.code === "23505") {
+      // This wallet genuinely already claimed (the race case arrived after
+      // all). The submission row is a record of a post, but no money is owed
+      // on it and no pool is debited twice — unpublish it so the ledger
+      // stays honest.
+      await admin.from("earn_submissions").delete().eq("id", inserted.id);
+      return NextResponse.json({ error: "This wallet has already claimed." }, { status: 409 });
+    }
+    // A non-race failure means the claim record did not land and the payout
+    // bookkeeping must not stand alone: the submit is refused, the pre-claim
+    // submission row is removed, and the caller can retry cleanly.
+    await admin.from("earn_submissions").delete().eq("id", inserted.id);
+    return NextResponse.json({ error: "Could not record the claim. Try again — nothing was charged." }, { status: 500 });
   }
 
   /*
    * The debit uses the post-refill figure. Two submitters racing both read
    * the same `remaining` and both write a subtract-from-that value, so the
    * pool can under-count by one reward in the worst case — money the admin
-   * tops up, never money users lose, and the three cap group (account,
-   * device, IP) still bounds the day.
+   * tops up, never money users lose, and the wallet-once rule still bounds
+   * the total.
    */
   await admin
     .from("earn_settings")
@@ -222,7 +203,6 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     reward: settings.rewardPerPost.toString(),
-    remaining: Math.max(0, settings.dailyLimit - (postedToday + 1)),
   });
 }
 

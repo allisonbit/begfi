@@ -1,33 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ClaimCard } from "@/components/claim-card";
 import { useAuth } from "@/lib/auth-context";
 import { useWalletSignIn } from "@/lib/useWalletSignIn";
 
 /**
- * The Earn submit box, in exactly three states.
+ * The Earn submit box, in exactly four states.
  *
  * The spec's table is the API: logged out ("Log in to start earning" + the
  * wallet button), logged in without a username ("Set your username to start
- * earning" + a link to Edit profile), and ready (link input + submit). The
- * state comes from the session, never from what the visitor typed, so a
- * half-made account cannot see a box that would not accept anything.
+ * earning" + a link to Edit profile), ready (link input + submit), and
+ * already claimed (the wallet's one-time record says so — the box says so,
+ * without a disabled input pretending more submissions exist).
  *
  * Client-side checks mirror the server's, for instant feedback. The server's
  * word is final — a "should have passed" submission that the client accepted
  * and the API rejects still shows the API's error verbatim.
  */
-export function EarnSubmitBox({
-  disabledReason,
-  remainingToday,
-  dailyLimit,
-}: {
-  /** When set (pool empty, earn paused, payouts off), the box is disabled with this copy. */
-  disabledReason: string | null;
-  remainingToday: number;
-  dailyLimit: number;
-}) {
+export function EarnSubmitBox({ disabledReason }: { disabledReason: string | null }) {
   const { profile } = useAuth();
   const { signIn, busy: signingIn, error: signInError } = useWalletSignIn();
 
@@ -35,60 +26,11 @@ export function EarnSubmitBox({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [messageKind, setMessageKind] = useState<"info" | "error">("info");
-  const [remaining, setRemaining] = useState(remainingToday);
-  const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [cardAmount, setCardAmount] = useState<string | null>(null);
 
-  useEffect(() => {
-    setRemaining(remainingToday);
-  }, [remainingToday]);
-
-  /*
-   * The device fingerprint, computed once per mount. Coarse ON PURPOSE —
-   * screen size, language, time zone, platform, and a canvas hash — because
-   * the goal is "one device", not surveillance. It is hashed with a server
-   * pepper before it is stored, so the site holds a tag that only means
-   * "this same browser came back today" and nothing more personal.
-   *
-   * localStorage remembers it so it stays stable across visits to the same
-   * browser: a refresh that yields a different canvas hash (some GPUs vary)
-   * would still rate-limit as the same device.
-   */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const stored = localStorage.getItem("begfi-earn-fp");
-        if (stored) {
-          setFingerprint(stored);
-          return;
-        }
-        const canvasEl = document.createElement("canvas");
-        const ctx = canvasEl.getContext("2d");
-        ctx?.fillText("begfi_fp", 2, 2);
-        const parts = [
-          navigator.language,
-          Intl.DateTimeFormat().resolvedOptions().timeZone ?? "",
-          `${screen.width}x${screen.height}x${screen.colorDepth}`,
-          navigator.platform ?? "",
-          canvasEl.toDataURL().slice(-64) || "nocanvas",
-        ].join("|");
-        if (!cancelled) {
-          localStorage.setItem("begfi-earn-fp", parts);
-          setFingerprint(parts);
-        }
-      } catch {
-        /* no fingerprint: the device limit falls back to "no-fp", which is
-           itself capped, and the IP limit still applies. */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   if (!profile) {
-    return (          <section className="card grid justify-items-center gap-2 p-6 text-center">
+    return (
+      <section className="card grid justify-items-center gap-2 p-6 text-center">
         <b className="text-[18px] text-beg-ink">Log in to start earning</b>
         <p className="max-w-[40ch] text-[13px] text-beg-dim">Wallet connects, one signature, and the submit box appears.</p>
         <button type="button" onClick={() => void signIn()} disabled={signingIn} className="btn-primary px-6 py-3 text-[15px]">
@@ -111,7 +53,7 @@ export function EarnSubmitBox({
     );
   }
 
-  const blocked = disabledReason !== null || remaining <= 0;
+  const blocked = disabledReason !== null;
   const looksValid = /^https?:\/\/(www\.)?(x\.com|twitter\.com)\/\S+\/status\/\d+/i.test(postUrl.trim());
 
   async function submit() {
@@ -127,32 +69,25 @@ export function EarnSubmitBox({
       const res = await fetch("/api/earn/submit", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ post_url: postUrl.trim(), fp: fingerprint ?? "" }),
+        body: JSON.stringify({ post_url: postUrl.trim() }),
       });
       const body = (await res.json().catch(() => null)) as
-        | { ok?: boolean; error?: string; remaining?: number; reward?: string }
+        | { ok?: boolean; error?: string; reward?: string }
         | null;
 
       if (res.ok && body?.ok) {
-        /*
-         * The receipt card is the exit, not the message line: it leads with
-         * the amount, the share buttons lead it, and closing is allowed but
-         * last. `reward` arrives in base units from the server, formatted
-         * here where the client already knows the display convention.
-         */
-        const rewardText = body.reward 
+        const rewardText = body.reward
           ? (BigInt(body.reward) / 10n ** 18n).toLocaleString("en-GB")
           : "10,000";
         setCardAmount(rewardText);
         setMessage(null);
         setPostUrl("");
-        if (typeof body.remaining === "number") setRemaining(body.remaining);
       } else {
-        setMessage(body?.error ?? "Could not submit right now.");
+        setMessage(body?.error ?? "Something went wrong. Try again.");
         setMessageKind("error");
       }
     } catch {
-      setMessage("Network hiccup — try again.");
+      setMessage("Network problem — the submission did not go through. Retry.");
       setMessageKind("error");
     } finally {
       setSubmitting(false);
@@ -170,8 +105,6 @@ export function EarnSubmitBox({
           submitting={submitting}
           message={message}
           messageKind={messageKind}
-          remaining={remaining}
-          dailyLimit={dailyLimit}
           blocked={blocked}
           disabledReason={disabledReason}
           looksValid={looksValid}
@@ -188,8 +121,6 @@ export function EarnSubmitBox({
       submitting={submitting}
       message={message}
       messageKind={messageKind}
-      remaining={remaining}
-      dailyLimit={dailyLimit}
       blocked={blocked}
       disabledReason={disabledReason}
       looksValid={looksValid}
@@ -204,23 +135,19 @@ type SubmitFormProps = {
   submitting: boolean;
   message: string | null;
   messageKind: "info" | "error";
-  remaining: number;
-  dailyLimit: number;
   blocked: boolean;
   disabledReason: string | null;
   looksValid: boolean;
   onSubmit: () => void;
 };
 
-/** The form proper, stripped of the three auth states handled above. */
-function SubmitForm({ postUrl, setPostUrl, submitting, message, messageKind, remaining, dailyLimit, blocked, disabledReason, looksValid, onSubmit }: SubmitFormProps) {
+/** The form proper, stripped of the auth states handled above. */
+function SubmitForm({ postUrl, setPostUrl, submitting, message, messageKind, blocked, disabledReason, looksValid, onSubmit }: SubmitFormProps) {
   return (
     <section className="card grid gap-3 p-6">
       <div className="flex items-baseline justify-between">
         <b className="text-[18px] text-beg-ink">Drop your post link</b>
-        <span className="text-[12px] text-beg-dim">
-          {remaining} of {dailyLimit} submissions left today
-        </span>
+        <span className="text-[12px] text-beg-dim">one claim per wallet, ever</span>
       </div>
 
       <div className="grid gap-2 rounded-3xl border-2 border-dashed border-beg-line bg-beg-card p-3 sm:flex sm:rounded-full sm:py-2 sm:pl-[18px] sm:pr-2">
@@ -239,16 +166,21 @@ function SubmitForm({ postUrl, setPostUrl, submitting, message, messageKind, rem
       </div>
 
       {message ? (
-        <p className="text-[13px] font-bold text-beg-ink">
-          {messageKind === "info" ? (
-            <span className="rounded-md bg-beg-lime px-1.5 py-0.5">{message}</span>
+        <p className="grid gap-1.5 text-[13px] font-bold text-beg-ink">
+          {messageKind === "error" && (message === "Network problem — the submission did not go through. Retry." || message.startsWith("Could not")) ? (
+            <>
+              <span>{message}</span>
+              <button type="button" onClick={onSubmit} disabled={submitting} className="btn-ghost w-fit justify-self-start px-4 py-2 text-[12px] font-bold text-beg-ink">
+                {submitting ? "Retrying…" : "Retry"}
+              </button>
+            </>
           ) : (
-            message
+            <span>{message}</span>
           )}
         </p>
       ) : (
         <p className="text-[13px] text-beg-dim">
-          {disabledReason ?? "Submitting starts the payout automatically — the $BEGFI is sent to your wallet. One post a day."}
+          {disabledReason ?? "Submitting pays automatically — the $BEGFI is sent to your wallet once, ever."}
         </p>
       )}
     </section>
