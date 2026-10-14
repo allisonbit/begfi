@@ -10,6 +10,7 @@ import { getProfileByUsername } from "@/lib/queries";
 import { getActivityFeed } from "@/lib/dashboard";
 import { getLevelForWallet } from "@/lib/level";
 import { LevelChip } from "@/components/level-chip";
+import { QRShare } from "@/components/qr-share";
 
 type Params = { username: string };
 
@@ -144,6 +145,8 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
             <NotLaunchYet />
           )}
         </div>
+
+        <QRShare username={profile.username} />
 
         {/*
           Combined feed: everything that reached this wallet, newest first, straight
