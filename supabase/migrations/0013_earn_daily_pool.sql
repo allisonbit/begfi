@@ -36,8 +36,14 @@ where id = true;
 --    transaction as its debit. It refills when the UTC date has rolled over
 --    (or on the very first call) and returns the remaining after refill.
 create or replace function begfi.earn_refill_pool()
-returns numeric(78,0)
+returns text
 language plpgsql
+--(Returns TEXT, not numeric: PostgREST serializes numeric as a JSON number,
+-- and a float64 mantissa is 53 bits — a 24-digit base-unit remaining is
+-- returned polluted (9500000000000000134217728 instead of 950000…000), and
+-- the debit below wrote that contamination back into the pool. ::text keeps
+-- the exact digits, the same rule every other big-integer read follows.
+-- BigInt(string) in the submit route parses it exactly.
 -- SECURITY DEFINER + a pinned search_path: PostgREST calls this with a
 -- search_path that does not include the `begfi` schema, so nothing inside
 -- the body may rely on an unqualified name. The pinned path (and the
@@ -78,7 +84,7 @@ begin
     v_remaining := v_total;
   end if;
 
-  return v_remaining;
+  return v_remaining::text;
 end;
 $$;
 
