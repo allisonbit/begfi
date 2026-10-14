@@ -38,30 +38,47 @@ where id = true;
 create or replace function begfi.earn_refill_pool()
 returns numeric(78,0)
 language plpgsql
+-- SECURITY DEFINER + a pinned search_path: PostgREST calls this with a
+-- search_path that does not include the `begfi` schema, so nothing inside
+-- the body may rely on an unqualified name. The pinned path (and the
+-- definer privilege of the table owner) makes the row lock and the update
+-- resolve correctly regardless of the caller's session.
+security definer
+set search_path = begfi, public, extensions
 as $$
 declare
-  total numeric(78,0);
-  remaining numeric(78,0);
-  day date;
+  /* FOUR variables, deliberately not reusing `day`: the original body
+   * SELECTed the stored pool_day INTO `day` and then immediately
+   * overwrote `day` with today's date, so the "has the day rolled
+   * over?" check could never see the stored value — and its
+   * `earn_settings.pool_day` reference (a table-column expression with
+   * nothing in FROM) failed on every call with "missing FROM-clause
+   * entry", which the submit route surfaced as "Could not reserve from
+   * the pool". That was the whole Earn page outage.
+   */
+  v_total     numeric(78,0);
+  v_remaining numeric(78,0);
+  v_stored    date;
+  v_today     date;
 begin
   select pool_total, pool_remaining, pool_day
-    into total, remaining, day
+    into v_total, v_remaining, v_stored
   from begfi.earn_settings where id = true
   for update;
 
-  day := date_trunc('day', now() at time zone 'utc')::date;
+  v_today := (date_trunc('day', now() at time zone 'utc'))::date;
 
-  if earn_settings.pool_day is null or earn_settings.pool_day < day then
+  if v_stored is null or v_stored < v_today then
     update begfi.earn_settings
-    set pool_remaining = total,
-        pool_day = day,
+    set pool_remaining = v_total,
+        pool_day = v_today,
         pool_refills_at = (date_trunc('day', now() at time zone 'utc') + interval '1 day'),
         updated_at = now()
     where id = true;
-    remaining := total;
+    v_remaining := v_total;
   end if;
 
-  return remaining;
+  return v_remaining;
 end;
 $$;
 

@@ -394,8 +394,15 @@ export async function listPendingSubmissions(limit = 100): Promise<EarnSubmissio
 }
 
 /**
- * Approved rows not yet claimed for one user, plus their sum: the payout
- * batch, and the retry path a failed transfer re-reads.
+ * Approved rows with NO PAYOUT TX yet, for one user, plus their sum: the
+ * payout batch, and the retry path a failed transfer re-reads.
+ *
+ * The selector is `payout_tx IS NULL`, not `claimed_at IS NULL`. Submit
+ * stages a claim at birth (claimed_at set, money not sent), so the never-
+ * paid batch and the crashed-then-retrying batch are the same set — an
+ * approved row without a payout transaction. Filtering on claimed_at made
+ * the claim route answer "Nothing to claim yet" for every submit-and-claim
+ * user (the second half of the Earn outage).
  */
 export async function getApprovedUnclaimed(userId: string): Promise<{ ids: string[]; total: bigint }> {
   if (!SUPABASE_CONFIGURED) return { ids: [], total: 0n };
@@ -406,7 +413,7 @@ export async function getApprovedUnclaimed(userId: string): Promise<{ ids: strin
     .select("id, reward_amount, claimed_at")
     .eq("user_id", userId)
     .eq("status", "approved")
-    .is("claimed_at", null)
+    .is("payout_tx", null)
     .limit(100);
 
   if (error || !data) return { ids: [], total: 0n };
