@@ -43,7 +43,9 @@ export default async function ActivityPage() {
 
       <p className="text-[12px] text-beg-dim">
         Transfers appear once the indexer confirms them on-chain; a trade shows here a few seconds
-        after it lands in a block, and in every figure at the next page refresh.
+        after it lands in a block, and in every figure at the next page refresh. Messages attached to
+        a send are hidden here (marked) if you hid them — and they stay out of your public profile,
+        but they never leave your own history.
       </p>
     </>
   );

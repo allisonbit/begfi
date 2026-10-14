@@ -75,7 +75,14 @@ export function ActivityFeed({
             >
               <span className="flex items-center gap-2">
                 <KindBadge kind={item.kind} />
-                <span className="text-beg-ink">{item.text}</span>
+                <span className="min-w-0">
+                  <span className="text-beg-ink">{item.text}</span>
+                  {item.message ? (
+                    <span className={`mt-0.5 block text-[12px] ${item.messageHidden ? "text-beg-dim italic" : "text-beg-ink"}`}>
+                      “{item.message}”{item.messageHidden ? " · hidden from the public feed" : ""}
+                    </span>
+                  ) : null}
+                </span>
               </span>
               <span className="flex items-center gap-3">
                 <span className="text-beg-dim">{new Date(item.at).toLocaleString("en-GB")}</span>

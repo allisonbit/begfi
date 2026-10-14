@@ -15,7 +15,13 @@ import type { ProfileStats, PublicProfile, Transfer } from "@/lib/types";
  * 404s, without the page needing to know that hiding exists.
  */
 
-type ProfileRow = PublicProfile & { id: string; x_handle: string | null };
+type ProfileRow = PublicProfile & {
+  id: string;
+  x_handle: string | null;
+  telegram_handle: string | null;
+  website_url: string | null;
+  x_verified_at: string | null;
+};
 
 export type ProfileLookup = {
   profile: ProfileRow;
@@ -229,6 +235,41 @@ export async function getRecentTransfers(walletAddress: string, limit = 50): Pro
     .limit(limit);
 
   return (data as Transfer[] | null) ?? [];
+}
+
+/**
+ * The supporter list for a public profile: every confirmed send the wallet
+ * has received, with any message attached, ready to render. HIDDEN MESSAGES
+ * ARE DROPPED — a supporter whose note the recipient hid still appears as a
+ * supporter (the money is real), but the note itself stays out of the
+ * public page by the recipient's choice.
+ */
+export async function getSupporterList(walletAddress: string, limit = 30): Promise<
+  { from_address: string; amount: bigint; block_time: string; message: string | null }[]
+> {
+  if (!SUPABASE_CONFIGURED) return [];
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("transfers")
+    .select("from_address, amount, block_time, transfer_messages(message, hidden_by_recipient)")
+    .eq("to_address", walletAddress.toLowerCase())
+    .order("block_time", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return (data as unknown as Array<{
+    from_address: string;
+    amount: string;
+    block_time: string;
+    transfer_messages: { message: string; hidden_by_recipient: boolean }[] | null;
+  }>).map((row) => ({
+    from_address: row.from_address,
+    amount: BigInt(row.amount),
+    block_time: row.block_time,
+    message: row.transfer_messages?.[0]?.hidden_by_recipient ? null : (row.transfer_messages?.[0]?.message ?? null),
+  }));
 }
 
 /**

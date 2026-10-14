@@ -66,6 +66,10 @@ export type FeedItem = {
   at: string;
   tx: string | null;
   text: string;
+  /** The sender's note, when one was attached to this transfer. */
+  message?: string | null;
+  /** The recipient's hide flag, shown only so their own view can mark it. */
+  messageHidden?: boolean;
 };
 
 export type OwnBeg = {
@@ -297,7 +301,7 @@ export async function getActivityFeed(wallet: string, limit = 100): Promise<{
   const [transfers, trades, launches] = await Promise.all([
     admin
       .from("transfers")
-      .select("tx_hash, from_address, amount, block_time")
+      .select("tx_hash, from_address, amount, block_time, transfer_messages(message, hidden_by_recipient)")
       .eq("to_address", w)
       .order("block_time", { ascending: false })
       .limit(limit),
@@ -320,11 +324,16 @@ export async function getActivityFeed(wallet: string, limit = 100): Promise<{
   const items: FeedItem[] = [];
 
   for (const t of transfers.data ?? []) {
+    // type shape: transfer_messages is an array (to-one embed) or null
+    const msg = Array.isArray(t.transfer_messages) ? t.transfer_messages[0] : null;
+    const note = msg?.message ? ` — “${msg.message}”` : "";
     items.push({
       kind: "beg",
       at: t.block_time,
       tx: t.tx_hash,
-      text: `Received ${formatAmount(BigInt(t.amount))} $BEGFI from ${t.from_address.slice(0, 6)}…${t.from_address.slice(-4)}`,
+      text: `Received ${formatAmount(BigInt(t.amount))} $BEGFI from ${t.from_address.slice(0, 6)}…${t.from_address.slice(-4)}${note}`,
+      message: msg?.message ?? null,
+      messageHidden: msg?.hidden_by_recipient ?? false,
     });
   }
 
