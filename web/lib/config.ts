@@ -14,20 +14,29 @@ import { isAddress, normaliseAddress } from "./chains";
 const addr = (value: string | undefined): string | null =>
   isAddress(value) ? normaliseAddress(value!) : null;
 
-/** The $BEGFI token. Null until $BEGFI is actually launched (spec §9.4 / §14). */
-export const BEG_TOKEN_ADDRESS = addr(process.env.NEXT_PUBLIC_BEG_TOKEN_ADDRESS);
+/**
+ * The $BEGFI token — THE one contract address, set here in code.
+ *
+ * The brief is explicit: always this exact CA and never any other, so the
+ * value is pinned rather than env-overridable. An environment that still
+ * carries the pre-relaunch address (0xbeabe…) must not win.
+ */
+export const BEG_TOKEN_ADDRESS: string | null =
+  "0x18823d1f1807ce3bdd90aafb7473928bc9368242";
 
 /**
- * The relaunched token's contract address — the ONE value to change when the
- * new $BEGFI ships.
+ * The relaunched token's contract address — THE value everything reads.
  *
  * Everything the home page's live stats (market cap, price, volume, liquidity,
- * holders, fees) read is keyed off this constant and nothing else: set it
- * here, and every stat card lights up on the next render. While it is unset
- * or not a valid address the page renders its "coming soon" empty state — a
- * wrong-or-empty value must never produce fake numbers.
+ * holders, fees) read is keyed off this constant and nothing else. The token
+ * launched on Robinhood Chain (chain 4663) via runitup.gg on 2026-10-14.
+ *
+ * The 1% is the launch pool's swap fee (Uniswap V4 1% fee tier, split
+ * 75% creator / 25% platform by the launch contracts) — it is NOT a transfer
+ * tax on the ERC-20; the verified token source has no fee-on-transfer hook,
+ * and the copy everywhere says 1% accordingly.
  */
-export const TOKEN_CA = (process.env.NEXT_PUBLIC_TOKEN_CA?.trim() || "PLACEHOLDER").toLowerCase();
+export const TOKEN_CA = "0x18823d1f1807ce3bdd90aafb7473928bc9368242";
 export const TOKEN_CONFIGURED = addr(TOKEN_CA) !== null;
 
 /**
@@ -45,16 +54,11 @@ export const TOKEN_CHAIN = process.env.NEXT_PUBLIC_TOKEN_CHAIN?.trim() || "robin
 export const BEG_CONFIGURED = BEG_TOKEN_ADDRESS !== null;
 
 /**
- * The one wallet allowed to run BegFi's own genesis launch — the dev wallet for
- * $BEGFI (spec §9.2: 5% creator tax, all of it to the dev wallet).
+ * The dev wallet — the recipient of BegFi's fee share from the relaunch.
  *
- * GENESIS OTHERWISE DEADLOCKS. The form used to lock genesis mode for everyone
- * "until $BEGFI exists", but $BEGFI comes into existence THROUGH a genesis launch:
- * the reservation, read absolutely, forbade the one launch it was reserving
- * space for. Naming the wallet in advance is the way out that keeps the
- * reservation honest — every other wallet still sees genesis locked, and this
- * address stops being special the moment $BEGFI exists, because a configured
- * token address locks genesis for everyone including the dev.
+ * The relaunch ran on runitup.gg: the launch pool's 1% swap fee splits
+ * 75% creator / 25% platform, and this is the creator side. It doubles as
+ * the Earn payouts admin allowlist seed.
  *
  * The address is lowercase and compared lowercase. Set from the deployment
  * environment, like every other address in this file.

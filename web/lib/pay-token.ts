@@ -17,39 +17,34 @@ import { BEG_TOKEN_ADDRESS } from "@/lib/config";
  *  - the principal base pair on the chain is WETH/USDG; pool inventory is
  *    thin and changes (docs.robinhood.com/chain/connecting/).
  *
- * SO WHY STILL "COMING SOON". A router is not a route. Swapping ANY token into
- * $BEGFI needs a pool or an RFQ quoting that exact pair, and $BEGFI is not live
- * yet — no contract address configured, therefore no pools, therefore no real
- * rate, slippage or fee number exists to show. The spec is explicit: show the
- * rate before confirming, never fake numbers. Until the token ships and a live
- * route source answers quotes for it, the only honest UI is "coming soon".
+ * WHY STILL "COMING SOON". $BEGFI is live and the pool has real liquidity —
+ * but a live pool is not a quoting pipeline. Showing rate, slippage and fees
+ * before a confirm means a server-side quote source (1inch/KyberSwap Swap API
+ * with a key, wired server-side) actually answering requests for this pair.
+ * Until that is built and can answer, the only honest UI is "coming soon":
+ * a number shown from guesswork is worse than none.
  *
- * LIGHTING IT UP LATER. `payTokenState` is the single switch. When the token
- * is configured and a real quote source (1inch or KyberSwap's API, server-side
- * with a key) is added, the two states below turn available and the send flow
- * becomes: pick token → server quote (rate, slippage, fee) → confirm → swap
- * through the aggregator router with the recipient as receiver of $BEGFI.
- * Nothing in the UI needs to guess at values in the meantime.
+ * LIGHTING IT UP LATER. `payTokenState` is the single switch. When a real
+ * quote source answers, the state turns available and the send flow becomes:
+ * pick token → server quote (rate, slippage, fee) → confirm → swap through
+ * the aggregator router with the recipient as receiver of $BEGFI.
  */
 export type PayTokenState = { available: false; note: string };
 
 export function payTokenState(): PayTokenState {
-  // No $BEGFI address ⇔ no pools to route through ⇔ no real quote to show.
-  // Every later availability condition goes here, each with its own reason.
-  // The function stays honest by construction: there is no `available: true`
-  // branch until the code that can really produce rate, slippage and fee
-  // numbers is written behind one.
-  if (!BEG_TOKEN_ADDRESS) {
+  // $BEGFI's address is configured (TOKEN_CA); what is missing is the real
+  // quote source behind an `available: true` branch. Every later condition
+  // goes here, each with its own reason. No branch returns true until code
+  // that can really produce rate, slippage and fee numbers is written.
+  const tokenConfigured = BEG_TOKEN_ADDRESS !== null;
+  if (!tokenConfigured) {
     return {
       available: false,
-      note: "Coming soon — pay in any token and it swaps into $BEGFI before it reaches the recipient. Robinhood Chain has swap routers, but a rate and slippage preview can only be shown once $BEGFI is live with pools to route through. Until then nothing here is quoted, because nothing real exists to quote.",
+      note: "Coming soon — pay in any token and it swaps into $BEGFI before it reaches the recipient. It goes live once a real quote source is wired for the token.",
     };
   }
-  // Not yet — the type narrowing above happens to cover every current code
-  // path, but the exhaustive return keeps that a fact the compiler checks
-  // rather than an assumption.
   return {
     available: false,
-    note: "Coming soon — pay in any token and it swaps into $BEGFI before it reaches the recipient.",
+    note: "Coming soon — $BEGFI is live, and paying in another token will swap into it before it reaches the recipient. Once the quote source is wired, the rate, slippage and fees show here before you confirm.",
   };
 }

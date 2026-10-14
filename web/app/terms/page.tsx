@@ -39,7 +39,8 @@ export default function TermsPage() {
           <section>
             <h2 className="mb-2 font-bold text-beg-ink">The token</h2>
             <p>
-              $BEGFI carries a 2% tax on token transfers, set at the token contract — not by BegFi.
+              Swaps through $BEGFI's launch pool pay a 1% fee (75% creator, 25% platform), set on
+              the pool — the token contract itself charges no tax on transfers.
               Tokens that trade on this chain are offered by third parties, and their presence here
               is not an endorsement, recommendation, or offer to sell.
             </p>

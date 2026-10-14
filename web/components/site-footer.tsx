@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { CommunityLinks } from "@/components/community-links";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
-import { TOKEN_CONFIGURED } from "@/lib/config";
+import { EXPLORER } from "@/lib/chains";
+import { TOKEN_CA } from "@/lib/config";
+import { isTokenLive } from "@/lib/token-stats";
 
 /**
  * The site footer.
@@ -38,7 +40,12 @@ const COLUMNS = [
   },
 ];
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  // The ", $BEGFI is live" is a claim about DATA, not about config, so it is
+  // gated on the market feed actually answering for the CA — cached at 30s in
+  // the stats module, so the footer never makes an extra upstream call.
+  const live = await isTokenLive();
+
   return (
     <footer className="mt-auto border-t-[3px] border-beg-ink">
       <div className="safe-x mx-auto grid max-w-[1000px] gap-8 py-10 sm:grid-cols-[1.4fr_1fr_1fr_1fr]">
@@ -48,14 +55,20 @@ export function SiteFooter() {
             <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
-            {/*
-              The exact copy the brief asks for: "Built on Robinhood Chain",
-              and the words "…, $BEGFI is live" become true — and only then
-              appear — once the contract address is configured. A footer that
-              claims liveness for a token with no address is the lie this
-              conditional forbids.
-            */}
-            Built on Robinhood Chain{TOKEN_CONFIGURED ? ", $BEGFI is live" : ""}.
+            Built on Robinhood Chain{live ? ", $BEGFI is live" : ""}.
+          </p>
+          <p className="mt-2 text-[12px] text-beg-dim">
+            <span className="font-mono" title={TOKEN_CA}>
+              {TOKEN_CA.slice(0, 6)}…{TOKEN_CA.slice(-4)}
+            </span>{" "}
+            <a
+              href={`${EXPLORER}/address/${TOKEN_CA}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="underline underline-offset-2 hover:text-beg-ink"
+            >
+              View on explorer
+            </a>
           </p>
           <CommunityLinks className="mt-4" />
         </div>
