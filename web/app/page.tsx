@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { HomeHero } from "@/components/home-hero";
 import { TokenStats } from "@/components/token-stats";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
-import { BEG_CONFIGURED } from "@/lib/config";
 
 export const metadata: Metadata = {
   title: "BegFi: the e-Begging protocol",
@@ -82,9 +81,7 @@ export default function HomePage() {
           beg<span className="text-beg-logo">fi</span>
           <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
         </span>
-        <span className="text-sm">
-          Built on Robinhood Chain, {BEG_CONFIGURED ? "$BEGFI is live" : "$BEGFI coming soon"}
-        </span>
+        <span className="text-sm">Built on Robinhood Chain</span>
       </footer>
     </div>
   );

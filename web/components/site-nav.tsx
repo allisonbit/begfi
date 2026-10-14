@@ -28,7 +28,7 @@ const links = [
   { href: "/begs", label: "Begs", Icon: HandCoins },
   { href: "/earn", label: "Earn", Icon: Coins },
   { href: "/leaderboard", label: "Board", Icon: Trophy },
-  { href: "/explore", label: "Tokens", Icon: LayoutGrid },
+  { href: "/explore", label: "Explore", Icon: LayoutGrid },
   { href: "/dashboard", label: "You", Icon: User },
 ] as const;
 

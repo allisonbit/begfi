@@ -74,8 +74,7 @@ export function SiteFooter() {
       <div className="safe-x mx-auto max-w-[1000px] pb-10">
         <p className="border-t border-beg-line pt-5 text-[12px] text-beg-dim">
           BegFi is not affiliated with Robinhood. Nothing on this site is financial advice. BegFi never
-          holds your funds and cannot reverse a transaction. Tokens traded on this chain are not
-          endorsed here.
+          holds your funds and cannot reverse a transaction.
         </p>
       </div>
     </footer>
