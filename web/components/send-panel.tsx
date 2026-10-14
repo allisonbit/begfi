@@ -15,6 +15,8 @@ import { injected } from "wagmi/connectors";
 import { DEFAULT_CHAIN_ID, robinhoodChain, shortAddress, txUrl } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { erc20Abi, formatAmount, parseAmount } from "@/lib/erc20";
+import { messageProblemClient } from "@/lib/message-rules";
+import { payTokenState } from "@/lib/pay-token";
 
 /**
  * The send flow (spec §5.2, §7.2).
@@ -39,6 +41,15 @@ export function SendPanel({ recipient, username }: { recipient: string; username
   const [preset, setPreset] = useState<bigint | null>(1_000n);
   const [acknowledged, setAcknowledged] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /*
+   * THE NOTE. Optional, 140 characters, attached after the send confirms —
+   * the message can only exist for a transaction that really landed, so the
+   * form asks for it once there is a transaction to attach it to.
+   */
+  const [note, setNote] = useState("");
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [noteSaved, setNoteSaved] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
@@ -129,6 +140,31 @@ export function SendPanel({ recipient, username }: { recipient: string; username
 
   // ---- sent -----------------------------------------------------------------
   if (isSuccess && hash) {
+    async function attachNote() {
+      if (!parsed || !address) return;
+      const problem = messageProblemClient(note);
+      if (problem) {
+        setNoteError(problem);
+        return;
+      }
+      setNoteError(null);
+      setNoteSaving(true);
+      try {
+        const res = await fetch("/api/message", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tx_hash: hash, recipient, message: note.trim() }),
+        });
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        if (res.ok && body?.ok) setNoteSaved(true);
+        else setNoteError(body?.error ?? "Could not attach the message.");
+      } catch {
+        setNoteError("Network problem — try again.");
+      } finally {
+        setNoteSaving(false);
+      }
+    }
+
     return (
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-center">
         <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-lg font-extrabold text-beg-ink">Sent</p>
@@ -143,6 +179,41 @@ export function SendPanel({ recipient, username }: { recipient: string; username
         >
           View transaction
         </a>
+
+        {/* The optional note, attached to the transaction that just landed. */}
+        {noteSaved ? (
+          <p className="mt-3 text-[13px] font-bold text-beg-ink">Your message is attached.</p>
+        ) : note.trim() || !noteSaved ? (
+          <div className="mt-3 grid gap-2 text-left">
+            <label className="grid gap-1">
+              <span className="text-[13px] text-beg-dim">Say something with it (optional)</span>
+              <textarea
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value.slice(0, 140));
+                  setNoteError(null);
+                }}
+                rows={2}
+                maxLength={140}
+                placeholder="140 characters"
+                className="rounded-xl border-[1.5px] border-beg-line bg-beg-bg p-2.5 text-[13px] font-bold text-beg-ink outline-none focus:border-beg-lime"
+              />
+              <span className={`text-[11px] ${note.length >= 140 ? "text-beg-ink" : "text-beg-dim"}`}>
+                {note.length}/140
+              </span>
+            </label>
+            {noteError ? <p className="text-[12px] text-beg-ink">{noteError}</p> : null}
+            <button
+              type="button"
+              onClick={() => void attachNote()}
+              disabled={noteSaving || messageProblemClient(note) !== null}
+              className="btn-primary px-4 py-2.5 text-[13px] disabled:opacity-40"
+            >
+              {noteSaving ? "Attaching…" : note.trim() ? "Attach message" : "Skip"}
+            </button>
+          </div>
+        ) : null}
+
         <p className="mt-3 text-[13px] text-beg-dim">
           The total on this page updates once the indexer has recorded it.
         </p>
@@ -265,6 +336,17 @@ export function SendPanel({ recipient, username }: { recipient: string; username
       <p className="text-center text-[13px] text-beg-dim">
         Goes straight to their wallet. BegFi never holds it and takes no fee.
       </p>
+
+      {/*
+        Pay-with-any-token. The state module decides, and its only state today
+        is honest: the swap routers exist on Robinhood Chain but $BEGFI has no
+        live pools to quote against, so this stays a coming-soon note until a
+        real rate can be put in front of the confirm button.
+      */}
+      <div className="mt-1 rounded-2xl border-[1.5px] border-beg-line p-4">
+        <p className="text-[13px] font-bold text-beg-ink">Pay with another token</p>
+        <p className="mt-1 text-[13px] text-beg-dim">{payTokenState().note}</p>
+      </div>
     </div>
   );
 }

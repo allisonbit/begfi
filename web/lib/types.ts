@@ -21,6 +21,11 @@ export type Profile = {
   is_hidden: boolean;
   created_at: string;
   updated_at: string;
+  /** Optional social links, shown on the public profile. */
+  telegram_handle?: string | null;
+  website_url?: string | null;
+  /** When X verification last succeeded; the tick derives from it. */
+  x_verified_at?: string | null;
 };
 
 /** What a public page is allowed to know about someone. */
