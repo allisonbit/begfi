@@ -32,35 +32,9 @@ export async function getEthUsd(): Promise<number | null> {
 }
 
 /**
- * A USD label for a price this small.
- *
- * Sub-cent-to-nano prices die in generic formatters: toPrecision(4) prints
- * $0.00000002312 as $2.312e-8 — exponent notation, the exact bug this page
- * shipped once and must not ship twice — and toFixed(2) rounds it to $0.00,
- * which lies about it not being zero. The rule:
- *
- *   >= $1        ordinary currency, two decimals.
- *   >= $0.01     four significant figures.
- *   < $0.01      decimal places matched to where the digits actually start,
- *                capped at 12, trailing zeros trimmed. Zero stays $0.
+ * The USD labels for a price and a market cap. Their home is `usd-format.ts`:
+ * the chart is a Client Component, and importing anything from this file —
+ * even a pure helper — would drag `server-only` into client code and fail the
+ * build. Re-exported so server callers keep one import site.
  */
-export function usdPriceLabel(usd: number | null): string {
-  if (usd === null || !Number.isFinite(usd)) return "—";
-  if (usd === 0) return "$0";
-  if (usd >= 1) return `$${usd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (usd >= 0.01) return `$${usd.toPrecision(4)}`;
-  const decimals = Math.min(12, Math.max(2, Math.ceil(-Math.log10(Math.abs(usd))) + 3));
-  return `$${usd.toFixed(decimals).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "")}`;
-}
-
-/** A USD label for a market-cap-sized figure: $1.2K, $4.4M, $2.1B. */
-export function usdCompactLabel(usd: number | null): string {
-  if (usd === null || !Number.isFinite(usd)) return "—";
-  const abs = Math.abs(usd);
-  const trim = (x: number) => (Math.abs(x) >= 100 ? Math.round(x).toString() : Number(x.toFixed(1)).toString());
-  if (abs >= 1e12) return `$${trim(usd / 1e12)}T`;
-  if (abs >= 1e9) return `$${trim(usd / 1e9)}B`;
-  if (abs >= 1e6) return `$${trim(usd / 1e6)}M`;
-  if (abs >= 1e3) return `$${trim(usd / 1e3)}K`;
-  return usdPriceLabel(usd);
-}
+export { usdCompactLabel, usdPriceLabel } from "./usd-format";

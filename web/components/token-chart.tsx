@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import type { Candle, ChartWindow } from "@/lib/chart-data";
-import { usdPriceLabel } from "@/lib/eth-price";
+import { usdPriceLabel } from "@/lib/usd-format";
 
 /**
  * The token chart: candles in an inline SVG, no library.
