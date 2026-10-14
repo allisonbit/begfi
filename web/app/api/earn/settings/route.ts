@@ -38,9 +38,11 @@ export async function POST(request: Request) {
     return undefined;
   };
 
+  // No daily limit: the per-account posting caps were removed with the
+  // wallet-only claim rule, and an admin knob nothing reads is worse than
+  // none. A `dailyLimit` in the body is ignored.
   const result = await updateEarnSettings({
     rewardPerPostDisplay: num(body.rewardPerPostDisplay),
-    dailyLimit: num(body.dailyLimit),
     poolTotalDisplay: num(body.poolTotalDisplay),
     poolTopUpDisplay: num(body.poolTopUpDisplay),
     isActive: typeof body.isActive === "boolean" ? body.isActive : undefined,

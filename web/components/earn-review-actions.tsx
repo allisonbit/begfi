@@ -56,19 +56,16 @@ export function ReviewActions({ id }: { id: string }) {
 
 export function SettingsForm({
   rewardPerPostDisplay,
-  dailyLimit,
   poolTotalDisplay,
   poolRemainingDisplay,
   isActive,
 }: {
   rewardPerPostDisplay: string;
-  dailyLimit: number;
   poolTotalDisplay: string;
   poolRemainingDisplay: string;
   isActive: boolean;
 }) {
   const [reward, setReward] = useState(rewardPerPostDisplay);
-  const [limit, setLimit] = useState(String(dailyLimit));
   const [total, setTotal] = useState(poolTotalDisplay);
   const [topUp, setTopUp] = useState("");
   const [active, setActive] = useState(isActive);
@@ -87,7 +84,6 @@ export function SettingsForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           rewardPerPostDisplay: reward === rewardPerPostDisplay ? undefined : Number(reward.replace(/,/g, "")),
-          dailyLimit: limit === String(dailyLimit) ? undefined : Number(limit),
           poolTotalDisplay: total === poolTotalDisplay ? undefined : Number(total.replace(/,/g, "")),
           poolTopUpDisplay: topUp.trim() === "" ? undefined : Number(topUp.replace(/,/g, "")),
           isActive: active,
@@ -118,10 +114,6 @@ export function SettingsForm({
         <label className="grid gap-1">
           <span className="text-[12px] text-beg-dim">Reward per post ($BEGFI)</span>
           <input value={reward} onChange={(e) => setReward(e.target.value.replace(/[^0-9,]/g, ""))} className={field} inputMode="numeric" />
-        </label>
-        <label className="grid gap-1">
-          <span className="text-[12px] text-beg-dim">Daily limit per account</span>
-          <input value={limit} onChange={(e) => setLimit(e.target.value.replace(/[^0-9]/g, ""))} className={field} inputMode="numeric" />
         </label>
         <label className="grid gap-1">
           <span className="text-[12px] text-beg-dim">Pool total ($BEGFI)</span>

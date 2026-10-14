@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CommunityLinks } from "@/components/community-links";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
+import { TOKEN_CONFIGURED } from "@/lib/config";
 
 /**
  * The site footer.
@@ -47,7 +48,14 @@ export function SiteFooter() {
             <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
-            Noncustodial $BEGFI payment links on Robinhood Chain.
+            {/*
+              The exact copy the brief asks for: "Built on Robinhood Chain",
+              and the words "…, $BEGFI is live" become true — and only then
+              appear — once the contract address is configured. A footer that
+              claims liveness for a token with no address is the lie this
+              conditional forbids.
+            */}
+            Built on Robinhood Chain{TOKEN_CONFIGURED ? ", $BEGFI is live" : ""}.
           </p>
           <CommunityLinks className="mt-4" />
         </div>

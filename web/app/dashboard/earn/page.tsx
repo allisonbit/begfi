@@ -52,7 +52,6 @@ export default async function EarnReviewPage() {
       {settings ? (
         <SettingsForm
           rewardPerPostDisplay={rewardDisplay(settings.rewardPerPost)}
-          dailyLimit={settings.dailyLimit}
           poolTotalDisplay={paymentDisplay(settings.poolTotal)}
           poolRemainingDisplay={paymentDisplay(settings.poolRemaining)}
           isActive={settings.isActive}

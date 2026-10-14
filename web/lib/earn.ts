@@ -22,7 +22,6 @@ export type EarnSettings = {
   rewardPerPost: bigint;
   poolTotal: bigint;
   poolRemaining: bigint;
-  dailyLimit: number;
   isActive: boolean;
 };
 
@@ -50,7 +49,6 @@ type SettingsRow = {
   reward_per_post: string;
   pool_total: string;
   pool_remaining: string;
-  daily_limit: number;
   is_active: boolean;
   /** Optional because only writes set it; reads select the rulebook columns. */
   updated_at?: string;
@@ -79,7 +77,7 @@ export async function getEarnSettings(): Promise<EarnSettings | null> {
 
   const { data, error } = await admin
     .from("earn_settings")
-    .select("reward_per_post::text, pool_total::text, pool_remaining::text, daily_limit, is_active")
+    .select("reward_per_post::text, pool_total::text, pool_remaining::text, is_active")
     .maybeSingle<SettingsRow>();
 
   if (error || !data) return null;
@@ -88,7 +86,6 @@ export async function getEarnSettings(): Promise<EarnSettings | null> {
     rewardPerPost: BigInt(data.reward_per_post),
     poolTotal: BigInt(data.pool_total),
     poolRemaining: BigInt(data.pool_remaining),
-    dailyLimit: data.daily_limit,
     isActive: data.is_active,
   };
 }
@@ -286,7 +283,6 @@ export async function reviewSubmission(id: string, action: "approve" | "reject")
 
 export type SettingsPatch = {
   rewardPerPostDisplay?: number;
-  dailyLimit?: number;
   poolTotalDisplay?: number;
   poolTopUpDisplay?: number;
   isActive?: boolean;
@@ -304,7 +300,7 @@ export async function updateEarnSettings(patch: SettingsPatch): Promise<{ ok: bo
 
   const { data: row } = await admin
     .from("earn_settings")
-    .select("reward_per_post::text, pool_total::text, pool_remaining::text, daily_limit, is_active")
+    .select("reward_per_post::text, pool_total::text, pool_remaining::text, is_active")
     .maybeSingle<SettingsRow>();
   if (!row) return { ok: false, error: "db" };
 
@@ -312,13 +308,12 @@ export async function updateEarnSettings(patch: SettingsPatch): Promise<{ ok: bo
   const poolTotal = BigInt(row.pool_total);
   let poolRemaining = BigInt(row.pool_remaining);
 
-  if (patch.dailyLimit !== undefined) {
-    if (!Number.isInteger(patch.dailyLimit) || patch.dailyLimit < 1 || patch.dailyLimit > 20) {
-      return { ok: false, error: "daily limit is 1-20" };
-    }
-    next.daily_limit = patch.dailyLimit;
-  }
-
+  // THE PER-ACCOUNT DAILY LIMIT IS GONE, NOT REMOVED FROM THE SCHEMA. The old
+  // "one post per day" rule was what told brand-new wallets to come back
+  // tomorrow; its removal is the root-cause fix, and eligibility now models
+  // ONLY the wallet-claim record. The `earn_settings.daily_limit` column is
+  // retained for history but nothing reads it and no write path sets it —
+  // a knob that looks live but does nothing is a lie, so there is no knob.
   if (patch.rewardPerPostDisplay !== undefined) {
     const reward = displayUnits(patch.rewardPerPostDisplay);
     if (reward === null) return { ok: false, error: "reward must be a whole number of $BEGFI" };
