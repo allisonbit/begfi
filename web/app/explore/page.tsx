@@ -379,9 +379,9 @@ export default async function ExplorePage({
             <dt className="text-[10px] font-bold uppercase tracking-[.09em] text-beg-dim">Top token</dt>
             <dd className="mt-1 truncate text-[30px] font-extrabold leading-none tracking-[-.03em]">
               {stats.top ? (
-                <Link href={`/token/${stats.top.token_address}`} className="bg-beg-lime px-1 text-beg-ink hover:underline">
+                <span className="bg-beg-lime px-1 text-beg-ink">
                   ${stats.top.ticker}
-                </Link>
+                </span>
               ) : (
                 <span className="text-[18px] leading-none text-beg-dim">None yet</span>
               )}
@@ -477,7 +477,7 @@ export default async function ExplorePage({
                     signedIn={signedIn}
                   />
                 </div>
-                <Link href={`/token/${item.token_address}`} className="flex min-w-0 flex-1 gap-3">
+                <div className="flex min-w-0 flex-1 gap-3">
                 {item.image_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -552,7 +552,7 @@ export default async function ExplorePage({
                     </p>
                   )}
                 </div>
-                </Link>
+                </div>
               </div>
             </li>
           ))}

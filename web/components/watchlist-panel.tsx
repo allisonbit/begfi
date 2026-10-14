@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { WatchRow } from "@/lib/watchlist-data";
@@ -54,9 +53,9 @@ export function WatchlistPanel({ rows }: { rows: WatchRow[] }) {
         {local.map((w) => (
           <li key={w.token_address} className="card-sm grid gap-2">
             <div className="flex items-center justify-between gap-2">
-              <Link href={`/token/${w.token_address}`} className="min-w-0 flex-1 text-[14px] font-bold text-beg-ink underline underline-offset-2">
+              <div className="min-w-0 flex-1 text-[14px] font-bold text-beg-ink">
                 {w.name} <span className="text-beg-dim">${w.ticker}</span>
-              </Link>
+              </div>
               {w.priceChange24h !== null ? (
                 <span
                   className={`shrink-0 rounded-md px-1.5 py-0.5 text-[12px] font-bold ${
