@@ -223,7 +223,7 @@ export function HomeHero() {
          * lines rather than one long one on desktop.
          */}
         <p className="mb-1.5 mt-4 max-w-[24ch] text-2xl font-bold tracking-[-.01em] text-beg-ink">
-          Ask onchain. Get paid. Launch tokens.
+          Ask onchain. Get paid. 🙏
         </p>
 
         <div className="grid max-w-[420px] items-center gap-2 rounded-3xl border-[3px] border-beg-ink bg-beg-card p-2 pl-[18px] shadow-glow focus-within:border-beg-blue max-sm:grid-cols-[minmax(0,1fr)_auto] sm:flex sm:rounded-full sm:py-1.5 sm:pr-1.5">

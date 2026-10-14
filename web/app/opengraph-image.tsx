@@ -90,7 +90,7 @@ export default function Image() {
            fourth (or moving the domain pill here, as an earlier version had)
            pushes the last chip off the canvas — Satori overflows, never wraps. */}
         <div style={{ display: F, alignItems: "flex-start", gap: 32 }}>
-          {["/ask onchain", "/get paid", "/launch tokens"].map((chip) => (
+          {["/ask onchain", "/get paid", "/beg"].map((chip) => (
             <div
               key={chip}
               style={{

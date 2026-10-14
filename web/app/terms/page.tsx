@@ -3,10 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { title: "Terms" };
 
 /**
- * Placeholder terms, written to state what is actually true today rather than
- * to look complete. The real terms (custody, fees, growth-fund spending) can
- * only be written once the launchpad exists, and inventing them now would be
- * another version of the problem this whole rebuild is fixing.
+ * Placeholder terms, written to state what is actually true today rather than to look complete.
  */
 export default function TermsPage() {
   return (
@@ -40,11 +37,11 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="mb-2 font-bold text-beg-ink">The launchpad is planned, not live</h2>
+            <h2 className="mb-2 font-bold text-beg-ink">The token</h2>
             <p>
-              No token can be launched through BegFi today. The fee splits shown on the home page are the
-              intended design, and they are not terms of anything until contracts exist and have been
-              audited.
+              $BEGFI carries a 2% tax on token transfers, set at the token contract — not by BegFi.
+              Tokens that trade on this chain are offered by third parties, and their presence here
+              is not an endorsement, recommendation, or offer to sell.
             </p>
           </section>
 

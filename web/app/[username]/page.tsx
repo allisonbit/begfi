@@ -7,7 +7,7 @@ import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, USERNAME_PATTERN, isReserved } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
 import { getProfileByUsername } from "@/lib/queries";
-import { getActivityFeed, getLauncherDashboard } from "@/lib/dashboard";
+import { getActivityFeed } from "@/lib/dashboard";
 import { getLevelForWallet } from "@/lib/level";
 import { LevelChip } from "@/components/level-chip";
 
@@ -66,14 +66,12 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
   const xHandle = profile.x_handle;
 
   /*
-   * The rest of the creator page: level chip (from confirmed aggregates),
-   * launched tokens (from the catalog, with live curve reads), and the
-   * combined feed of begs received and launches. Everything hangs off the
+   * The rest of the creator page: level chip (from confirmed aggregates) and
+   * the feed of everything that reached this wallet. Everything hangs off the
    * wallet address, and a failed read drops its section rather than faking it.
    */
-  const [level, launches, feed] = await Promise.all([
+  const [level, feed] = await Promise.all([
     getLevelForWallet(profile.wallet_address),
-    getLauncherDashboard(profile.wallet_address),
     getActivityFeed(profile.wallet_address, 30),
   ]);
 
@@ -148,39 +146,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
         </div>
 
         {/*
-          Launched tokens. The catalog decides membership; a creator with no
-          launches simply has no section, and one with an unreadable group
-          still has the section with whatever rows read cleanly.
-        */}
-        {launches.launches.length > 0 ? (
-          <section className="grid gap-3">
-            <h2 className="text-xl font-extrabold tracking-[-.03em]">Launched tokens</h2>
-            <ul className="grid gap-2">
-              {launches.launches.slice(0, 10).map((l) => (
-                <li key={l.token_address} className="card-sm">
-                  <Link href={`/token/${l.token_address}`} className="flex items-center justify-between gap-2 text-[13px]">
-                    <b className="text-beg-ink">
-                      {l.name} <span className="text-beg-dim">${l.ticker}</span>
-                    </b>
-                    <span className={l.graduated ? "text-beg-ink" : "text-beg-dim"}>
-                      {l.graduated ? "Graduated" : "On the curve"}
-                    </span>
-                  </Link>
-                  {l.mc || l.pooledEth || l.volume24hEth ? (
-                    <p className="mt-1 text-[12px] text-beg-dim">
-                      {l.mc ? `MC ${l.mc}` : ""}
-                      {l.pooledEth ? ` · ${l.pooledEth} ETH pooled` : ""}
-                      {l.volume24hEth ? ` · ${l.volume24hEth} ETH vol 24h` : ""}
-                    </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/*
-          Combined feed: begs received and launches, newest first, straight
+          Combined feed: everything that reached this wallet, newest first, straight
           from the confirmed rows. Trades belong to the token pages; here the
           story is what this person asked for and what they shipped.
         */}
@@ -190,7 +156,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
             <p className="notice-dashed p-5">Couldn&apos;t read the activity feed just now. Try again in a moment.</p>
           ) : feed.items.length === 0 ? (
             <p className="notice-dashed p-5">
-              Nothing confirmed yet. Begs received and token launches show up here once they are
+              Nothing confirmed yet. Begs received show up here once they are
               on-chain.
             </p>
           ) : (

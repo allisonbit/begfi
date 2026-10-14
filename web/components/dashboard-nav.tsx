@@ -20,7 +20,6 @@ const TABS = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/profile", label: "Edit profile" },
   { href: "/dashboard/activity", label: "Activity" },
-  { href: "/dashboard/launches", label: "Launches" },
 ];
 
 export function DashboardNav() {

@@ -18,6 +18,26 @@ const addr = (value: string | undefined): string | null =>
 export const BEG_TOKEN_ADDRESS = addr(process.env.NEXT_PUBLIC_BEG_TOKEN_ADDRESS);
 
 /**
+ * The relaunched token's contract address — the ONE value to change when the
+ * new $BEGFI ships.
+ *
+ * Everything the home page's live stats (market cap, price, volume, liquidity,
+ * holders, fees) read is keyed off this constant and nothing else: set it
+ * here, and every stat card lights up on the next render. While it is unset
+ * or not a valid address the page renders its "coming soon" empty state — a
+ * wrong-or-empty value must never produce fake numbers.
+ */
+export const TOKEN_CA = (process.env.NEXT_PUBLIC_TOKEN_CA?.trim() || "PLACEHOLDER").toLowerCase();
+export const TOKEN_CONFIGURED = addr(TOKEN_CA) !== null;
+
+/**
+ * The chain the relaunched token trades on, as the market-data APIs name it.
+ * Robinhood Chain's public slug is "robinhood" (not "robinhood-chain").
+ * Only needs touching if the relaunch lands somewhere else.
+ */
+export const TOKEN_CHAIN = process.env.NEXT_PUBLIC_TOKEN_CHAIN?.trim() || "robinhood";
+
+/**
  * True only when the app can really move $BEGFI. Gates the entire send flow and
  * the launch section. While false the product is honest about being unfinished
  * rather than simulating the parts that need a token.

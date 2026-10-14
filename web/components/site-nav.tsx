@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, Coins, LayoutGrid, Rocket, Trophy, User } from "lucide-react";
+import { HandCoins, Coins, LayoutGrid, Trophy, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -29,12 +29,11 @@ const links = [
   { href: "/earn", label: "Earn", Icon: Coins },
   { href: "/leaderboard", label: "Board", Icon: Trophy },
   { href: "/explore", label: "Tokens", Icon: LayoutGrid },
-  { href: "/launch", label: "Launch", Icon: Rocket },
   { href: "/dashboard", label: "You", Icon: User },
 ] as const;
 
 /** One dock tab: icon over label, active state via `aria-current`. */
-function DockTab({ href, label, Icon }: { href: string; label: string; Icon: typeof Rocket }) {
+function DockTab({ href, label, Icon }: { href: string; label: string; Icon: typeof Trophy }) {
   const pathname = usePathname();
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
 

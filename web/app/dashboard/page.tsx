@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClaimOverview } from "@/components/claim-overview";
 import { CopyLink } from "@/components/copy-link";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, linkFor } from "@/lib/config";
 import { formatAmount } from "@/lib/erc20";
-import { getLauncherDashboard, getOverview } from "@/lib/dashboard";
+import { getOverview } from "@/lib/dashboard";
 import { getWatchlistRows } from "@/lib/watchlist-data";
 import { getWatchlist } from "@/lib/watchlist";
 import { getProfile } from "@/lib/session";
@@ -17,20 +16,15 @@ export const dynamic = "force-dynamic";
 /**
  * The Overview tab: everything someone checks in a reflex, in one screen.
  *
- * Wallet, $BEGFI received, supporters, fees — all read from the chain or the
+ * Wallet, $BEGFI received, supporters — all read from the chain or the
  * indexer's confirmed rows, so a number here is a fact even when it is zero.
- * The claimable figure and the BegFi meter are client/server splits on
- * purpose: the escrow balance has to be read with the connected wallet
- * (everything else would pay someone else), while totals belong to the server
- * read.
  */
 export default async function DashboardPage() {
   const profile = await getProfile();
   if (!profile) return null;
 
-  const [overview, launchesResult, watchRows] = await Promise.all([
+  const [overview, watchRows] = await Promise.all([
     getOverview(profile.wallet_address),
-    getLauncherDashboard(profile.wallet_address),
     getWatchlist(),
   ]);
 
@@ -41,12 +35,6 @@ export default async function DashboardPage() {
       alertOnGraduation: w.alert_on_graduation,
     })),
   );
-
-  const meterNumerator = overview.meterPooledWei ? Number(overview.meterPooledWei) : null;
-  const meterDenominator = overview.meterThresholdWei ? Number(overview.meterThresholdWei) : null;
-  const meterRatio = meterNumerator !== null && meterDenominator !== null && meterDenominator > 0
-    ? Math.min(1, meterNumerator / meterDenominator)
-    : null;
 
   return (
     <>
@@ -73,29 +61,9 @@ export default async function DashboardPage() {
 
       {!BEG_CONFIGURED ? (
         <p className="notice-dashed">
-          Sending isn&apos;t live yet because $BEGFI hasn&apos;t been launched, so $BEGFI totals stay at
-          zero until it is. Your launches and your link work now.
+          Sending isn&apos;t live yet because the token isn&apos;t on the chain, so $BEGFI totals stay at
+          zero until it is. Your begs and your link work now.
         </p>
-      ) : null}
-
-      <ClaimOverview wallet={launchesResult.launches.length > 0 ? profile.wallet_address : null} />
-
-      {meterRatio !== null && launchesResult.launches.length > 0 ? (
-        <section className="card grid gap-2">
-          <div className="flex items-baseline justify-between">
-            <b className="text-[14px]">BegFi meter</b>
-            <span className="text-[12px] text-beg-dim">
-              {Math.round(meterRatio * 100)}% toward graduation, across your tokens
-            </span>
-          </div>
-          <div className="progress">
-            <div className="progress-fill" style={{ width: `${Math.max(2, meterRatio * 100)}%` }} />
-          </div>
-          <p className="text-[12px] text-beg-dim">
-            Pooled ETH across the tokens this wallet launched, against their combined graduation
-            thresholds. Read live from the curves.
-          </p>
-        </section>
       ) : null}
 
       <WatchlistPanel rows={watchlistData} />
@@ -104,8 +72,7 @@ export default async function DashboardPage() {
 
       <section className="grid gap-2 sm:grid-cols-3">
         <TileLink href="/dashboard/begs" title="Your begs" subtitle="Write, edit and share what you are asking for" />
-        <TileLink href="/beg-to-launch" title="Beg to launch" subtitle="Open an ask supporters can fund toward your launch" />
-        <TileLink href="/dashboard/launches" title="Launches" subtitle="Tokens this wallet launched, with live numbers" />
+        <TileLink href="/begs" title="Begs" subtitle="Everything people are asking for, live" />
         <TileLink href="/dashboard/activity" title="Activity" subtitle="Everything that reached this account" />
       </section>
     </>

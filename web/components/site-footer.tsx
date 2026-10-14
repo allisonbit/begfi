@@ -7,7 +7,7 @@ import { RobinhoodFeather } from "@/components/robinhood-feather";
  *
  * Real links, in one place, on every page. Before this, `/terms` was the only
  * link anywhere on the home page and the footer was a line of text — so a visitor
- * who wanted to launch or explore had nothing to press.
+ * who wanted to explore or follow along had nothing to press.
  */
 const COLUMNS = [
   {
@@ -17,8 +17,7 @@ const COLUMNS = [
       { href: "/begs", label: "Begs" },
       { href: "/earn", label: "Earn" },
       { href: "/leaderboard", label: "Leaderboard" },
-      { href: "/explore", label: "Explore tokens" },
-      { href: "/launch", label: "Launch a token" },
+      { href: "/explore", label: "Explore" },
     ],
   },
   {
@@ -48,7 +47,7 @@ export function SiteFooter() {
             <RobinhoodFeather className="ml-[0.1em] text-beg-logo" />
           </span>
           <p className="mt-3 max-w-[28ch] text-[13px] text-beg-dim">
-            Noncustodial $BEGFI payment links and token launches on Robinhood Chain.
+            Noncustodial $BEGFI payment links on Robinhood Chain.
           </p>
           <CommunityLinks className="mt-4" />
         </div>
@@ -70,14 +69,13 @@ export function SiteFooter() {
       </div>
 
       {/*
-        Spec §12 and §2. Worth repeating on every page: BegFi is not Robinhood,
-        and anyone can launch a token through this site.
+        Spec §12. Worth repeating on every page: BegFi is not Robinhood.
       */}
       <div className="safe-x mx-auto max-w-[1000px] pb-10">
         <p className="border-t border-beg-line pt-5 text-[12px] text-beg-dim">
-          BegFi is not affiliated with Robinhood. Anyone can launch a token through this site and
-          none of them are endorsed here. Nothing on this site is financial advice. BegFi never
-          holds your funds and cannot reverse a transaction.
+          BegFi is not affiliated with Robinhood. Nothing on this site is financial advice. BegFi never
+          holds your funds and cannot reverse a transaction. Tokens traded on this chain are not
+          endorsed here.
         </p>
       </div>
     </footer>

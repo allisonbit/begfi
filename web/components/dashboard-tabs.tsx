@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 /**
- * The dashboard's tab bar: one page, five views.
+ * The dashboard's tab bar: one page, three views.
  *
  * Tabs are links, not buttons, so each view has its own URL and the back
  * button behaves the way phones train people to expect. The active tab is
@@ -14,9 +14,7 @@ import { usePathname } from "next/navigation";
  */
 const TABS = [
   { slug: "", label: "Overview" },
-  { slug: "launches", label: "Launches" },
   { slug: "begs", label: "Begs" },
-  { slug: "fees", label: "Fees" },
   { slug: "activity", label: "Activity" },
 ] as const;
 

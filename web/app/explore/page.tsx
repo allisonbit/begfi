@@ -19,7 +19,7 @@ import type { Launch } from "@/lib/types";
 
 export const metadata: Metadata = {
   title: "Explore",
-  description: "Tokens launched through BegFi on Robinhood Chain.",
+  description: "Tokens trading on Robinhood Chain, live from the curve.",
 };
 
 /**
@@ -343,14 +343,11 @@ export default async function ExplorePage({
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header>
         <div>
           <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">Explore</h1>
-          <p className="mt-1 text-beg-dim">Launched on BegFi, ranked live from the curve.</p>
+          <p className="mt-1 text-beg-dim">Tokens on BegFi, ranked live from the curve.</p>
         </div>
-        <Link href="/launch" className="btn-primary">
-          Launch a token
-        </Link>
       </header>
 
       {/*

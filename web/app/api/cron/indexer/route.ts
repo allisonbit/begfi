@@ -250,7 +250,7 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
       profile.id,
       "launch",
       `${l.name} is live on BegFi`,
-      `The launch confirmed on-chain. Its page, share links and fees are ready.`,
+      `The launch confirmed on-chain.`,
       l.tx_hash,
       `/token/${l.token_address}`,
     );
