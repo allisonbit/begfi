@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { getLeaderboard, type LeaderRow } from "@/lib/leaderboard";
 import { formatAmount } from "@/lib/erc20";
-import { getWeeklyLeaders, weekBounds } from "@/lib/battles";
+import { getWeeklyLeaders, weekBounds, battleMetric } from "@/lib/battles";
 import { BattleCountdown } from "@/components/battle-countdown";
 
 export const metadata: Metadata = {
@@ -25,10 +25,11 @@ export const dynamic = "force-dynamic";
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ w?: string }>;
+  searchParams: Promise<{ w?: string; m?: string }>;
 }) {
-  const { w } = await searchParams;
+  const { w, m } = await searchParams;
   const window = w === "week" ? "week" : "all";
+  const metric = battleMetric(m);
   const { rows, dbFailed } = await getLeaderboard(25, window);
   const battle = await getWeeklyLeaders(10);
 
@@ -78,38 +79,113 @@ export default async function LeaderboardPage({
           <BattleCountdown endsAtIso={`${weekBounds()[1]}T00:00:00Z`} />
         </div>
         <p className="text-[12px] text-beg-dim">
-          Top receivers since Monday 00:00 UTC. The top 3 take the Top Beggar
-          badge for the following week.
+          Confirmed receipts since Monday 00:00 UTC, ranked over real support —
+          self-sends and program wallets don&apos;t count. The top 3 take the Top
+          Beggar badge for the following week.
         </p>
+
+        {/*
+          THE THREE METRICS. All three are the same qualifying receipts read
+          different ways: the sum invites whales, the distinct-sender count
+          invites wash (many small self-spun sends), and the first-time count
+          takes a NEW wallet every week, which wash finds hardest.
+        */}
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/leaderboard?w=week"
+            aria-current={metric === "received" ? "page" : undefined}
+            className={`rounded-full border-[1.5px] px-3 py-1 text-[12px] font-bold ${
+              metric === "received" ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-dim hover:text-beg-ink"
+            }`}
+          >
+            Received
+          </Link>
+          <Link
+            href="/leaderboard?w=week&m=sup"
+            aria-current={metric === "supporters" ? "page" : undefined}
+            className={`rounded-full border-[1.5px] px-3 py-1 text-[12px] font-bold ${
+              metric === "supporters" ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-dim hover:text-beg-ink"
+            }`}
+          >
+            Supporters
+          </Link>
+          <Link
+            href="/leaderboard?w=week&m=new"
+            aria-current={metric === "new" ? "page" : undefined}
+            className={`rounded-full border-[1.5px] px-3 py-1 text-[12px] font-bold ${
+              metric === "new" ? "border-beg-ink bg-beg-lime text-beg-ink" : "border-beg-line text-beg-dim hover:text-beg-ink"
+            }`}
+          >
+            First-time
+          </Link>
+        </div>
+
         {battle.dbFailed ? (
-          <p className="notice-dashed p-4">Couldn&apos;t read this week's battle just now. Try again in a moment.</p>
+          <p className="notice-dashed p-4">Couldn&apos;t read this week&apos;s battle just now. Try again in a moment.</p>
         ) : battle.rows.length === 0 ? (
           <p className="notice-dashed p-4">
             No confirmed $BEGFI has been received this week yet. The first send starts the battle.
           </p>
         ) : (
-          <ol className="grid gap-2">
-            {battle.rows.slice(0, 3).map((row: { username: string; received: bigint }, i: number) => (
-              <li key={row.username}>
-                <Link
-                  href={`/${row.username}`}
-                  className={`card-sm flex items-center justify-between gap-3 ${i === 0 ? "border-[3px] bg-beg-lime/20" : ""}`}
-                >
-                  <span className="flex min-w-0 items-center gap-3">
-                    <span
-                      className={`grid size-7 shrink-0 place-items-center rounded-full border-2 border-beg-ink text-[12px] font-extrabold ${
-                        i === 0 ? "bg-beg-yellow" : "bg-beg-lime"
-                      }`}
+          <>
+            <ol className="grid gap-2">
+              {[...battle.rows]
+                .sort((a, b) =>
+                  metric === "received"
+                    ? a.received > b.received
+                      ? -1
+                      : 1
+                    : metric === "supporters"
+                      ? b.supporters - a.supporters
+                      : Math.max(0, b.newSupporters) - Math.max(0, a.newSupporters),
+                )
+                .slice(0, 3)
+                .map((row, i) => (
+                  <li key={row.username}>
+                    <Link
+                      href={`/${row.username}`}
+                      className={`card-sm flex flex-wrap items-center justify-between gap-2 ${i === 0 ? "border-[3px] bg-beg-lime/20" : ""}`}
                     >
-                      {i + 1}
-                    </span>
-                    <span className="truncate font-bold text-beg-ink">@{row.username}</span>
-                  </span>
-                  <span className="font-extrabold text-beg-ink">{formatAmount(row.received)} $BEGFI</span>
-                </Link>
-              </li>
-            ))}
-          </ol>
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span
+                          className={`grid size-7 shrink-0 place-items-center rounded-full border-2 border-beg-ink text-[12px] font-extrabold ${
+                            i === 0 ? "bg-beg-yellow" : "bg-beg-lime"
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="truncate font-bold text-beg-ink">@{row.username}</span>
+                        {row.streakWeeks > 1 ? (
+                          <span
+                            title={`${row.streakWeeks} straight weeks with a confirmed receipt`}
+                            className="rounded-full bg-beg-card px-2 py-0.5 text-[11px] font-bold text-beg-ink"
+                          >
+                            🔥 {row.streakWeeks}w
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="text-right font-extrabold text-beg-ink">
+                        {metric === "received"
+                          ? `${formatAmount(row.received)} $BEGFI`
+                          : metric === "supporters"
+                            ? `${row.supporters} ${row.supporters === 1 ? "supporter" : "supporters"}`
+                            : row.newSupporters >= 0
+                              ? `${row.newSupporters} ${row.newSupporters === 1 ? "first" : "first-time"}`
+                              : "history unread"}
+                        <span className="ml-2 font-mono text-[11px] text-beg-dim">
+                          {metric === "received"
+                            ? `${row.supporters} ${row.supporters === 1 ? "sender" : "senders"}`
+                            : `${formatAmount(row.received)} $BEGFI`}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+            </ol>
+            {metric !== "received" && battle.rows.some((r) => r.streakWeeks < 0) ? (
+              <p className="text-[12px] text-beg-dim">The first-time and streak figures need the transfer history read, which is failing right now — count only what carries a number.</p>
+            ) : null}
+          </>
         )}
       </section>
 

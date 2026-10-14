@@ -14,6 +14,14 @@ import { useRouter } from "next/navigation";
  * Navigating away must stop the timer; that is what this component's
  * life cycle gives for free — it never mounts on other pages.
  */
+/**
+ * The same timer under a name that says why it exists: feeds and pages that
+ * want to visibly move (the activity feed polls every 15 seconds through the
+ * same router-refresh mechanics — the server answers from its own caches, so
+ * "live" costs nothing downstream).
+ */
+export const LiveRefresher = StatsRefresher;
+
 export function StatsRefresher({ intervalMs = 45_000 }: { intervalMs?: number }) {
   const router = useRouter();
 

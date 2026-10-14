@@ -4,6 +4,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { ponsCurveAbi } from "@/lib/curve";
 import { ponsFactoryAbi, ponsEscrowAbi, PONS_FACTORY } from "@/lib/pons";
+import { rankWeek } from "@/lib/battles";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -430,23 +431,23 @@ async function freezeLastWeekBattle(admin: ReturnType<typeof createAdminClient>)
 
   const { data: rows, error } = await admin
     .from("transfers")
-    .select("to_address, amount")
+    .select("to_address, from_address, amount")
     .gte("block_time", since)
     .lt("block_time", until)
     .limit(20_000);
   if (error) return { frozen: false, error: error.message };
 
-  const byWallet = new Map<string, bigint>();
-  for (const row of (rows ?? []) as { to_address: string; amount: string }[]) {
-    const w = row.to_address.toLowerCase();
-    byWallet.set(w, (byWallet.get(w) ?? 0n) + BigInt(row.amount));
-  }
+  // ONE RANKING, TWO CONSUMERS. The page shows this week live with the same
+  // aggregate `rankWeek` computes — anti-wash exclusions included — so the
+  // crown cannot disagree with the board by running on a second rulebook.
+  const ranked = rankWeek((rows ?? []) as { to_address: string; from_address: string; amount: string }[]);
 
   // Names for the top wallets only. A wallet with no visible profile is
   // skipped, not renamed.
-  const top = [...byWallet.entries()]
-    .sort((a, b) => (a[1] > b[1] ? -1 : a[1] < b[1] ? 1 : 0))
-    .slice(0, 3);
+  const top = [...ranked.entries()]
+    .sort((a, b) => (a[1].received > b[1].received ? -1 : a[1].received < b[1].received ? 1 : 0))
+    .slice(0, 12)
+    .map(([wallet, stats]) => [wallet, stats.received] as const);
   const winners = [];
   if (top.length > 0) {
     const wallets = top.map(([w]) => w);

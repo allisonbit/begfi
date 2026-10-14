@@ -35,10 +35,22 @@ const PRESETS = [100n, 1_000n, 10_000n] as const;
 
 const FIRST_SEND_KEY = "begfi:first-send-acknowledged";
 
-export function SendPanel({ recipient, username }: { recipient: string; username: string }) {
+export function SendPanel({
+  recipient,
+  username,
+  // The tip-back handoff: the landing page already parsed and validated this
+  // — a recipient's prefill, not a command. The box stays editable either way.
+  initialAmount,
+}: {
+  recipient: string;
+  username: string;
+  initialAmount?: string;
+}) {
   const token = BEG_TOKEN_ADDRESS;
-  const [amount, setAmount] = useState("1000");
-  const [preset, setPreset] = useState<bigint | null>(1_000n);
+  const [amount, setAmount] = useState(initialAmount ?? "1000");
+  // A prefill is an amount, not a preset: the chips stay unselected so the
+  // prefill and the "1K" highlight can never disagree about what is real.
+  const [preset, setPreset] = useState<bigint | null>(initialAmount ? null : 1_000n);
   const [acknowledged, setAcknowledged] = useState(true);
   const [error, setError] = useState<string | null>(null);
   /*

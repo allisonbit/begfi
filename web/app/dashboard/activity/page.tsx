@@ -3,6 +3,7 @@ import { txUrl } from "@/lib/chains";
 import { getActivityFeed } from "@/lib/dashboard";
 import { getProfile } from "@/lib/session";
 import { ActivityFeed } from "@/components/activity-feed";
+import { LiveRefresher } from "@/components/stats-refresher";
 
 export const metadata: Metadata = { title: "Activity" };
 export const dynamic = "force-dynamic";
@@ -38,7 +39,16 @@ export default async function ActivityPage() {
           again in a moment.
         </p>
       ) : (
-        <ActivityFeed items={items} explorerHref={(tx) => txUrl(tx)} />
+        <>
+          {/*
+            LIVE, within serverless limits. A persistent socket cannot live in
+            a serverless runtime, so "live" here is a 15-second re-render beat —
+            the WS worker keeps the rows fresh on the server, and this beats
+            them onto the screen within moments of that.
+          */}
+          <LiveRefresher intervalMs={15_000} />
+          <ActivityFeed items={items} explorerHref={(tx) => txUrl(tx)} />
+        </>
       )}
 
       <p className="text-[12px] text-beg-dim">

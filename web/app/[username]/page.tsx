@@ -5,7 +5,7 @@ import { SendPanel } from "@/components/send-panel";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { shortAddress } from "@/lib/chains";
 import { BEG_CONFIGURED, USERNAME_PATTERN, isReserved } from "@/lib/config";
-import { formatAmount } from "@/lib/erc20";
+import { formatAmount, parseAmount } from "@/lib/erc20";
 import { getProfileByUsername, getSupporterList } from "@/lib/queries";
 import { isTopBeggar } from "@/lib/battles";
 import { getActivityFeed } from "@/lib/dashboard";
@@ -53,14 +53,31 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   };
 }
 
-export default async function ProfilePage({ params }: { params: Promise<Params> }) {
+export default async function ProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>;
+  // `?tip=` is the tip-back handoff: a receipt page lands here with the amount
+  // already parsed. Only a strictly-parsed value becomes a prefill — junk in
+  // the URL falls back to the default amount rather than a broken box.
+  searchParams: Promise<{ tip?: string }>;
+}) {
   const { username } = await params;
+  const { tip: tipParam } = await searchParams;
   const clean = username.trim().toLowerCase();
 
   if (!USERNAME_PATTERN.test(clean) || isReserved(clean)) notFound();
 
   const found = await getProfileByUsername(clean);
   if (!found) notFound();
+
+  const tipPrefill = (() => {
+    const cleaned = (tipParam ?? "").replace(/,/g, "").trim();
+    if (!/^(\d+(\.\d{1,18})?|\.\d{1,18})$/.test(cleaned)) return null;
+    const value = parseAmount(cleaned);
+    return value !== null && value > 0n ? cleaned : null;
+  })();
 
   const { profile, stats } = found;
   const displayName = profile.display_name ?? `@${profile.username}`;
@@ -186,7 +203,7 @@ export default async function ProfilePage({ params }: { params: Promise<Params> 
           </div>
 
           {BEG_CONFIGURED ? (
-            <SendPanel recipient={profile.wallet_address} username={profile.username} />
+            <SendPanel recipient={profile.wallet_address} username={profile.username} initialAmount={tipPrefill ?? undefined} />
           ) : (
             <NotLaunchYet />
           )}

@@ -8,8 +8,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "indexer:ws": "node scripts/indexer-ws.mjs"
   },
+
   "dependencies": {
     "@coinbase/cdp-sdk": "^1.57.1",
     "@metamask/connect-evm": "^2.1.1",
@@ -30,13 +32,16 @@
     "server-only": "^0.0.1",
     "viem": "^2.56.3",
     "wagmi": "^3.7.7",
+    "ws": "^8.22.0",
     "zod": "^4.6.5"
   },
+
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.4.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/ws": "^8.18.2",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"
   }
