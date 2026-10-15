@@ -4,9 +4,8 @@ import { privateKeyToAccount } from "viem/accounts";
 
 import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
-import { getApprovedUnclaimed, recordPayout, stageClaim } from "@/lib/earn";
+import { getApprovedUnclaimed, leaseClaim, recordPayout, releaseClaim } from "@/lib/earn";
 import { erc20Abi } from "@/lib/erc20";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +24,12 @@ export const dynamic = "force-dynamic";
  * A retry picks up rows with claimed_at set and no payout_tx and pays exactly
  * those, so between marking and paying the money can go nowhere twice.
  *
- * SUBMIT-AND-CLAIM: the submit route now stages rows at birth, so the claim
+ * SUBMIT-AND-CLAIM: the submit route stages rows at birth, so the claim
  * route is purely the payout leg — the retry path for a transfer that failed
- * and the collector for a fresh submission. Nothing is review-gated.
+ * and the collector for a fresh submission. Nothing is review-gated. Since the
+ * AUTOMATIC distributor shipped (lib/earn-distributor), this route is the
+ * optional fast path: the sweep pays the same rows anyway, and the lease
+ * decides who sends.
  */
 export async function POST() {
   const profile = await getProfile();
@@ -56,17 +58,28 @@ export async function POST() {
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
   const publicClient = createPublicClient({ chain: robinhoodChain, transport: http() });
 
-  // Stage, then pay, then record. Staging first is what makes the crash
-  // window single-entry: a row whose claimed_at is set but payout_tx is not
-  // is always "needs paying", never "paid twice".
-  await stageClaim(ids);
+  // LEASE, then pay, then record. The lease (payout_lease) is what makes the
+ // crash window single-entry ACROSS ALL SENDERS — the automatic sweep and the
+ // funds-arrival trigger take the same lease, so whoever wins it sends and
+ // everyone else backs off. The claim column stays "sending" while it runs.
+  const leased = await leaseClaim(ids);
+  if (leased.ids.length === 0) {
+    // Every unpaid row is leased by another sender: money is in motion.
+    return NextResponse.json(
+      { error: "Your payout is already being sent — give it a moment." },
+      { status: 409 },
+    );
+  }
+
+  const payingIds = leased.ids;
+  const amount = leased.total;
 
   try {
     const hash = await walletClient.writeContract({
       address: BEG_TOKEN_ADDRESS as `0x${string}`,
       abi: erc20Abi,
       functionName: "transfer",
-      args: [profile.wallet_address as `0x${string}`, total],
+      args: [profile.wallet_address as `0x${string}`, amount],
     });
 
     // A filed tx is not a confirmed tx. Wait it out so the row records a
@@ -80,15 +93,15 @@ export async function POST() {
       );
     }
 
-    await recordPayout(ids, hash);
-    return NextResponse.json({ ok: true, tx: hash, amount: total.toString() });
+    await recordPayout(payingIds, hash);
+    return NextResponse.json({ ok: true, tx: hash, amount: amount.toString() });
   } catch {
-    // Unstage: release the hold so a later press can try again cleanly.
-    // (stageClaim's hold is what prevents concurrent double-pay; clearing it
-    // after a *pre-send* failure cannot create that race because the send
-    // never left.)
-    const supabase = createAdminClient();
-    await supabase.from("earn_submissions").update({ claimed_at: null }).in("id", ids).is("payout_tx", null);
+    // Release the lease: release the hold so a later press can try again
+    // cleanly. This only releases a PRE-SEND failure (the send never left,
+    // so no one is waiting on a receipt) and cannot collide with the sweep
+    // — it would have to have won the lease, which by definition this caller
+    // did not.
+    await releaseClaim(payingIds);
 
     return NextResponse.json(
       { error: "Could not send the payout — try again in a moment." },

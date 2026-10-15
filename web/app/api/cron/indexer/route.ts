@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, http, parseAbiItem, decodeEventLog } from "viem";
+import { after } from "next/server";
 import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { ponsCurveAbi } from "@/lib/curve";
 import { ponsFactoryAbi, ponsEscrowAbi, PONS_FACTORY } from "@/lib/pons";
 import { rankWeek } from "@/lib/battles";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  distributorAddress,
+  shouldTriggerOnFunds,
+  sweepEarnPayouts,
+} from "@/lib/earn-distributor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -124,6 +130,24 @@ export async function GET(request: Request) {
     // $BEGFI address to exist at all, trades need at least one catalog row.
     const transfers = await indexTransfers(client, admin, safeHead);
     const trades = await indexTrades(client, admin, safeHead);
+
+    // THE FUNDS-ARRIVAL TRIGGER: when the just-scanned window moved $BEGFI
+    // INTO the distributor wallet, the payout sweep runs after the response
+    // (`after` keeps the indexer's own 60s budget intact) — the funding goes
+    // to owed wallets as soon as the indexer can see it, daily cron or not.
+    if (Number(transfers.toDistributor ?? 0) > 0) {
+      const triggered = await shouldTriggerOnFunds(admin);
+      if (triggered) {
+        after(async () => {
+          try {
+            await sweepEarnPayouts("funds-arrival");
+          } catch {
+            // A failed trigger sweep is retried by the next cron window or
+            // the next top-up; nothing needs surfacing to the caller.
+          }
+        });
+      }
+    }
 
     // Alerts fire AFTER the scans, from what they recorded — never from a
     // claim the scans did not back up.
@@ -641,6 +665,29 @@ async function indexTransfers(
     return Boolean(to && watched.has(to));
   });
 
+  // FUNDS-ARRIVAL DETECTION. The distributor wallet is not a registered user
+  // wallet, so its transfers never match `watched` — a top-up the admin sends
+  // would be invisible to everything else. Count the transferred TO the
+  // distributor in this scan window: that count is what the daily run sees to
+  // fire the payout sweep, the second trigger besides the cron itself.
+  let toDistributor = 0;
+  const distributor = distributorAddress();
+  if (distributor) {
+    try {
+      const funded = await client.getLogs({
+        address: BEG_TOKEN_ADDRESS as `0x${string}`,
+        event: TRANSFER_EVENT,
+        args: { to: distributor as `0x${string}` },
+        fromBlock: from + 1n,
+        toBlock: to,
+      });
+      toDistributor = funded.length;
+    } catch {
+      // A failed top-up probe costs at most a day of distribution delay; the
+      // cron trigger is unaffected and is the fallback path by design.
+    }
+  }
+
   if (matched.length > 0) {
     // Timestamps come from the block, not from now(): the time a transfer
     // happened is a property of the chain, and `on conflict do nothing` makes
@@ -671,6 +718,7 @@ async function indexTransfers(
     scanned: { from: (from + 1n).toString(), to: to.toString() },
     logs: logs.length,
     indexed: matched.length,
+    toDistributor,
   };
 }
 

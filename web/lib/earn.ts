@@ -427,7 +427,16 @@ export async function getApprovedUnclaimed(userId: string): Promise<{ ids: strin
   return { ids, total };
 }
 
-/** Stage a claim: set claimed_at. The payout follows; the tx lands after. */
+/**
+ * Stage a claim: set claimed_at. The payout follows; the tx lands after.
+ *
+ * kept for the UI's "sending" state only — it is NOT the concurrency guard
+ * anymore and must never be treated as one: submit stages rows AT BIRTH, so a
+ * recent claimed_at on an unpaid row is normal, not a sign a transfer is in
+ * flight. Concurrency goes through `leaseClaim`/`payout_lease` (migration
+ * 0021), which the user's Claim button shares with the automatic sweep and
+ * the funds-arrival trigger.
+ */
 export async function stageClaim(ids: string[]): Promise<boolean> {
   if (ids.length === 0) return false;
   const admin = createAdminClient();
@@ -441,14 +450,69 @@ export async function stageClaim(ids: string[]): Promise<boolean> {
   return !error;
 }
 
-/** Record the payout hash once the transfer went through. */
+/**
+ * Take the payout lease AND stage, in one atomic hop. Returns exactly the rows
+ * THIS caller now owns — a racer (the automatic sweep, the funds-arrival
+ * trigger, a second claim click) wins some subset and the caller pays only
+ * what the lease awarded: the one property that makes "never pay twice" true
+ * across every sender.
+ */
+export type LeasedClaim = { ids: string[]; total: bigint };
+
+export async function leaseClaim(ids: string[], staleCutoff?: string): Promise<LeasedClaim> {
+  if (ids.length === 0 || !SUPABASE_CONFIGURED) return { ids: [], total: 0n };
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+  const cutoff = staleCutoff ?? new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
+  const fresh = await admin
+    .from("earn_submissions")
+    .update({ payout_lease: now, claimed_at: now })
+    .in("id", ids)
+    .is("payout_tx", null)
+    .is("payout_lease", null)
+    .select("id, reward_amount::text");
+
+  let owned = (fresh.data ?? []) as { id: string; reward_amount: string }[];
+
+  // An expired lease (a killed run) is free to re-take under the same rule.
+  const rest = ids.filter((id) => !owned.some((o) => o.id === id));
+  if (rest.length > 0) {
+    const stale = await admin
+      .from("earn_submissions")
+      .update({ payout_lease: now, claimed_at: now })
+      .in("id", rest)
+      .is("payout_tx", null)
+      .lt("payout_lease", cutoff)
+      .select("id, reward_amount::text");
+    owned = owned.concat((stale.data ?? []) as { id: string; reward_amount: string }[]);
+  }
+
+  let total = 0n;
+  // reward_amount arrives ::text so the digits stay exact (numeric(78,0)).
+  for (const row of owned) total += BigInt(row.reward_amount);
+  return { ids: owned.map((r) => r.id), total };
+}
+
+/** Release a lease after a PRE-SEND failure: the transfer never left. */
+export async function releaseClaim(ids: string[]): Promise<void> {
+  if (ids.length === 0 || !SUPABASE_CONFIGURED) return;
+  const admin = createAdminClient();
+  await admin
+    .from("earn_submissions")
+    .update({ payout_lease: null, claimed_at: null })
+    .in("id", ids)
+    .is("payout_tx", null);
+}
+
+/** Record the payout hash once the transfer went through. Also closes the lease. */
 export async function recordPayout(ids: string[], txHash: string): Promise<boolean> {
   if (ids.length === 0 || !txHash) return false;
   const admin = createAdminClient();
 
   const { error } = await admin
     .from("earn_submissions")
-    .update({ payout_tx: txHash })
+    .update({ payout_tx: txHash, payout_lease: null })
     .in("id", ids)
     .is("payout_tx", null);
 

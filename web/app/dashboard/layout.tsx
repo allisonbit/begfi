@@ -27,7 +27,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="safe-x mx-auto grid max-w-[1000px] gap-6 py-8">
-      <DashboardTabs extraTabs={isAdmin ? [{ slug: "earn", label: "Earn review" }] : []} />
+      <DashboardTabs extraTabs={isAdmin ? [{ slug: "earn", label: "Earn review" }, { slug: "earn/payouts", label: "Auto payouts" }] : []} />
       {children}
     </div>
   );
