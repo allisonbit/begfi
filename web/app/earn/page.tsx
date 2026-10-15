@@ -4,6 +4,8 @@ import Link from "next/link";
 import { ClaimButton } from "@/components/claim-button";
 import { EarnSubmitBox } from "@/components/earn-submit";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
+import { CampaignTile } from "@/components/campaign-card";
+import { getActiveCampaigns, getRecentCampaignPayoutTicker } from "@/lib/campaigns";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import {
   earningsFromSubmissions,
@@ -49,7 +51,13 @@ const STEPS = [
 export default async function EarnPage() {
   const profile = await getProfile();
 
-  const [settings, stats, feed] = await Promise.all([getEarnSettings(), getEarnStats(), getEarnFeed(24)]);
+  const [settings, stats, feed, campaigns, ticker] = await Promise.all([
+    getEarnSettings(),
+    getEarnStats(),
+    getEarnFeed(24),
+    getActiveCampaigns(),
+    getRecentCampaignPayoutTicker(8),
+  ]);
 
   const mine = profile ? await getMySubmissions(profile.id) : { rows: [], dbFailed: false };
   const walletClaimed = profile ? await hasWalletClaimed(profile.wallet_address) : false;
@@ -99,6 +107,59 @@ export default async function EarnPage() {
           ))}
         </div>
       </section>
+
+      {/* 2½. Project campaigns — the grid the site earns with */}
+      <section className="mt-8">
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-xl font-extrabold tracking-[-.03em]">Campaigns — earn in other projects&apos; tokens</h2>
+          <p className="text-[12px] text-beg-dim">Trending: ordered by who is actually posting today.</p>
+        </div>
+        <p className="mb-3 max-w-[720px] text-[13px] text-beg-dim">
+          Any project can open its own pool on BegFi: you post with its required tag, paste the link, and its budget pays you
+          automatically the next cycle — one post per wallet per day. BegFi never mixes a campaign&apos;s money with another.
+        </p>
+        {campaigns.dbFailed ? (
+          <p className="notice-dashed">Campaigns couldn&apos;t load right now — that&apos;s the database talking, check back in a moment.</p>
+        ) : campaigns.items.length === 0 ? (
+          <p className="notice-dashed">
+            No campaigns are live yet. Run one for your own project on{" "}
+            <Link href="/dashboard/campaigns" className="underline underline-offset-2 hover:text-beg-ink">
+              your dashboard
+            </Link>{" "}
+            — fund the pool and BegFi pays its posters automatically.
+          </p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {campaigns.items.map((campaign) => (
+              <CampaignTile key={campaign.id} campaign={campaign} />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* 2¾. The live ticker of automatic payouts across ALL campaigns */}
+      {ticker.length > 0 ? (
+        <section className="mt-4 card-sm overflow-x-auto p-4">
+          <b className="text-[13px] text-beg-ink">Recently paid</b>
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            {ticker.map((t, i) => (
+              <li key={`${t.slug}-${t.wallet_address}-${i}`} className="flex items-baseline gap-1.5 text-[12px]">
+                {t.username ? (
+                  <b className="text-beg-ink">@{t.username}</b>
+                ) : (
+                  <span className="font-mono text-[11px] text-beg-dim">{t.wallet_address.slice(0, 6)}…</span>
+                )}
+                <span className="text-beg-dim">
+                  earned {formatAmount(BigInt(t.amountBase), t.decimals)} {t.tokenSymbol} in{" "}
+                  <Link href={`/earn/${t.slug}`} className="underline underline-offset-2 hover:text-beg-ink">
+                    {t.campaignName}
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {/* 3. Rules */}
       <section className="mt-4 notice">

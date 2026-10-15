@@ -12,6 +12,11 @@ import {
   shouldTriggerOnFunds,
   sweepEarnPayouts,
 } from "@/lib/earn-distributor";
+import {
+  creditCampaignDeposits,
+  shouldTriggerOnCampaignFunds,
+  sweepCampaignPayouts,
+} from "@/lib/campaign-distributor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -130,6 +135,32 @@ export async function GET(request: Request) {
     // $BEGFI address to exist at all, trades need at least one catalog row.
     const transfers = await indexTransfers(client, admin, safeHead);
     const trades = await indexTrades(client, admin, safeHead);
+
+    // CAMPAIGN DEPOSITS: the same window, scanned for every campaign token
+    // heading INTO the distributor wallet. Each credited deposit is a chain
+    // fact (idempotent by tx+log); a freshly credited pool means money a
+    // campaign can pay with TODAY, so a campaign sweep fires the same way
+    // BegFi's own funds-arrival sweep does.
+    const credited = await creditCampaignDeposits(
+      admin,
+      client,
+      BigInt(transfers.rangeFrom ?? safeHead.toString()),
+      BigInt(transfers.rangeTo ?? safeHead.toString()),
+      distributorAddress(),
+    );
+    if (credited.tokensWithDeposits > 0) {
+      const triggered = await shouldTriggerOnCampaignFunds(admin);
+      if (triggered) {
+        after(async () => {
+          try {
+            await sweepCampaignPayouts("campaign-funds-arrival");
+          } catch {
+            // A failed campaign sweep retries on the next cron window or the
+            // next deposit; the deposits themselves are already recorded.
+          }
+        });
+      }
+    }
 
     // THE FUNDS-ARRIVAL TRIGGER: when the just-scanned window moved $BEGFI
     // INTO the distributor wallet, the payout sweep runs after the response
@@ -719,6 +750,10 @@ async function indexTransfers(
     logs: logs.length,
     indexed: matched.length,
     toDistributor,
+    // The exact window this scan covered, for the campaign-deposit scan that
+    // walks the same blocks (strings keep the JSON shape; BigInt re-parses).
+    rangeFrom: from.toString(),
+    rangeTo: to.toString(),
   };
 }
 
