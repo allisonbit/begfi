@@ -16,13 +16,23 @@ export function CampaignSubmitBox({
   disabledReason,
   alreadyPostedToday,
   notifyOn,
+  campaignName,
+  campaignLink,
 }: {
   slug: string;
   requiredEntry: string;
   disabledReason?: string | null;
   alreadyPostedToday: boolean;
   notifyOn?: string;
+  campaignName?: string;
+  campaignLink?: string;
 }) {
+  // Prefilled intent: the #1 drop-off in post-to-earn is the user composing
+  // from scratch and forgetting the tag. Push the required mention and the
+  // campaign link into the compose box — one click from puppy to poster.
+  const intentUrl = campaignName && campaignLink
+    ? `https://x.com/intent/post?text=${encodeURIComponent(`Building with @begfihood on ${campaignName} — ${requiredEntry} ${campaignLink}`)}`
+    : null;
   const [url, setUrl] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +75,17 @@ export function CampaignSubmitBox({
         <li>Paste the post link below</li>
         <li>Get your share of today&apos;s budget automatically — no approval, no claim button</li>
       </ol>
+
+      {intentUrl && !alreadyPostedToday && !disabledReason ? (
+        <a
+          href={intentUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="rounded-xl border-2 border-beg-ink bg-beg-blue px-4 py-2.5 text-center text-[13px] font-extrabold text-beg-ink"
+        >
+          ✍️ Compose the post on X (tag prefilled)
+        </a>
+      ) : null}
 
       {alreadyPostedToday ? (
         <p className="notice-dashed">This wallet already posted for this campaign today. Come back after the next cycle to earn again.</p>

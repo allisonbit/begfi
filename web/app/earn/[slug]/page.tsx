@@ -6,6 +6,7 @@ import { CampaignCountdown } from "@/components/campaign-countdown";
 import { CampaignSubmitBox } from "@/components/campaign-submit-box";
 import { addressUrl, shortAddress, txUrl } from "@/lib/chains";
 import { formatAmount } from "@/lib/erc20";
+import { LINK_ORIGIN } from "@/lib/config";
 import {
   campaignPayoutSchedule,
   getCampaignBySlug,
@@ -141,6 +142,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
           requiredEntry={campaign.requiredEntry}
           notifyOn={`today's`}
           alreadyPostedToday={myPostToday}
+          campaignName={campaign.name}
+          campaignLink={`${LINK_ORIGIN}/earn/${campaign.slug}`}
           disabledReason={
             paused
               ? `This campaign is ${campaign.status} right now.`
