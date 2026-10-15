@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { HomeHero } from "@/components/home-hero";
 import { TokenStats } from "@/components/token-stats";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
+import { SitePulse } from "@/components/site-pulse";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "BegFi: the e-Begging protocol",
@@ -73,6 +76,7 @@ export default function HomePage() {
       <main>
         <HomeHero />
         <ManifestoSection />
+        <SitePulse />
         <TokenStats />
       </main>
 

@@ -7,6 +7,7 @@ import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { robinhoodChain } from "@/lib/chains";
 import { erc20Abi, TOKEN_DECIMALS } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { publishEarnerNotification } from "@/lib/notify";
 
 /**
  * THE CAMPAIGN DISTRIBUTOR.
@@ -63,6 +64,7 @@ type CampaignRow = {
   slug: string;
   token_address: string;
   token_symbol: string;
+  token_decimals: number;
   daily_budget: string;
   owner_id: string;
   status: string;
@@ -195,7 +197,7 @@ export async function sweepCampaignPayouts(
 
   const { data: campaigns, error } = await admin
     .from("campaigns")
-    .select("id, slug, token_address, token_symbol, daily_budget, owner_id, status")
+    .select("id, slug, token_address, token_symbol, token_decimals, daily_budget, owner_id, status")
     .eq("status", "active")
     .limit(100);
   if (error) {
@@ -351,6 +353,15 @@ export async function sweepCampaignPayouts(
           .is("payout_tx", null);
         if (settleErr.error) notes.push(`${campaign.slug}: bookkeeping hiccup after confirmed send — reconcile next run`);
         await admin.from("earn_payouts").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", payoutRow.id);
+        await publishEarnerNotification(admin, {
+          profileId: entry.user_id,
+          amount: perShare.toString(),
+          decimals: campaign.token_decimals || CAMPAIGN_TOKEN_DECIMALS_FALLBACK,
+          symbol: campaign.token_symbol,
+          txHash: hash,
+          campaignSlug: campaign.slug,
+          refPrefix: `campaignpayout-${campaign.id}`,
+        });
 
         budgetLeft -= perShare;
         out.sentCount += 1;
@@ -418,22 +429,22 @@ async function takeCampaignLease(admin: SupabaseAdmin, ids: string[], staleCutof
 async function reconcileCampaignInFlight(admin: SupabaseAdmin, client: ReturnType<typeof createPublicClient>, notes: string[]): Promise<void> {
   const { data: inflight, error } = await admin
     .from("earn_payouts")
-    .select("id, tx_hash, created_at")
+    .select("id, tx_hash, created_at, user_id, amount::text, token_address")
     .eq("status", "pending")
     .not("campaign_id", "is", null)
     .not("tx_hash", "is", null)
     .limit(100);
   if (error) return;
 
-  for (const row of (inflight ?? []) as { id: string; tx_hash: string; created_at: string }[]) {
+  for (const row of (inflight ?? []) as { id: string; tx_hash: string; created_at: string; user_id: string | null; amount: string }[]) {
     try {
       const receipt = await client.getTransactionReceipt({ hash: row.tx_hash as `0x${string}` });
       if (receipt.status === "success") {
         const { data: idsRow } = await admin
           .from("earn_payouts")
-          .select("submission_ids")
+          .select("submission_ids, campaign_id")
           .eq("id", row.id)
-          .maybeSingle<{ submission_ids: string[] }>();
+          .maybeSingle<{ submission_ids: string[]; campaign_id: string | null }>();
         const ids = idsRow?.submission_ids ?? [];
         if (ids.length > 0) {
           await admin
@@ -443,6 +454,22 @@ async function reconcileCampaignInFlight(admin: SupabaseAdmin, client: ReturnTyp
             .is("payout_tx", null);
         }
         await admin.from("earn_payouts").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+        if (row.user_id) {
+          const { data: camp } = await admin
+            .from("campaigns")
+            .select("slug, token_symbol, token_decimals")
+            .eq("id", idsRow?.campaign_id ?? "00000000-0000-0000-0000-000000000000")
+            .maybeSingle<{ slug: string; token_symbol: string; token_decimals: number }>();
+          await publishEarnerNotification(admin, {
+            profileId: row.user_id,
+            amount: String(row.amount),
+            decimals: camp?.token_decimals ?? 18,
+            symbol: camp?.token_symbol ?? "tokens",
+            txHash: row.tx_hash,
+            campaignSlug: camp?.slug ?? undefined,
+            refPrefix: `campaignpayout-${idsRow?.campaign_id ?? ""}`,
+          });
+        }
       } else {
         notes.push(`an in-flight campaign payout reverted (${row.tx_hash.slice(0, 12)}…) — wallet stays unpaid and retries`);
         await admin.from("earn_payouts").update({ status: "failed", last_error: "reverted on-chain" }).eq("id", row.id);

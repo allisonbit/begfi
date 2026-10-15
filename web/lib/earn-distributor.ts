@@ -8,6 +8,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { erc20Abi } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
+import { publishEarnerNotification } from "@/lib/notify";
 
 /**
  * AUTOMATIC REWARD DISTRIBUTION.
@@ -323,6 +324,14 @@ export async function sweepEarnPayouts(
       //     the money moved; a hiccup here is a note, never a false failure.
       try {
         await settlePayout(admin, rowId, owned, hash);
+        await publishEarnerNotification(admin, {
+          profileId: plan.user_id,
+          amount: amount.toString(),
+          decimals: 18,
+          symbol: "$BEGFI",
+          txHash: hash,
+          refPrefix: "earnpayout",
+        });
       } catch (error) {
         notes.push(`confirmed, but bookkeeping hiccuped (${describeError(error)}) — settled on the next reconcile`);
       }
@@ -486,18 +495,28 @@ async function reconcileInFlight(
 ): Promise<void> {
   const { data: inflight, error } = await admin
     .from("earn_payouts")
-    .select("id, tx_hash, created_at")
+    .select("id, tx_hash, created_at, user_id, amount::text")
     .eq("status", "pending")
     .not("tx_hash", "is", null)
     .limit(100);
   if (error) return;
 
-  for (const row of (inflight ?? []) as { id: string; tx_hash: string; created_at: string }[]) {
+  for (const row of (inflight ?? []) as { id: string; tx_hash: string; created_at: string; user_id: string | null; amount: string }[]) {
     try {
       const receipt = await client.getTransactionReceipt({ hash: row.tx_hash as `0x${string}` });
       if (receipt.status === "success") {
         notes.push(`settled an in-flight payout: tx ${row.tx_hash.slice(0, 12)}…`);
         await admin.from("earn_payouts").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", row.id);
+        if (row.user_id) {
+          await publishEarnerNotification(admin, {
+            profileId: row.user_id,
+            amount: String(row.amount),
+            decimals: 18,
+            symbol: "$BEGFI",
+            txHash: row.tx_hash,
+            refPrefix: "earnpayout",
+          });
+        }
         const { data: idsRow } = await admin
           .from("earn_payouts")
           .select("submission_ids")
