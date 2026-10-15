@@ -123,7 +123,13 @@ export async function GET(request: Request) {
   const client = createPublicClient({
     chain: robinhoodChain,
     transport: http(
-      process.env.ALCHEMY_RPC_URL?.trim() || process.env.NEXT_PUBLIC_RPC_URL?.trim() || undefined,
+      // PUBLIC RPC FIRST, deliberately. This scan needs eth_getLogs over a
+      // 2,000-block window; Alchemy's FREE tier caps getLogs at 10 blocks, so
+      // preferring an Alchemy key made every run die at the first log read
+      // (and a scan that never persisted a cursor kept skipping windows
+      // forever). The public endpoint serves wide ranges; Alchemy remains a
+      // FALLBACK for deployments where the public one is unreachable.
+      process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.mainnet.chain.robinhood.com",
     ),
   });
 
@@ -276,7 +282,7 @@ async function raiseNotifications(admin: ReturnType<typeof createAdminClient>) {
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const { data: recent } = await admin
       .from("transfers")
-      .select("from_address, to_address, amount, tx_hash, block_time")
+      .select("from_address, to_address, amount::text, tx_hash, block_time")
       .eq("token_address", BEG_TOKEN_ADDRESS)
       .gte("block_time", since)
       .order("block_time", { ascending: false })
@@ -486,7 +492,7 @@ async function freezeLastWeekBattle(admin: ReturnType<typeof createAdminClient>)
 
   const { data: rows, error } = await admin
     .from("transfers")
-    .select("to_address, from_address, amount")
+    .select("to_address, from_address, amount::text")
     .gte("block_time", since)
     .lt("block_time", until)
     .limit(20_000);
@@ -587,7 +593,7 @@ async function digestForProfile(
   const [transfers, tradesOut, launchesOut] = await Promise.all([
     admin
       .from("transfers")
-      .select("amount")
+      .select("amount::text")
       .eq("to_address", wallet)
       .gte("block_time", since)
       .limit(10_000),

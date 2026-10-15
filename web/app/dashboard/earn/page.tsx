@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 
 import { ReviewActions, SettingsForm } from "@/components/earn-review-actions";
+import { CampaignVerifyToggle } from "@/components/campaign-verify-toggle";
+import { getAllCampaigns } from "@/lib/campaigns";
 import { shortAddress } from "@/lib/chains";
 import { getEarnSettings, getPayoutLedger, isAdminWallet, listPendingSubmissions, rewardDisplay } from "@/lib/earn";
 import { txUrl } from "@/lib/chains";
@@ -34,10 +36,11 @@ export default async function EarnReviewPage() {
     );
   }
 
-  const [settings, pending, ledger] = await Promise.all([
+  const [settings, pending, ledger, campaignList] = await Promise.all([
     getEarnSettings(),
     listPendingSubmissions(),
     getPayoutLedger(50),
+    getAllCampaigns(),
   ]);
 
   return (
@@ -109,6 +112,38 @@ export default async function EarnReviewPage() {
                 </li>
               );
             })}
+          </ul>
+        )}
+      </section>
+
+      {/*
+        THE VERIFY BADGE CONSOLE. The badge is a platform editorial fact; this
+        is where admins grant it — owners can never self-verify, the route
+        re-checks the admin wallet on every press.
+      */}
+      <section>
+        <h2 className="mb-1 text-xl font-extrabold tracking-[-.03em]">
+          Campaigns ({campaignList.length})
+        </h2>
+        <p className="mb-3 text-[12px] text-beg-dim">Verify is BegFi&apos;s editorial tick on a project&apos;s campaign. Unverified campaigns still run; this is reputation, not gating.</p>
+        {campaignList.length === 0 ? (
+          <p className="notice-dashed">No campaigns registered yet.</p>
+        ) : (
+          <ul className="grid gap-2">
+            {campaignList.map(({ campaign, poolRemaining, participants, submissions }) => (
+              <li key={campaign.id} className="card-sm flex flex-wrap items-center justify-between gap-2 text-[13px]">
+                <span className="flex min-w-0 flex-wrap items-center gap-2">
+                  <b className="text-beg-ink">{campaign.name}</b>
+                  <a href={`/earn/${campaign.slug}`} className="text-[12px] text-beg-dim underline underline-offset-2 hover:text-beg-ink">
+                    /earn/{campaign.slug} ↗
+                  </a>
+                  <span className="text-[12px] text-beg-dim">
+                    {campaign.status} · {submissions} valid post{submissions === 1 ? "" : "s"} · {participants} poster{participants === 1 ? "" : "s"}
+                  </span>
+                </span>
+                <CampaignVerifyToggle id={campaign.id} verified={campaign.isVerified} />
+              </li>
+            ))}
           </ul>
         )}
       </section>

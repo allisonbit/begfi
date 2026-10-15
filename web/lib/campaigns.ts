@@ -418,6 +418,24 @@ export async function submitCampaignPost(input: {
   return { ok: true };
 }
 
+/**
+ * Has THIS wallet already posted for THIS campaign today (UTC)? An exact
+ * database read, not a scan of a display list — the submit box is gated by
+ * the same answer the unique index will enforce.
+ */
+export async function hasPostedToday(campaignId: string, walletAddress: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const todayStart = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z").toISOString();
+  const { data } = await admin
+    .from("campaign_submissions")
+    .select("id")
+    .eq("campaign_id", campaignId)
+    .eq("wallet_address", walletAddress.toLowerCase())
+    .gte("created_at", todayStart)
+    .limit(1);
+  return Boolean(data && data.length > 0);
+}
+
 /* ------------------------------------------------------------------------- */
 /* Owner CRUD                                                                 */
 /* ------------------------------------------------------------------------- */
@@ -572,6 +590,38 @@ export type OwnerCampaignView = {
   topPosters: CampaignLeaderRow[];
   payouts: { wallet_address: string; username: string | null; amount: string; cycle_date: string; status: string; tx_hash: string | null; created_at: string }[];
 };
+
+/** Every campaign for the admin console, newest first (bounded). */
+export async function getAllCampaigns(limit = 30): Promise<{ campaign: Campaign; poolRemaining: bigint; participants: number; submissions: number }[]> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return [];
+  }
+  const [{ data: all }, { data: valid }] = await Promise.all([
+    admin.from("campaigns").select("*").order("created_at", { ascending: false }).limit(limit),
+    admin.from("campaign_submissions").select("campaign_id, wallet_address").eq("status", "valid").limit(20_000),
+  ]);
+  const counts = new Map<string, number>();
+  const wallets = new Map<string, Set<string>>();
+  for (const s of ((valid ?? []) as { campaign_id: string; wallet_address: string }[])) {
+    counts.set(s.campaign_id, (counts.get(s.campaign_id) ?? 0) + 1);
+    const set = wallets.get(s.campaign_id) ?? new Set<string>();
+    set.add(s.wallet_address);
+    wallets.set(s.campaign_id, set);
+  }
+  const deps = await poolTotals(null);
+  return ((all ?? []) as CampaignRow[]).map((row) => {
+    const c = asCampaign(row);
+    return {
+      campaign: c,
+      poolRemaining: (deps.deposited.get(c.id) ?? 0n) - (deps.paid.get(c.id) ?? 0n),
+      participants: wallets.get(c.id)?.size ?? 0,
+      submissions: counts.get(c.id) ?? 0,
+    };
+  });
+}
 
 export async function getOwnerCampaigns(ownerId: string): Promise<OwnerCampaignView[]> {
   if (!SUPABASE_CONFIGURED) return [];

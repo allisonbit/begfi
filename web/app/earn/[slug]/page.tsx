@@ -10,6 +10,7 @@ import {
   campaignPayoutSchedule,
   getCampaignBySlug,
   getCampaignDetail,
+  hasPostedToday,
   type CampaignSubmission,
 } from "@/lib/campaigns";
 import { getProfile } from "@/lib/session";
@@ -52,9 +53,9 @@ export default async function CampaignPage({ params }: { params: Promise<{ slug:
     stats.poolTotal > 0n ? Math.max(2, Math.min(100, Number((stats.poolRemaining * 100n) / stats.poolTotal))) : 0;
   const daysLeft = campaign.dailyBudget > 0n ? Number(stats.poolRemaining / campaign.dailyBudget) : null;
 
-  const myPostToday = profile
-    ? feed.some((s) => s.wallet_address === profile.wallet_address.toLowerCase())
-    : false;
+  // The gated answer the DB itself enforces on submit — not a scan of a
+  // display list, so the box is honest even beyond 30 feed rows.
+  const myPostToday = profile ? await hasPostedToday(campaign.id, profile.wallet_address) : false;
   const schedule = campaignPayoutSchedule();
 
   return (
