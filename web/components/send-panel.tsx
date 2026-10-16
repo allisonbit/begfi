@@ -41,10 +41,19 @@ export function SendPanel({
   // The tip-back handoff: the landing page already parsed and validated this
   // — a recipient's prefill, not a command. The box stays editable either way.
   initialAmount,
+  /*
+   * A fixed request (`/pay/<id>`) locks the amount and drops the presets: the
+   * ask is the ask, and letting someone "round up" a fixed request turns one
+   * product into two half-versions of itself. Defaults to false, so the profile
+   * page's open send box is unchanged.
+   */
+  lockAmount = false,
 }: {
   recipient: string;
-  username: string;
+  /** Absent for a receiver who keeps their name private — the wallet is shown. */
+  username?: string;
   initialAmount?: string;
+  lockAmount?: boolean;
 }) {
   const token = BEG_TOKEN_ADDRESS;
   const [amount, setAmount] = useState(initialAmount ?? "1000");
@@ -181,7 +190,8 @@ export function SendPanel({
       <div className="rounded-2xl border-[1.5px] border-beg-lime p-5 text-center">
         <p className="w-fit rounded-md bg-beg-lime px-1.5 py-0.5 text-lg font-extrabold text-beg-ink">Sent</p>
         <p className="mt-1.5 text-[13px] text-beg-dim">
-          {parsed ? `${formatAmount(parsed)} $BEGFI` : "$BEGFI"} to @{username}. Confirmed on-chain.
+          {parsed ? `${formatAmount(parsed)} $BEGFI` : "$BEGFI"} to{" "}
+          {username ? `@${username}` : shortAddress(recipient)}. Confirmed on-chain.
         </p>
         <a
           href={txUrl(hash)}
@@ -267,7 +277,7 @@ export function SendPanel({
   // ---- the form -------------------------------------------------------------
   return (
     <div className="grid gap-3">
-      <div className="flex gap-2">
+      <div className={lockAmount ? "hidden" : "flex gap-2"}>
         {PRESETS.map((value) => (
           <button
             key={value.toString()}
@@ -286,23 +296,34 @@ export function SendPanel({
       </div>
 
       <label className="grid gap-1.5">
-        <span className="text-[13px] text-beg-dim">Amount in $BEGFI</span>
+        <span className="text-[13px] text-beg-dim">
+          {lockAmount ? "Amount in $BEGFI — fixed by this request" : "Amount in $BEGFI"}
+        </span>
         <input
           value={amount}
+          readOnly={lockAmount}
           onChange={(e) => {
             setAmount(e.target.value.replace(/[^0-9.]/g, ""));
             setPreset(null);
           }}
           inputMode="decimal"
           placeholder="0"
-          className="rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 font-bold text-beg-ink outline-none focus:border-beg-lime"
+          className={`rounded-2xl border-[1.5px] border-beg-line p-3 font-bold text-beg-ink outline-none focus:border-beg-lime ${
+            lockAmount ? "bg-beg-bg/60" : "bg-beg-bg"
+          }`}
         />
       </label>
 
       {/* The recipient, before signing. Spec §7.2. */}
       <p className="text-center text-[13px] text-beg-dim">
-        To <span className="text-beg-ink">@{username}</span>,{" "}
-        <span className="font-mono">{shortAddress(recipient)}</span>
+        To{" "}
+        <span className="text-beg-ink">{username ? `@${username}` : shortAddress(recipient)}</span>
+        {/* The address appears twice when there is no name, so it is shown once. */}
+        {username ? (
+          <>
+            , <span className="font-mono">{shortAddress(recipient)}</span>
+          </>
+        ) : null}
       </p>
 
       {tokenBalance !== undefined ? (
