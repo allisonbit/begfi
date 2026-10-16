@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { submitCampaignPost } from "@/lib/campaigns";
+import { payoutsAllowed } from "@/lib/payout-controls";
 import { getProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,21 @@ export async function POST(request: Request) {
   const profile = await getProfile();
   if (!profile) return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   if (!profile.username) return NextResponse.json({ error: "Claim your username first." }, { status: 409 });
+
+  /*
+   * Refused while payouts are paused, rather than accepted and queued.
+   *
+   * The alternative is worse than it looks: this route's promise is "your post
+   * shares in today's payout, automatically". With the switch on, that promise
+   * is false, and accepting the post would bank an obligation the product
+   * cannot currently keep. A refusal is recoverable — paste the same link when
+   * it resumes — and it is the same reasoning the Earn route already applies
+   * when the pool cannot pay.
+   */
+  const gate = await payoutsAllowed();
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 423 });
+  }
 
   const result = await submitCampaignPost({
     userId: profile.id,

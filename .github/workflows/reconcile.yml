@@ -1,0 +1,57 @@
+# The reconciliation check: does the payout wallet still cover what the books
+# say is owed?
+#
+# WHY A WORKFLOW RATHER THAN A VERCEL CRON. Vercel's Hobby plan allows two cron
+# entries and both are spent (the indexer and the daily payout sweep), so this
+# runs the same way the indexer's extra heartbeat does: a scheduler outside
+# Vercel calling the deployment's own endpoint with the deployment's own bearer
+# token. It is the same endpoint shape as the other cron routes, authorized the
+# same way, and it is idempotent.
+#
+# WHY HOURLY. This job does not move money — it reads the distributor's balance
+# and the ledger and writes one row per token. Hourly is fast enough that drift
+# from a missed indexer window is caught before a claimant ever sees it, and
+# cheap enough (a few RPC reads) to leave running. Anything slower trades that
+# early warning for nothing.
+#
+# WHAT HAPPENS ON DRIFT, so the schedule's purpose is not surprising: the
+# endpoint pauses ALL payouts itself and bells every admin wallet. That is
+# deliberate and fail-safe — a shortfall means outstanding claims cannot be
+# honoured, and continuing to send would only spend money that is owed
+# elsewhere. Resuming is a human decision on the payouts console, after the
+# books are understood.
+#
+# The secret travels exactly as the indexer's does: an Actions secret read at
+# runtime, never printed. If it is missing the workflow fails loudly at the
+# guard instead of calling an unauthenticated endpoint and quietly "passing".
+
+name: reconcile
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconcile obligations against the chain
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          RECONCILE_URL: https://www.begfi.io/api/cron/reconcile
+        run: |
+          set -euo pipefail
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::CRON_SECRET is not set in repository Actions secrets."
+            exit 1
+          fi
+          # --fail-with-body so a 5xx is a red run WITH the reason attached,
+          # rather than a green run whose body says "error". The response names
+          # each token's owed/held/drift, which is the whole audit trail.
+          curl -fsS --max-time 55 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$RECONCILE_URL" | tee /dev/stderr

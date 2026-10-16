@@ -6,6 +6,7 @@ import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { ponsCurveAbi } from "@/lib/curve";
 import { ponsFactoryAbi, ponsEscrowAbi, PONS_FACTORY } from "@/lib/pons";
 import { rankWeek } from "@/lib/battles";
+import { settlePayLinks, type PayLinkSettlementPass } from "@/lib/pay-links";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   distributorAddress,
@@ -669,6 +670,7 @@ async function indexTransfers(
   admin: ReturnType<typeof createAdminClient>,
   safeHead: bigint,
 ) {
+  let payLinkSettlements: PayLinkSettlementPass = { settled: 0, belled: 0, skipped: null };
   if (!BEG_TOKEN_ADDRESS) {
     // Expected until $BEGFI is actually launched. Not an error: there is nothing
     // to index, and saying so is more useful than a stack trace.
@@ -696,6 +698,31 @@ async function indexTransfers(
     .eq("is_hidden", false);
 
   const watched = new Set((profiles ?? []).map((p: { wallet_address: string }) => p.wallet_address));
+
+  /*
+   * A PAY LINK PUTS ITS OWNER ON THE WATCH LIST, HIDDEN OR NOT.
+   *
+   * Transfers are indexed for visible profiles only — the rule that stops this
+   * scan recording every wallet on the chain. But a payment request is an
+   * EXPLICIT ASK: someone who creates `/pay/<id>` and shares it has asked to be
+   * paid, and a private account's request would otherwise never settle, because
+   * the very transfer that answers it would not be indexed. The ask is the
+   * consent that the hidden-profile rule was protecting.
+   *
+   * Indexing the row is not publishing it: `transfers` stays involved-parties-only
+   * under RLS, and the public surfaces (the pay page's total, the profile total)
+   * reach it only through the definer aggregates that return a number.
+   */
+  const { data: askingLinks } = await admin
+    .from("pay_links")
+    .select("profiles!inner(wallet_address)")
+    .eq("is_active", true)
+    .limit(2000);
+
+  for (const row of (askingLinks ?? []) as { profiles: { wallet_address: string } | { wallet_address: string }[] }[]) {
+    const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    if (owner?.wallet_address) watched.add(owner.wallet_address.toLowerCase());
+  }
 
   const matched = logs.filter((log) => {
     const to = log.args.to?.toLowerCase();
@@ -731,19 +758,30 @@ async function indexTransfers(
     // a re-run over an overlapping window idempotent.
     const times = await blockTimes(client, matched.map((l) => l.blockNumber!));
 
-    await admin.from("transfers").upsert(
-      matched.map((log) => ({
-        tx_hash: log.transactionHash,
-        log_index: log.logIndex,
-        token_address: BEG_TOKEN_ADDRESS,
-        from_address: log.args.from!.toLowerCase(),
-        to_address: log.args.to!.toLowerCase(),
-        amount: log.args.value!.toString(),
-        block_number: Number(log.blockNumber),
-        block_time: times.get(log.blockNumber!.toString())!,
-      })),
-      { onConflict: "tx_hash,log_index", ignoreDuplicates: true },
-    );
+    const transferRows = matched.map((log) => ({
+      tx_hash: log.transactionHash,
+      log_index: log.logIndex,
+      token_address: BEG_TOKEN_ADDRESS,
+      from_address: log.args.from!.toLowerCase(),
+      to_address: log.args.to!.toLowerCase(),
+      amount: log.args.value!.toString(),
+      block_number: Number(log.blockNumber),
+      block_time: times.get(log.blockNumber!.toString())!,
+    }));
+
+    await admin.from("transfers").upsert(transferRows, {
+      onConflict: "tx_hash,log_index",
+      ignoreDuplicates: true,
+    });
+
+    /*
+     * THE PAY-LINK PASS, from the rows that were just written. This is the SAME
+     * detection path — one confirmed transfer, decided once, by the run that
+     * recorded it; there is no second watcher looking for payments, because two
+     * detectors are two things that can disagree. It settles the request whose ask
+     * the transfer met and bells its owner (see `settlePayLinks`).
+     */
+    payLinkSettlements = await settlePayLinks(admin, transferRows);
   }
 
   await admin.from("app_config").upsert(
@@ -751,11 +789,36 @@ async function indexTransfers(
     { onConflict: "key" },
   );
 
+  // THE SITE'S TOKEN, KEPT IN STEP WITH THE CODE.
+  //
+  // `beg_token_address` is what `received_since` and `profile_stats` filter on,
+  // so it decides every "how much has arrived" number on the site (beg progress,
+  // the beg OG card, a profile's received total, a pay link's received total).
+  // It is seeded empty in migration 0001 for a pre-launch site and NOTHING used
+  // to write it — so after $BEGFI launched it still read `''`, and every one of
+  // those numbers was silently 0 (see migration 0026).
+  //
+  // Written here, on every run, from `BEG_TOKEN_ADDRESS` — the same pinned
+  // constant the transfer scan above stores on each row it indexes. That makes
+  // the aggregate filter and the rows it filters impossible to disagree, which is
+  // the whole point: a config row that only a human remembers to update is a
+  // config row that will be wrong again.
+  if (BEG_TOKEN_ADDRESS) {
+    await admin.from("app_config").upsert(
+      { key: "beg_token_address", value: BEG_TOKEN_ADDRESS, updated_at: new Date().toISOString() },
+      { onConflict: "key" },
+    );
+  }
+
   return {
     scanned: { from: (from + 1n).toString(), to: to.toString() },
     logs: logs.length,
     indexed: matched.length,
     toDistributor,
+    // Requests settled and owners belled from the transfers in this window: the
+    // report says what the pass did rather than leaving it to be inferred from
+    // notification rows later.
+    payLinks: payLinkSettlements,
     // The exact window this scan covered, for the campaign-deposit scan that
     // walks the same blocks (strings keep the JSON shape; BigInt re-parses).
     rangeFrom: from.toString(),

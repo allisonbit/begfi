@@ -9,6 +9,7 @@ import { erc20Abi } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import { publishEarnerNotification } from "@/lib/notify";
+import { payoutsAllowed } from "@/lib/payout-controls";
 
 /**
  * AUTOMATIC REWARD DISTRIBUTION.
@@ -77,6 +78,22 @@ const GAS_UNITS = 120_000n;
 /** The next send's gas must fit twice over: a price spike never strands a run. */
 const GAS_HEADROOM = 2n;
 
+/**
+ * The native balance needed to send `transfers` more transactions.
+ *
+ * EXPORTED SO THE ALERT AND THE SENDER AGREE. The sweep refuses to run below this
+ * number already; the reconciliation job bells when the balance comes within
+ * reach of it, using the SAME arithmetic — a monitor with its own idea of "enough
+ * gas" either cries wolf or stays silent through the failure it exists to
+ * predict. `lib/campaign-distributor.ts` keeps its own copies of these two
+ * constants for the same calculation; if they ever differ, this function is the
+ * one to trust.
+ */
+export function gasFloor(gasPrice: bigint, transfers: number): bigint {
+  const price = gasPrice > 0n ? gasPrice : 30_000_000_000n;
+  return GAS_UNITS * price * GAS_HEADROOM * BigInt(Math.max(1, transfers));
+}
+
 export function distributorConfigured(): boolean {
   return Boolean(BEG_TOKEN_ADDRESS) && /^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY);
 }
@@ -97,7 +114,7 @@ export type SweepOutcome = {
   cycleDate: string;
   /** True when at least one send was attempted (sent or failed). */
   ran: boolean;
-  stopped?: "not-configured" | "no-unpaid" | "no-funds" | "no-gas" | "db";
+  stopped?: "not-configured" | "no-unpaid" | "no-funds" | "no-gas" | "db" | "paused";
   tokenBalance: bigint;
   nativeBalance: bigint;
   sentAmount: bigint;
@@ -159,6 +176,23 @@ export async function sweepEarnPayouts(
     admin = createAdminClient();
   } catch {
     return { ...base, stopped: "db" };
+  }
+
+  /*
+   * THE KILL SWITCH IS CHECKED BEFORE ANY BALANCE IS READ.
+   *
+   * Order matters for honesty as much as for safety: a sweeper that reads
+   * balances first and then discovers it is paused leaves a log line that looks
+   * like it tried to pay, and an operator reading it has to work out whether
+   * anything was sent. Checked here, "paused" is the whole story of the run.
+   *
+   * Fails CLOSED — see lib/payout-controls.ts for why money is the one control
+   * in this codebase that does.
+   */
+  const gate = await payoutsAllowed();
+  if (!gate.allowed) {
+    notes.push(gate.reason);
+    return { ...base, stopped: "paused" };
   }
 
   const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);

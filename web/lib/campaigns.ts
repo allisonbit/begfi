@@ -7,7 +7,7 @@ import { z } from "zod";
 import { robinhoodChain } from "@/lib/chains";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
-import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { readXPost, postCarriesEntry } from "@/lib/x-embed";
 
 /**
@@ -494,6 +494,47 @@ export async function createCampaign(ownerId: string, input: CampaignDraftInput)
 
   const { data: clash } = await admin.from("campaigns").select("id").eq("slug", input.slug).maybeSingle();
   if (clash) return { error: "That campaign slug is taken.", status: 409 };
+
+  // ---------------------------------------------------------------------
+  // THE DEPOSIT-TOKEN GUARDS.
+  //
+  // Every pool is funded to ONE shared distributor wallet, so deposits are
+  // attributed per token (`creditCampaignDeposits`). Two active campaigns on
+  // the same token therefore cannot be told apart: one pool gets credited for
+  // both and the other silently starves. Migration 0025 makes that impossible
+  // with a partial unique index — this check exists because an index answers
+  // with a Postgres error string, and the project owner deserves the reason.
+  // The index stays behind it as the race-proof backstop.
+  //
+  // $BEGFI ITSELF is refused for the same reason, sharply: BegFi tops up its
+  // own reward pool to that identical address, so a campaign paying in $BEGFI
+  // is indistinguishable from the site funding itself — and the money would
+  // be counted into both pools (KNOWN_ISSUES.md #2). A dedicated deposit
+  // address per pool is the real fix (Phase 1); this makes the collision
+  // unreachable until then.
+  // ---------------------------------------------------------------------
+  const token = input.tokenAddress.toLowerCase();
+  if (BEG_TOKEN_ADDRESS && token === BEG_TOKEN_ADDRESS.toLowerCase()) {
+    return {
+      error:
+        "$BEGFI can't be a campaign's payout token — the site's own reward pool is funded to the same wallet, so a top-up would be impossible to tell apart from your pool's. Use your project's own token.",
+      status: 400,
+    };
+  }
+
+  const { data: sameToken } = await admin
+    .from("campaigns")
+    .select("slug")
+    .eq("status", "active")
+    .eq("token_address", token)
+    .limit(1)
+    .maybeSingle<{ slug: string }>();
+  if (sameToken) {
+    return {
+      error: `Another campaign already pays in this token (/earn/${sameToken.slug}). Two pools on one token share the same deposit address and can't be told apart — use a different token, or ask us for a dedicated deposit address.`,
+      status: 409,
+    };
+  }
 
   const decimals = await readTokenDecimals(input.tokenAddress);
   const unit = 10n ** BigInt(decimals);

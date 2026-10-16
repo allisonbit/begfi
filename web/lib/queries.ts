@@ -59,34 +59,69 @@ export async function getProfileByUsername(rawUsername: string): Promise<Profile
 
   if (!profile) return null;
 
-  const stats = await getStats(profile.id);
+  const stats = await getStats(profile.id, profile.wallet_address);
 
   return { profile, stats };
 }
 
+/** Before every transfer that has ever been indexed. */
+const THE_BEGINNING = "1970-01-01T00:00:00Z";
+
 /**
- * Totals for one profile, from the aggregate view.
+ * Totals for one profile, as a PUBLIC aggregate.
  *
- * Separate from `getRecentTransfers` on purpose. Summing a page of recent
- * transfers gives the total of *that page*, which looks right on a new account
- * and is wrong on a busy one — the sort of bug that only shows up once somebody
- * has real traffic, i.e. when it matters. The view sums everything.
+ * WHY NOT THE `profile_stats` VIEW ANY MORE, which is what this used to read.
+ * That view is `security_invoker` on purpose, so the policies on `transfers`
+ * apply to the caller — which means an ANONYMOUS visitor cannot see any transfer
+ * row and the view sums to 0 for them. Every signed-out visitor to every public
+ * profile was shown "0 $BEGFI received from 0 supporters", while the leaderboard
+ * (service role) showed that same wallet's real total. Two pages, two answers.
+ *
+ * `public_wallet_totals` (migration 0026) is the mechanism migration 0007
+ * established for beg progress: a SECURITY DEFINER function that returns ONE
+ * total and a COUNT to anyone, and can return nothing else. A public profile's
+ * received figure is exactly the kind of aggregate the profile page is allowed to
+ * publish; the sender graph is not, and stays unreadable.
+ *
+ * The money figure arrives as TEXT (exact digits) for the reason migration 0013
+ * spells out — a numeric crossing PostgREST becomes a float64 and a 24-digit
+ * base-unit amount comes back polluted.
  */
-export async function getStats(profileId: string): Promise<ProfileStats> {
+export async function getStats(profileId: string, walletAddress: string): Promise<ProfileStats> {
   if (!SUPABASE_CONFIGURED) {
     return { profile_id: profileId, total_received: "0", supporters: 0 };
   }
 
-  const sb = await createClient();
-  const { data } = await sb
-    .from("profile_stats")
-    .select("profile_id, total_received, supporters")
-    .eq("profile_id", profileId)
-    .maybeSingle<ProfileStats>();
+  try {
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("public_wallet_totals", {
+      p_wallet: walletAddress,
+      p_since: THE_BEGINNING,
+    });
 
-  // An account that has received nothing has no row in the view yet, and the
-  // honest reading of that is zero — not a missing total.
-  return data ?? { profile_id: profileId, total_received: "0", supporters: 0 };
+    if (error || !data) {
+      // A failed read is not a zero. The caller renders what it is given, and a
+      // missing total is better than an invented one — but this is a display
+      // aggregate, so the page shows 0 rather than refusing to render, and the
+      // failure is what `null` here would have to be threaded through the page
+      // for. Recorded rather than hidden: see KNOWN_ISSUES #12.
+      return { profile_id: profileId, total_received: "0", supporters: 0 };
+    }
+
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { received: string | null; supporters: number | null }
+      | undefined;
+    if (!row) return { profile_id: profileId, total_received: "0", supporters: 0 };
+
+    // Digits only, or zero: an amount that arrived carrying an exponent has lost
+    // the digits a money figure is made of, and guessing them back would be
+    // inventing a number.
+    const received = typeof row.received === "string" && /^\d+$/.test(row.received) ? row.received : "0";
+
+    return { profile_id: profileId, total_received: received, supporters: row.supporters ?? 0 };
+  } catch {
+    return { profile_id: profileId, total_received: "0", supporters: 0 };
+  }
 }
 
 /**

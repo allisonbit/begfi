@@ -6,6 +6,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { getApprovedUnclaimed, leaseClaim, recordPayout, releaseClaim } from "@/lib/earn";
 import { erc20Abi } from "@/lib/erc20";
+import { payoutsAllowed } from "@/lib/payout-controls";
 import { getProfile } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,17 @@ export async function POST() {
   }
   if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) {
     return NextResponse.json({ error: "Payout wallet is misconfigured." }, { status: 503 });
+  }
+
+  /*
+   * The kill switch stops THIS path too, which is the point of a global switch:
+   * the claim button is an independent sender from the sweep (they share the
+   * lease, not the gate), so a pause that only covered the cron would leave one
+   * door open exactly when an operator wants them all shut.
+   */
+  const gate = await payoutsAllowed();
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 423 });
   }
 
   const { ids, total } = await getApprovedUnclaimed(profile.id);

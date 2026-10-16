@@ -5,6 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 import { robinhoodChain } from "@/lib/chains";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { isPostUrl, getEarnSettings } from "@/lib/earn";
+import { payoutsAllowed } from "@/lib/payout-controls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/session";
 
@@ -51,6 +52,14 @@ export async function POST(request: Request) {
   }
   if (!settings.isActive) {
     return NextResponse.json({ error: "Earn is paused. Check back soon." }, { status: 423 });
+  }
+
+  // The global kill switch — the same gate every payout path reads. A paused
+  // switch means no submission is banked, because a banked submission is a
+  // promise to pay (see the campaign submit route for the longer version).
+  const gate = await payoutsAllowed();
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 423 });
   }
   if (settings.poolRemaining < settings.rewardPerPost) {
     return NextResponse.json({ error: "Rewards pool is empty, check back soon." }, { status: 409 });

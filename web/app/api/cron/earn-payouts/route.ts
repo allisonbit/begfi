@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { recordAudit } from "@/lib/audit";
 import { campaignBudgetMs, sweepCampaignPayouts, type SweepCampaignOutcome } from "@/lib/campaign-distributor";
-import { distributorConfigured, sweepBudgetMs, sweepEarnPayouts } from "@/lib/earn-distributor";
+import { distributorAddress, distributorConfigured, sweepBudgetMs, sweepEarnPayouts } from "@/lib/earn-distributor";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -80,6 +82,35 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     response.campaigns = { ok: false, error: message };
+  }
+
+  /*
+   * THE DAILY RUN, AUDITED — ONE ROW, NOT TWO.
+   *
+   * This is the scheduled sweep: the entry point an incident review looks for
+   * ("did the machine run today, and what did it do?"). The funds-arrival triggers
+   * inside the indexer are deliberately NOT audited here — they fire on every
+   * deposit and would bury the schedule in noise; their result is the payout ledger
+   * rows themselves, which the console shows with their transactions.
+   */
+  const actor = distributorAddress();
+  if (actor) {
+    try {
+      const earnSummary = response.earn as { sentCount?: number; failedCount?: number; stopped?: string } | undefined;
+      const campaignSummary = response.campaigns as
+        | { sentCount?: number; failedCount?: number; campaignsServed?: number }
+        | undefined;
+      await recordAudit(createAdminClient(), {
+        actor,
+        action: "payouts.sweep",
+        subject: new Date().toISOString().slice(0, 10),
+        detail: `Daily run — $BEGFI: ${earnSummary?.sentCount ?? 0} sent, ${earnSummary?.failedCount ?? 0} failed, stopped: ${
+          earnSummary?.stopped ?? "nobody left to pay"
+        }; campaigns: ${campaignSummary?.sentCount ?? 0} sent across ${campaignSummary?.campaignsServed ?? 0} campaign(s).`,
+      });
+    } catch {
+      // The sweeps already ran; the record of them is second (see lib/audit.ts).
+    }
   }
 
   return NextResponse.json(response);

@@ -172,12 +172,21 @@ on conflict (key) do nothing;
  * with the caller's rights, so the policies apply. If you ever recreate this
  * view, recreate this option with it.
  */
+-- THE COLUMN TYPES HERE ARE THE FINAL ONES, CHANGED BY MIGRATION 0026.
+-- `total_received` is TEXT (a numeric crossing PostgREST becomes a float64 and a
+-- 24-digit base-unit amount comes back polluted; `::text` keeps the exact digits)
+-- and `total_received_units` is the same number as `numeric`, kept for ORDER BY in
+-- the leaderboard, where Postgres sorts exactly. This body was edited in place
+-- rather than only in 0026 because `scripts/migrate.js` re-runs every migration in
+-- order: 0001 runs BEFORE 0026, so leaving the old shapes here made the whole run
+-- abort at 0001 with "cannot change return type of existing column".
 create or replace view begfi.profile_stats
 with (security_invoker = on)
 as
 select
   p.id as profile_id,
-  coalesce(sum(t.amount), 0)::numeric(78,0) as total_received,
+  coalesce(sum(t.amount), 0)::numeric(78,0)::text as total_received,
+  coalesce(sum(t.amount), 0)::numeric(78,0) as total_received_units,
   count(distinct t.from_address)::integer as supporters
 from begfi.profiles p
 left join begfi.transfers t

@@ -221,6 +221,18 @@ export function isAdminWallet(wallet: string): boolean {
   return EARN_ADMIN_WALLETS.has(wallet.toLowerCase());
 }
 
+/**
+ * The allowlist itself, for the few callers that need to notify every admin
+ * rather than check one.
+ *
+ * Exported as a function rather than the Set, so no caller can mutate the
+ * allowlist by accident — an admin list that a route could add to is an
+ * authorisation hole with a friendly name.
+ */
+export function adminWallets(): string[] {
+  return [...EARN_ADMIN_WALLETS];
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin writes. Every function here runs from an API route that has   */
 /* ALREADY verified the caller's wallet against EARN_ADMIN_WALLETS.    */

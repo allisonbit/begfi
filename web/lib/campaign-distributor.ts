@@ -8,6 +8,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { erc20Abi, TOKEN_DECIMALS } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publishEarnerNotification } from "@/lib/notify";
+import { payoutsAllowed } from "@/lib/payout-controls";
 
 /**
  * THE CAMPAIGN DISTRIBUTOR.
@@ -178,6 +179,14 @@ export async function sweepCampaignPayouts(
   try {
     admin = createAdminClient();
   } catch {
+    return out;
+  }
+
+  // The global kill switch, before a single balance is read. Fails closed:
+  // see lib/payout-controls.ts.
+  const gate = await payoutsAllowed();
+  if (!gate.allowed) {
+    notes.push(gate.reason);
     return out;
   }
 
