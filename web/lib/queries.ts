@@ -195,7 +195,7 @@ export async function getRecentBegs(limit = 30): Promise<PublicBeg[]> {
   const sb = await createClient();
   const { data, error } = await sb
     .from("begs")
-    .select("id, body, goal, created_at, profiles!inner(username, display_name, avatar_url, x_handle, wallet_address)")
+    .select("id, body, goal::text, created_at, profiles!inner(username, display_name, avatar_url, x_handle, wallet_address)")
     .order("created_at", { ascending: false })
     .limit(limit);
 

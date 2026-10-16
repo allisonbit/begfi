@@ -5,6 +5,28 @@ Format: what changed, and why it mattered.
 
 ---
 
+## 2026-10-16 (evening) — Session: two money displays that lied, and the explainer video
+
+**Fixed — a missing `::text` made the pay page print, and PREFILL, a truncated amount.** A `numeric(78,0)`
+base-unit amount crossing PostgREST becomes a JSON number, and a float64 mantissa is 53 bits, so a link
+asking for exactly **1,000,000 $BEGFI** (1e24 wei) arrived as `999999999999999983222784` and the page
+rendered `999,999.999999999983222784 $BEGFI`. That was not only cosmetic: the same value is fed through
+`formatAmount` into the send panel as the **locked** amount, so a payer following the page would send
+*less than the ask* — and the indexer's `paid >= ask` test means such a request never settles and never
+rings its owner's bell. `lib/pay-links.ts` now selects `amount::text` in both reads, and `begs.goal`
+(`lib/queries.ts`, `app/beg/[id]/page.tsx`) was the same bug printing `99,999.999999999991611392` for a
+100,000 goal. Verified through the pages: **1,000,000 $BEGFI** and **Goal 100,000 $BEGFI**. The shape of the
+bug, the remaining sites (`campaigns.daily_budget` via `select("*")`, `transfers.amount` display paths) and
+the rule that prevents it are `KNOWN_ISSUES.md` #24 and D-063 — the rule being that a money column is read
+as text and `select("*")` is not allowed on a table that holds one.
+
+**Shipped — the explainer video** (`video/`, 8 minutes, narrated): the four products, the money engine, the
+safety controls, the public books, and the parts that are not built, assembled from screenshots of the live
+site. One TTS clip per beat, so a beat's audio length is its on-screen length and the picture cannot drift
+from the voice; the single demo asset (a funded drop pot) is created for the capture, labelled as a demo on
+the page, and deleted afterwards. Tooling and timings: `video/README.md`, `video/SCRIPT.md`. It was making
+this video that surfaced the bug above — the ugly number was visible in a screenshot.
+
 ## 2026-10-16 (latest) — Session: Drops, the fourth product, built on the existing money engine
 
 **Shipped — Drops: a funded pot, one fixed prize per claimer, a cap, paid automatically.** `/drops` lists

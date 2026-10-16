@@ -5,6 +5,30 @@ decision made here is the one the code follows.
 
 ---
 
+## Decisions from the 2026-10-16 evening session: money reads, and the explainer
+
+**D-063 — A money column is read as `::text`, and `select("*")` is not allowed on a table that holds one.**
+A `numeric(78,0)` base-unit amount crossing PostgREST becomes a JSON number, and a float64 mantissa is 53
+bits: 1,000,000 $BEGFI (1e24 wei) arrives as 999999999999999983222784, with nothing thrown and nothing
+logged. The rule is therefore mechanical rather than a judgement call: any read of a money column says
+`::text` and converts with `BigInt` at the boundary, and a table with a money column is never read with
+`select("*")`, because that is how the cast gets lost. Where a cast is impossible, `exactAmount()` returns
+null instead of guessing digits that are already gone. *(Reason: two live bugs — a pay link printed and
+PREFILLED a truncated amount, so the payer's send no longer met the ask and the request could never settle;
+and a beg goal printed 99,999.999999999991611392 for 100,000. Both were one missing cast. See
+`KNOWN_ISSUES.md` #24 for the sites that still need it.)*
+
+**D-064 — The explainer video is built from the live site, and its pipeline is reproducible.** Chapter text
+and visuals live in `video/chapters.json`; one TTS clip per beat means a beat's audio length IS its on-screen
+length, so picture and voice cannot drift; screenshots are real pages from production, captured with
+Playwright + the installed Chrome, and the one unavoidable demo (a funded drop pot) is created by
+`video/tools/fixture.cjs`, labelled as a demo on the page itself, and deleted after the capture — the script
+prints that the database ends with zero drops. *(Reason: a product video that quietly mocks up screens is a
+marketing asset, not a record, and this site's whole claim is that it does not do that. The video also states
+the open limitations out loud, so a viewer checking it against the site finds agreement.)*
+
+---
+
 ## Decisions from the 2026-10-16 (later) session: Drops
 
 **D-054 — Drops are a FRONT over the existing payout engine, and the only new money-adjacent object is a

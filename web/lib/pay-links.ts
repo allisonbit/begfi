@@ -32,7 +32,15 @@ export type PayLinkRow = {
   owner_id: string;
   token_address: string;
   chain_id: number;
-  /** Base units as text, or null for an open-ended ask. */
+  /**
+   * Base units as text, or null for an open-ended ask.
+   *
+   * IT MUST BE SELECTED `::text` — see `exactAmount` below for what a bare
+   * `numeric(78,0)` does on its way through PostgREST. This one is not a display
+   * concern: the pay page feeds it back through `formatAmount` into the send
+   * panel's LOCKED amount, so a truncated read is a truncated on-chain payment
+   * that no longer meets the ask, and the request can never settle.
+   */
   amount: string | null;
   memo: string | null;
   is_active: boolean;
@@ -107,7 +115,7 @@ export async function getPayLink(id: string): Promise<PayLinkView | null> {
   const { data: link, error } = await admin
     .from("pay_links")
     .select(
-      "id, owner_id, token_address, chain_id, amount, memo, is_active, created_at, settled_tx, settled_amount::text, settled_at",
+      "id, owner_id, token_address, chain_id, amount::text, memo, is_active, created_at, settled_tx, settled_amount::text, settled_at",
     )
     .eq("id", id)
     .maybeSingle<PayLinkRow>();
@@ -462,7 +470,7 @@ export async function listOwnPayLinks(ownerId: string): Promise<PayLinkRow[]> {
   const { data, error } = await sb
     .from("pay_links")
     .select(
-      "id, owner_id, token_address, chain_id, amount, memo, is_active, created_at, settled_tx, settled_amount::text, settled_at",
+      "id, owner_id, token_address, chain_id, amount::text, memo, is_active, created_at, settled_tx, settled_amount::text, settled_at",
     )
     .eq("owner_id", ownerId)
     .order("created_at", { ascending: false })

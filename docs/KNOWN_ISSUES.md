@@ -470,6 +470,38 @@ makes the need visible.
 **Evidence.** `drop_claims` indexes (0029: wallet, partial X), no captcha code anywhere,
 `KNOWN_ISSUES.md` #7 (the same gap for Earn).
 
+## #24 — A money column read without `::text` silently loses its last digits
+
+**What.** A `numeric(78,0)` column crossing PostgREST becomes a JSON number, and a float64 mantissa is 53
+bits, so a 24-digit base-unit amount comes back **rounded**. `pay_links.amount` holding exactly
+1,000,000 $BEGFI (1e24 wei) arrived as `999999999999999983222784`, and the page did the only thing it could
+with that: printed `999,999.999999999983222784 $BEGFI`.
+
+**Why it was a money bug, not a typo.** The pay page feeds that value through `formatAmount` into the send
+panel as the **locked** amount. A payer following the prefill would send 999,999.999999999983222784 — which
+is *less* than the ask — and the indexer's `paid >= ask` test then never settles the request and never rings
+the bell. The request worked perfectly and could never be completed.
+
+**Fixed 2026-10-16 (two sites, both verified on the live site).** `lib/pay-links.ts` (both reads) and
+`begs.goal` (`lib/queries.ts` + `app/beg/[id]/page.tsx`) now select `::text`. Verified through the pages:
+the pay link reads **1,000,000 $BEGFI** and the beg reads **Goal 100,000 $BEGFI**, where both previously
+printed 18-digit float noise.
+
+**Still open — the same class, elsewhere.** `campaigns.daily_budget` is read through `select("*")` in
+`lib/campaigns.ts`, and `transfers.amount` is read bare in the display and sum paths (`receipts.ts`,
+`dashboard.ts`, `leaderboard.ts`, `battles.ts`, `level.ts`, `queries.ts`). Those are display-and-total bugs
+rather than wrong-payment bugs — nothing there feeds a send — but a leaderboard total that is off by a few
+hundred wei, or a campaign budget that prints as 5,000,000.000000000012582912, is still the site lying about
+money.
+
+**Fix.** Select `::text` and convert with `BigInt` at the boundary; never `select("*")` on a table with a
+money column (D-063); use `exactAmount()` (`lib/pay-links.ts`) where a cast is impossible — it returns null
+rather than inventing digits that have already been lost.
+
+**Evidence.** The two pages before and after, and the remaining site list from
+`grep -rn 'select(' web/lib web/app | grep -v '::text'`. Regression here is silent by construction: nothing
+throws, the number just quietly stops being the number.
+
 ## #23 — A drop pot is credited by the indexer, which is far behind the chain
 
 **What.** A deposit is confirmed when the indexer scans the block that contains it. The indexer is measured at

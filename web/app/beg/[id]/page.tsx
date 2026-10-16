@@ -30,7 +30,10 @@ async function getBeg(id: string) {
   const sb = await createClient();
   const { data, error } = await sb
     .from("begs")
-    .select("id, body, goal, created_at, profiles!inner(username, display_name, avatar_url, wallet_address)")
+    // `goal` is a numeric(78,0) money column: read as text, because a goal
+    // crossing PostgREST as a number comes back as a float64 and prints
+    // 99,999.999999999991611392 where the beg asked for 100,000.
+    .select("id, body, goal::text, created_at, profiles!inner(username, display_name, avatar_url, wallet_address)")
     .eq("id", id)
     .maybeSingle<{
       id: string;
