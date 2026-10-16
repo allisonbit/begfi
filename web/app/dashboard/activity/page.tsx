@@ -13,9 +13,13 @@ export const dynamic = "force-dynamic";
  *
  * Begs received, trades this wallet made, and launches it signed — merged and
  * sorted on the server, then filtered in the browser island so switching
- * between All, Begs, Trades and Launches is instant and costs no fetch. Fee
- * claims are absent for a documented reason (the escrow exposes no claimed
- * history in the ABI BegFi reads; the Fees tab shows claim state live).
+ * between All, Begs, Trades and Launches is instant and costs no fetch.
+ *
+ * The trades and launches filters outlive the launchpad that wrote them: the
+ * rows are history, and the indexer still records trades (see
+ * `KNOWN_ISSUES.md` #16 for the open question about whether it should).
+ * Fee claims were the other half of this feed and went with the Fees tab when
+ * the launchpad was removed in `4da54cd`.
  *
  * Every entry carries its transaction hash, so anything in the feed can be
  * checked against the chain in one click.

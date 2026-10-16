@@ -20,7 +20,6 @@ const COLUMNS = [
       { href: "/begs", label: "Begs" },
       { href: "/earn", label: "Earn" },
       { href: "/leaderboard", label: "Leaderboard" },
-      { href: "/explore", label: "Explore" },
     ],
   },
   {
@@ -34,6 +33,7 @@ const COLUMNS = [
   {
     title: "Legal",
     links: [
+      { href: "/transparency", label: "The books" },
       { href: "/terms", label: "Terms" },
       { href: "/privacy", label: "Privacy" },
     ],
@@ -94,8 +94,10 @@ export async function SiteFooter() {
       */}
       <div className="safe-x mx-auto max-w-[1000px] pb-10">
         <p className="border-t border-beg-line pt-5 text-[12px] text-beg-dim">
-          BegFi is not affiliated with Robinhood. Nothing on this site is financial advice. BegFi never
-          holds your funds and cannot reverse a transaction.
+          BegFi is not affiliated with Robinhood. Nothing on this site is financial advice. Payment links and
+          tips are wallet to wallet — BegFi never holds those funds and cannot reverse a transaction. Campaign
+          pools are different: they are held in a BegFi wallet from the moment you fund them until they are
+          paid out to earners, and unspent pool funds are returned to the funder.
         </p>
       </div>
     </footer>

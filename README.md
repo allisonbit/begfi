@@ -2,118 +2,146 @@
 
 Everyone begs. BegFi gives begging a payment link.
 
-A non-custodial `$BEG` payment link on **Robinhood Chain**, plus a token launchpad. You claim
-`begfi.xyz/<username>`, anyone can open that link and send you `$BEG` wallet-to-wallet, and from
-the same account you can launch a token that pays you a share of its trading fees.
+A **non-custodial `$BEGFI` payment link on Robinhood Chain**, plus paid campaigns. You claim
+`begfi.io/<username>`, anyone can open that link and send you `$BEGFI` wallet-to-wallet, you can request an
+exact amount with a link that carries the memo (`/pay/<id>` — the payer's wallet goes straight to yours), you
+can write a "beg" that generates its own shareable page, and a project can fund a pool that pays people
+automatically for posting about it.
 
-Full specification: `~/Downloads/BegFi-Complete-Spec.md`.
+**`docs/` is the source of truth for what this product is and where it is going.** Read
+[`docs/PROJECT_BRAIN.md`](docs/PROJECT_BRAIN.md) first — it is written from the code rather than from this
+file, and it is updated when the code changes. The other brain files are
+[`ROADMAP.md`](docs/ROADMAP.md) (phases and the audit), [`DECISIONS.md`](docs/DECISIONS.md),
+[`CHANGELOG.md`](docs/CHANGELOG.md), [`KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md), [`SECURITY.md`](docs/SECURITY.md)
+and [`DISTRIBUTION.md`](docs/DISTRIBUTION.md).
+
+> **A note on this file.** It previously advertised `/launch` and `/token/[address]` as routes, months after
+> the launchpad was removed in `4da54cd` — and that stale claim produced two wrong statements in an audit.
+> If a change removes a route, delete it from this file in the same commit.
 
 ## Layout
 
 ```
-web/                    Next.js 16 app — Vercel Root Directory points here
-  app/                  routes: home, /[username], /dashboard, /launch, /token/[address]
-  lib/                  chains, ERC-20, config, Supabase clients, wallet sign-in
-  components/
-contracts/              BegSplitter, its clone factory, and a local-only TestToken
-test/                   Hardhat tests for the splitter
-supabase/migrations/    schema, RLS and seed data for the `begfi` schema
-scripts/                migrate.js (applies migrations), push-env.js (Vercel env)
+web/                     Next.js 16 app — Vercel Root Directory points here
+  app/                   pages: /, /[username], /begs, /beg/[id], /pay/[id], /earn, /earn/[slug],
+                         /leaderboard, /t/[tx], /dashboard/*, /terms, /privacy
+                         api: admin, auth, beg, campaign, cron, earn, message, notifications,
+                              pay, profile, qr, username, watchlist
+  components/            the UI, incl. dashboard-shell (sidebar + phone tabs)
+  lib/                   chains, ERC-20, config, Supabase clients, wallet sign-in,
+                         the payout distributors, pay-links, payout-controls, analytics
+contracts/               BegSplitter, its clone factory, and a local-only TestToken
+test/                    Hardhat tests for the splitter (32 passing)
+supabase/migrations/     schema, RLS and seed data for the `begfi` schema (0001–0025)
+scripts/                 migrate.js (applies migrations), push-env.js (Vercel env),
+                         hooks/ (the pre-commit secret guard)
+docs/                    the product brain — read PROJECT_BRAIN.md first
 ```
-
-`index.html` — the original static landing page — was removed at cutover. It is recoverable from
-git history (last present in `718b12f`).
 
 ## Running it
 
 ```sh
 npm install                 # repo root: Hardhat + OpenZeppelin
 npm test                    # 32 splitter tests
+npm run migrate             # applies supabase/migrations to the `begfi` schema
 
 cd web && npm install       # app dependencies (.npmrc sets legacy-peer-deps — see that file)
-cp .env.example .env.local  # then fill in Supabase keys
+cp .env.example .env.local  # then fill in, at minimum, the Supabase and wallet-auth values
 npm run dev
 ```
 
-### Testing the whole flow, for free
+`web/.env.example` documents every variable. The two REQUIRED groups are Supabase and wallet sign-in;
+everything else degrades to an honest "not configured yet" state rather than a broken-looking control
+(see `web/lib/config.ts`, which resolves every malformed address to `null` and requires the UI to say so).
 
-There is no testnet build. `npx hardhat node` runs at **chainId 4663 — the same chain id as
-mainnet** — so a local run exercises the identical code path with the identical addresses, rather
-than a parallel network that has to be kept in step with the real one.
+**One step that is easy to miss:** the `begfi` schema must be listed under **Settings → API → Exposed
+schemas** in the Supabase dashboard. Without it PostgREST answers 404 for every call no matter how the RLS is
+written.
 
-```sh
-npx hardhat node                    # terminal 1 — leave running
-npm run deploy:local                # terminal 2 — prints the TestToken address
+### Local testing, and what broke about it
 
-# web/.env.local:
-#   NEXT_PUBLIC_RPC_URL="http://127.0.0.1:8545"
-#   NEXT_PUBLIC_BEG_TOKEN_ADDRESS="<the TestToken address it printed>"
-cd web && npm run dev
-```
+`npx hardhat node` runs at **chainId 4663 — the same chain id as mainnet** — so a local run exercises the
+identical code path rather than a parallel network that has to be kept in step with the real one.
 
-Then connect a wallet, claim a username, open `/[username]` from a second wallet, send, and watch
-the total appear. Real transactions, real signatures, no money.
+The old recipe here set `NEXT_PUBLIC_BEG_TOKEN_ADDRESS` to a locally deployed `TestToken`. **That no longer
+works**: `$BEGFI`'s contract address is pinned in `web/lib/config.ts` (`TOKEN_CA`) and is deliberately not
+env-overridable, so the app always reads the real token. Local end-to-end testing of the *send* flow
+therefore needs the chain forked at the pin, not a test token — this is the direct cost of the "always this
+exact CA" decision (`docs/DECISIONS.md` D-002), recorded rather than papered over.
 
-`TestToken` has an open `mint` — it is a faucet, and it must never exist on a chain where it could
-be mistaken for $BEG. The deploy script refuses to deploy it to mainnet.
-
-### Deploying for real
-
-`npm run deploy:mainnet` spends real ETH and writes a public contract. Nothing in this repo has
-ever been run against mainnet — no token, no splitter, no factory. Two gates sit in front of it:
-
-1. **Spec §13's audit.** The splitter is unaudited and would hold real fee revenue, with no upgrade
-   path and no way to fix a bug after deployment.
-2. **The Pons fee path is unfinished.** Pons V2 holds creator fees in a fee escrow
-   (`0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e`) that the recipient claims from, rather than
-   pushing them to the recipient. `BegSplitter.receive()` may therefore never see a wei. Finishing
-   it needs that contract's ABI. Read the note at the top of `contracts/BegSplitter.sol` before
-   deploying it anywhere that matters.
+`TestToken` has an open `mint` — it is a faucet, and it must never exist on a chain where it could be
+mistaken for `$BEGFI`. The deploy script refuses to deploy it to mainnet.
 
 ## Current state
 
-**Built and verified**
+**Built, running, and verified**
 
-- `BegSplitter` + factory — 26 Hardhat tests passing, including the negative cases: a stranger
-  cannot claim, the launcher cannot reach the treasury's share, a non-controller cannot touch the
-  growth fund, rounding never strands a wei, and no function in the ABI changes the split.
-- Database schema with RLS. Three corrections to the spec's sketch, the important one being that
-  `profile_stats` is created `security_invoker` — without it a Postgres view bypasses RLS on the
+- **`/[username]` pay page** — avatar, bio, socials, X-verified tick, QR plus a downloadable share card, and
+  the non-custodial `$BEGFI` send flow. Wallet-to-wallet: BegFi never holds these funds.
+- **Pay Links** — `/pay/<id>`: a fixed amount with a memo, a QR (`/api/qr/pay/<id>`), share text and its own
+  OG card. The row is an ASK, never money — the payer's wallet sends straight to the owner's, and "paid" is
+  derived from the indexer's confirmed transfers rather than stored, so no row of ours can claim money that
+  did not arrive. `/dashboard/pay-links` creates, copies, closes and opens them.
+- **Begs** — `/begs` feed, `/beg/[id]` pages with goals and progress, generated share images, and `/t/[tx]`
+  tip receipts framed as something worth posting.
+- **Earn / campaigns** — individual and project campaigns with their own pools, deposits credited from
+  confirmed on-chain transfers, per-UTC-day reward cycles, **automatic payouts** with no manual approval, a
+  pending-verification queue, and review actions for the allowlisted admin wallet. Two independent
+  no-double-payment layers: `payout_tx IS NULL` for money truth and an atomic `claimed_at` lease for send
+  truth.
+- **`$BEGFI` is live** on Robinhood Chain (4663), launched 2026-10-14 via runitup.gg. Home-page stats (market
+  cap, price, volume, liquidity, holders, fees) read from real market and on-chain sources, all keyed off the
+  single pinned `TOKEN_CA`.
+- **Money safety controls** — a **global payout kill switch** (`begfi.payout_controls`, one lever on
+  `/dashboard/earn/payouts`, read at the top of every sweep, claim and submit; it fails closed on an unreadable
+  row) and an **hourly reconciliation job** (`/api/cron/reconcile` via `.github/workflows/reconcile.yml`) that
+  compares each token's obligations against the distributor's live on-chain balance, records the result in
+  `begfi.reconciliation_runs`, and pauses payouts automatically on a shortfall before it alerts a human.
+- **Dashboard** — a sidebar from `md` up and a tab row on phones, over Overview, Begs, Pay Links, Campaigns,
+  Activity and Profile, with Admin sections for an admin wallet only.
+- **Leaderboard** (all-time and weekly) with levels, streaks and weekly Beg Battles; notifications bell;
+  activity feed; watchlist.
+- **Indexer** at `/api/cron/indexer`, called every 15 minutes by `.github/workflows/indexer.yml` — Vercel's
+  Hobby plan allows one cron a day, so the workflow is the honest workaround and the site's copy says so.
+- **Growth plumbing** — dynamic `sitemap.xml`, `robots.txt`, a PWA manifest, per-page Open Graph images, and
+  env-gated analytics (blank `NEXT_PUBLIC_GA_ID` loads nothing at all).
+- **`BegSplitter` + factory** — 32 Hardhat tests passing, including the negative cases: a stranger cannot
+  claim, the launcher cannot reach the treasury's share, a non-controller cannot touch the growth fund,
+  rounding never strands a wei, and no function in the ABI changes the split.
+- **Schema with RLS** — `profile_stats` is created `security_invoker`; without it a view bypasses RLS on the
   tables underneath and would leak hidden profiles and the whole transfer graph.
-- Next.js app: design system, wallet connection, wallet sign-in (nonce → signature → session),
-  username availability and atomic claim, home page, terms, privacy.
-- `/[username]` public page with the wallet-to-wallet send flow, `/beg/[id]` progress pages and
-  the public `/begs` feed, with generated share images.
-- `/dashboard` (overview, profile edit, activity, launches) and its own tab navigation.
-- The `/launch` form and `/token/[address]` pages, reading straight from Pons' factory on-chain.
-- The indexer that records confirmed `Transfer` events, driven by `/api/cron/indexer`.
 
 **Not built yet**
 
-- Nothing in the app tree, and the database is now live. The remaining blockers are outside the
-  code: `$BEG` itself is not deployed, and the audit gate.
+- **Drops/giveaways**, **multi-chain** (Ethereum, Base), the **rest of the admin panel** (audit log, wallet
+  monitor, moderation) and the **campaign verifier** as a swappable module. Phases and priorities:
+  `docs/ROADMAP.md`.
 
-**Blocked on things outside the code**
+**Blocked or risky on things outside the code**
 
-1. **`$BEG` does not exist.** No contract, no address. The product's currency has no deployment, so
-   the send flow can be tested only against a local test token.
-2. **Pons integration is unverified.** Pons V2 appears to hold creator fees in a *fee escrow* that
-   the recipient claims from, rather than pushing them to the recipient address. If so,
-   `BegSplitter.receive()` may never see a wei on its own and the contract needs a call into Pons'
-   escrow — whose ABI we do not have. **Do not deploy the splitter expecting fees to arrive until
-   this is settled against Pons' real contracts.**
-3. **The Supabase schema has been applied** (2026-10-06, via `scripts/migrate.js` over the
-   session pooler; all seven migrations, verified anon-readable from the REST API with
-   `received_since` answering through `Content-Profile: begfi`). What is still open: none —
-   the `begfi` schema is exposed in the API settings via migration 0003's
-   `app.settings.exposed_schemas`.
-4. An audit is a hard gate before any mainnet deployment of the *splitter* (spec §13).
+1. **Held funds run through one hot key.** Earn and campaign pools are funded to a wallet controlled by the
+   backend and paid out automatically by an EOA whose key is the server secret `DISTRIBUTOR_PRIVATE_KEY`.
+   There is no escrow (the plan's §3.2 model) and no hot/cold split, so one leaked key still loses every pool
+   at once. The two controls that do not require new custody shipped on 2026-10-16 — a global kill switch and
+   hourly ledger-versus-chain reconciliation — and the remaining exposure is tracked in
+   `docs/KNOWN_ISSUES.md` #1 and `docs/SECURITY.md`.
+2. **The splitter is unaudited, and the Pons fee path is unfinished.** Pons V2 holds creator fees in a fee
+   escrow (`0xd3AFEB2a57f70eF218Aa82451c51B2fb0416Ac9e`) that the recipient claims from, rather than pushing
+   them to the recipient, so `BegSplitter.receive()` may never see a wei. Finishing it needs that contract's
+   ABI. Read the note at the top of `contracts/BegSplitter.sol` before deploying it anywhere that matters.
+3. **An audit is a hard gate** before any mainnet deployment of the splitter.
 
 ## Conventions worth knowing
 
-- **No fake data, anywhere.** No invented users, balances, totals or addresses. Unconfigured
-  features say they are unconfigured rather than rendering a control that cannot work. This is a
-  standing rule of the owner's and the spec restates it in §3 and §17.
+- **No fake data, anywhere.** No invented users, balances, totals or addresses. An unconfigured feature says
+  it is unconfigured rather than rendering a control that cannot work.
+- **A call to action links to a page that renders the thing it promises.** `/begs` used to advertise "Write a
+  beg" with a button leading to a page that had no composer — which is how a database with hundreds of real
+  accounts held zero begs (`docs/DECISIONS.md` D-030).
+- **The code comments explain why, not what.** The reasoning is the part that is expensive to rediscover;
+  keep it.
 - **Supabase for records and files.** Never Vercel Blob.
-- **`web/.npmrc` sets `legacy-peer-deps`.** RainbowKit 2.2.11 declares a wagmi 2 peer and this app
-  runs wagmi 3. The reason, and the build failure that ruled out the alternative, are in that file.
+- **Server secrets never carry the `NEXT_PUBLIC_` prefix**, and `.env` is refused by the pre-commit hook by
+  both name and content (`scripts/hooks/pre-commit`).
+- **`web/.npmrc` sets `legacy-peer-deps`.** RainbowKit 2.2.11 declares a wagmi 2 peer and this app runs wagmi
+  3. The reason, and the build failure that ruled out the alternative, are in that file.

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 import { SiteDock, SiteNav } from "@/components/site-nav";
 import { SiteFooter } from "@/components/site-footer";
+import { Analytics } from "@/components/analytics";
 import { SITE_URL } from "@/lib/config";
 
 /**
@@ -50,6 +51,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <SiteNav />
           <div className="flex-1">{children}</div>
           <SiteFooter />
+          {/* Measurement loads last and renders nothing. Blank GA id = no-op. */}
+          <Analytics />
           {/*
             Dock clearance: the dock is fixed, so something in flow has to
             reserve its strip — after the footer, which is the page's true

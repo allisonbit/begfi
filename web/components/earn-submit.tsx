@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ClaimCard } from "@/components/claim-card";
+import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import { useWalletSignIn } from "@/lib/useWalletSignIn";
 
@@ -82,6 +83,7 @@ export function EarnSubmitBox({ disabledReason }: { disabledReason: string | nul
         setCardAmount(rewardText);
         setMessage(null);
         setPostUrl("");
+        track("campaign_joined");
       } else {
         setMessage(body?.error ?? "Something went wrong. Try again.");
         setMessageKind("error");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 
 /**
  * The campaign "Post & Earn" box.
@@ -59,6 +60,7 @@ export function CampaignSubmitBox({
         return;
       }
       setState("done");
+      track("campaign_joined", { campaign: slug });
       setNotice(`Post accepted and verified — it shares in ${notifyOn ?? "today's"} payout automatically.`);
     } catch {
       setError("Network hiccup — your post was NOT stored. Try again.");

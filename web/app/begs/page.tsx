@@ -97,7 +97,10 @@ export default async function BegsPage() {
           <h1 className="text-[clamp(32px,7vw,48px)] font-extrabold tracking-[-.05em]">Begs</h1>
           <p className="mt-1 text-beg-dim">What people are asking for, and how close they are.</p>
         </div>
-        <Link href="/dashboard" className="btn-primary">
+        {/* Straight to the tab that holds the composer. It used to point at
+            `/dashboard`, which had no way to write one either — the button that
+            promised the product's core action led to a page without it. */}
+        <Link href="/dashboard/begs" className="btn-primary">
           Write a beg
         </Link>
       </header>

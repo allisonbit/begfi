@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "wagmi";
 import { LINK_ORIGIN, USERNAME_MAX, USERNAME_PATTERN, isReserved } from "@/lib/config";
+import { track } from "@/lib/analytics";
 import { useAuth } from "@/lib/auth-context";
 import { useWalletSignIn } from "@/lib/useWalletSignIn";
 
@@ -154,6 +155,7 @@ export function HomeHero() {
         return;
       }
 
+      track("username_claimed", { source: "home" });
       setClaimed(clean);
       await refresh();
     } finally {

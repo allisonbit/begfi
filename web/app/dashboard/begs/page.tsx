@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BegComposer } from "@/components/beg-composer";
 import { CopyLink } from "@/components/copy-link";
 import { OwnBegList } from "@/components/own-beg-list";
 import { shortAddress } from "@/lib/chains";
@@ -18,6 +19,13 @@ export const dynamic = "force-dynamic";
  * same rows the Overview total is built from — so a supporter named here gave
  * something that is actually on the chain. The begs list links to each beg's
  * own shareable page.
+ *
+ * WHY THE COMPOSER IS HERE, AND WHY THAT IS A FIX RATHER THAN A FEATURE. This
+ * page's empty state has always said "Write one and it shows up here", and this
+ * page offered no way to write one: `BegComposer` — the only caller of
+ * `/api/beg` — was imported by nothing. So the product's core action was
+ * unreachable from the entire site. That is why the database holds hundreds of
+ * real accounts and zero begs, and it is why the fix is one import.
  */
 export default async function BegsPage() {
   const profile = await getProfile();
@@ -40,6 +48,11 @@ export default async function BegsPage() {
       </section>
 
       <section>
+        <h2 className="mb-3 text-xl font-extrabold tracking-[-.03em]">Write a beg</h2>
+        <BegComposer />
+      </section>
+
+      <section>
         <h2 className="mb-3 text-xl font-extrabold tracking-[-.03em]">Your begs</h2>
         {dbFailed ? (
           <p className="notice-dashed p-5">
@@ -48,7 +61,7 @@ export default async function BegsPage() {
           </p>
         ) : begs.length === 0 ? (
           <p className="notice-dashed p-5">
-            No begs written yet. Write one and it shows up here, with its own shareable page at
+            Nothing written yet. Use the box above and it appears here, with its own shareable page at
             its own link.
           </p>
         ) : (

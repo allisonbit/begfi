@@ -269,12 +269,22 @@ export async function getLeaderboard(
    */
   const data = await (async () => {
     if (window === "all") {
+      /*
+       * WHY THE ORDERING USES `total_received_units` AND THE DISPLAY DOES NOT.
+       *
+       * `total_received` is TEXT (migration 0026) so the digits survive
+       * PostgREST — a `numeric` comes back as a float64 and a 24-digit base-unit
+       * total loses its last digits on the way out. But text sorts
+       * lexicographically, where "9" beats "10000": ranking on it would produce
+       * a leaderboard that is simply wrong. `total_received_units` is the same
+       * number as `numeric`, ordered inside Postgres where it is exact.
+       */
       const { data, error } = await admin
         .from("profile_stats")
         .select("profile_id, total_received, supporters, profiles!inner(username, display_name, avatar_url, wallet_address, is_hidden)")
         .eq("profiles.is_hidden", false)
-        .gt("total_received", "0")
-        .order("total_received", { ascending: false })
+        .gt("total_received_units", "0")
+        .order("total_received_units", { ascending: false })
         .limit(limit);
       if (error || !data) return null;
       return data.map((d) => ({

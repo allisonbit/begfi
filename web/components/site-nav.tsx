@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, Coins, LayoutGrid, Trophy, User } from "lucide-react";
+import { HandCoins, Coins, Trophy, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -24,11 +24,15 @@ import { useAuth } from "@/lib/auth-context";
  * because only then is there an account to manage.
  */
 
+/*
+ * Four tabs, not five. "Explore" was removed with the launchpad (`4da54cd`
+ * deleted its routes but left the tab pointing at a catalog nothing could add
+ * to any more). Four wider targets also beat five narrow ones under a thumb.
+ */
 const links = [
   { href: "/begs", label: "Begs", Icon: HandCoins },
   { href: "/earn", label: "Earn", Icon: Coins },
   { href: "/leaderboard", label: "Board", Icon: Trophy },
-  { href: "/explore", label: "Explore", Icon: LayoutGrid },
   { href: "/dashboard", label: "You", Icon: User },
 ] as const;
 

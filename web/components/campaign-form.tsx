@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { track } from "@/lib/analytics";
 
 type Draft = {
   id?: string;
@@ -77,7 +78,10 @@ export function CampaignForm({ initial, busyLabel = "Create campaign" }: { initi
         return;
       }
       setSaved(initial?.id ? "Saved." : "Campaign live — fund the pool and it starts paying.");
-      if (!initial?.id) setDraft({ ...EMPTY });
+      if (!initial?.id) {
+        track("campaign_created");
+        setDraft({ ...EMPTY });
+      }
       router.refresh();
     } catch {
       setError("Network hiccup — nothing was saved. Try again.");

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ShareButtons } from "@/components/share-buttons";
+import { track } from "@/lib/analytics";
 import { formatAmount, parseAmount } from "@/lib/erc20";
 
 /**
@@ -64,6 +65,9 @@ export function BegComposer() {
         return;
       }
 
+      // The product's core action. Counting it is how "is anyone using this" stops
+      // being a guess.
+      track("beg_posted", { has_goal: goalWei !== null });
       setShare({
         url: `${window.location.origin}/beg/${result.id}`,
         id: result.id,
