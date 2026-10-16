@@ -11,7 +11,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing · ⚠️ risk
 
 | Plan section | Requirement | Status | Reality |
 |---|---|---|---|
-| §0–1 | Four products under one identity | 🟡 | Beg pages + Campaigns + **Pay Links** live. Drops ❌ — the only product with no schema at all. |
+| §0–1 | Four products under one identity | ✅ | Beg pages + Campaigns + Pay Links + **Drops** all live, sharing one identity, one dashboard, one payout engine. |
 | §2 | Multi-chain: Ethereum, Base, Robinhood | ❌ | Robinhood only, hardcoded in `web/lib/chains.ts`. |
 | §2 | `chains` config as a **DB row**, not code | ❌ | Code constants. Adding Base today = code change + redeploy. |
 | §2 | ERC-20 autodiscovery + suspicious-token warnings | 🟡 | `config.ts` validates addresses; token metadata read (`erc20.ts`, `token-stats.ts`). No fee-on-transfer / honeypot screen. |
@@ -30,7 +30,7 @@ Legend: ✅ done · 🟡 partial · ❌ missing · ⚠️ risk
 | §3.4 | One claim per wallet **and per X account** | 🟡 ✅ | Per-wallet uniqueness is enforced by unique indexes (wallet+cycle, wallet+campaign+day, post URL). Per-**X-account** uniqueness is weaker. |
 | §3.4 | Captcha / bot protection | ❌ | Device limits (`0014`) + DB rate limiting (`rate_limits`, `check_rate_limit`). No captcha. |
 | §3.5 | Fees configurable, shown upfront | 🟡 | Token-launch fees are tracked from on-chain events (`fees-history.ts`) and surfaced in the footer. No platform-fee setting for pools, and the launchpad that earned those fees is gone. |
-| §4 | Drops in full | ❌ | Nothing exists. |
+| §4 | Drops in full | 🟡 | **Built 2026-10-16** (`docs/DROPS.md`): pot, prize, cap, funding intents, claim, automatic payout, owner controls, ledger page. Missing: **per-pool deposit addresses and refunds** (#21), sybil resistance beyond wallet + verified X (#22), allowlist/recurring/first-claimer modes, a per-drop OG card, and a Drops line on `/transparency`. |
 | §5 | Pay links, request links, receipts, notifications | ✅ | Pay page + QR + receipt page + notifications, plus fixed-amount request links (`/pay/<id>`, memo, QR, share text, OG card) settled from confirmed on-chain transfers. Missing: "pay with anything" conversion estimate. |
 | §6 | Campaigns, both types, auto payout | ✅ | The most built-out part of the platform. |
 | §6.4 | Pluggable verifier | 🟡 | Verification exists (X post read, auto + pending queue). Not a swappable module; depends on a fragile post-read path. |
@@ -46,12 +46,14 @@ Legend: ✅ done · 🟡 partial · ❌ missing · ⚠️ risk
 | §14 | Analytics (GA4, Search Console, events) | ❌ | No analytics of any kind in the code. |
 | §14 | Google Play readiness | ❌ | No manifest / PWA. Web only. |
 | §15 | Docs brain files | ✅ | This folder. |
-| — | Launchpad (was live, unplanned here) | ⚠️ | **Removed** in `4da54cd`, but its read paths remain and `README.md` still advertises `/launch` and `/token/[address]`. `KNOWN_ISSUES.md` #13. |
+| — | Launchpad (was live, unplanned here) | ⚠️ | **Removed** in `4da54cd`. The README's stale route claims were corrected on 2026-10-15 (its own note, top of file); what remains is the unbuilt launchpad's *code* — the 15-minute indexer still scans `trades` through `curve.ts`/`pons.ts`. `KNOWN_ISSUES.md` #13/#16. |
 
 ### The one-sentence audit
-**The campaign money engine is ahead of the plan; everything around it — drops, pay links, multi-chain,
-the app shell, admin, SEO/analytics — is behind it.** The plan reads as if the engine is the hard part.
-It was built first, so the hard part is done and the remaining work is breadth, not depth.
+**The money engine is ahead of the plan, and as of 2026-10-16 all four products sit on it; what is behind is
+the custody work and the platform breadth around them — per-pool deposit addresses, multi-chain, the admin
+console, SEO/analytics depth.** The plan reads as if the engine is the hard part. It was built first, so the
+hard part is done: Drops needed attribution and a cross-product token lease and nothing else, which is the
+strongest evidence yet that the engine choice was right. The remaining work is breadth, not depth.
 
 ---
 
@@ -107,13 +109,22 @@ It was built first, so the hard part is done and the remaining work is breadth, 
 - [x] **The transparency page** (§17.4 improvement #7). Live at `/transparency`: balance, all-time paid, owed,
       switch state, reconciliation per token, recent actions — in the footer and the sitemap.
 
-### Phase 2 — Drops (giveaways)
-- [ ] Schema: `pools`, `claims` (unique per pool per wallet **and** per X account), `payouts`.
-- [ ] Create flow: chain → token → amount → rules → fee/gas review → fund → link + QR + X post.
-- [ ] Claim page: mobile-first, live pool bar, live claim feed, auto-verified requirements, tx + receipt.
-- [ ] Creator dashboard: claims, remaining, claimers, pause/resume/end/top-up/extend, unclaimed refund.
-- [ ] Modes: equal split / fixed / percentage / mystery range / first-N / timed.
-- [ ] **Reuse the campaign deposit+lease payout path — do not build a second money engine.**
+### Phase 2 — Drops (giveaways) — **shipped 2026-10-16**
+- [x] Schema (migration 0029): `drops`, `drop_fundings`, `drop_deposits`, `drop_claims`, plus the cross-product
+      `pool_tokens` lease. Names differ from the plan's `pools`/`claims`/`payouts`, and the payout table is
+      **shared** with campaigns instead of new — see `docs/DROPS.md` §2 for the reuse map.
+- [x] Create flow: token → amount → cap → fund → share link. Fee/gas review step is not built (there is no fee).
+- [x] Claim page: mobile-first, live pot bar, live claim feed, verified-X and wallet gates, tx link per winner.
+- [x] Owner dashboard (`/dashboard/drops`): claims with their state, remaining, every funding intent and its
+      state, fund / open / close, plus owner controls.
+- [x] **Reused the deposit+lease payout path — no second money engine.** Same distributor wallet, same
+      `earn_payouts` ledger (one new `drop_id` column), same lease atom, gas floor, kill switch, alerts and
+      reconciliation. New code is attribution (`drop_fundings`) and the sweep's shape (one whole prize per
+      claim, once, ever) — `docs/DROPS.md` §2.
+- [ ] Modes beyond the plan's first one: allowlist claims, "first claimer takes all", recurring drops. The
+      schema allows them; nothing builds them yet.
+- [ ] Unclaimed refund on end — **not possible without per-pool deposit addresses** (#21); the copy now says
+      the remainder stays in the wallet instead of implying a refund (D-062).
 
 ### Phase 3 — Pay links
 - [x] Fixed-amount request links `/pay/<id>` (amount, memo, token) + QR + share text + per-link OG card.
@@ -174,7 +185,8 @@ person fails at crypto.
    MetaMask. Let them claim to an embedded wallet and withdraw later, or the whole funnel leaks at the door.
 10. **One-tap "pay me" share text with the amount baked in.** `begfi.io/you — send me $5` as a copyable line
     for any chat app, not just X. The messenger matters more than the chain.
-11. **Per-page OG cards for every shareable route, systematic.** Drops, pay requests, campaigns, receipts.
+11. **Per-page OG cards for every shareable route, systematic.** Pay requests, campaigns and receipts have
+    them; **drops do not** — the one shareable route that unfurls as plain text (`docs/DROPS.md` §6.5).
     The card *is* the distribution channel; one missing OG route costs more than a feature.
 12. **PWA install (manifest + offline shell) before Google Play.** Turns the web app into an icon on the home
     screen for free, and it is the honest prerequisite for a store listing.
@@ -190,6 +202,8 @@ person fails at crypto.
 
 Phase 0's SEO floor + analytics (safe, no money touched), then the transparency page and the token-safety
 verdict as the two trust features, then Phase 1 hardening with your approval, then Drops.
+
+*(All four of those items on the left are now done; Drops — the last one — shipped 2026-10-16.)*
 
 ### Updated 2026-10-16
 
@@ -214,4 +228,26 @@ Two things I would build next without touching the money path: **bell the pay-li
 paid** (the transfer is already indexed; the notification kind is the only missing piece), and the **public
 transparency page**, which now has real data to show — `reconciliation_runs` is exactly the "reconciliation
 status" improvement #7 asks to publish, and right now that page would say out loud what the wallet already
-knows.
+knows. **Both shipped on 2026-10-16**, alongside the audit log and low-gas alerting.
+
+### Updated 2026-10-16 (end of session) — Drops, the fourth product
+
+**Drops shipped** (Phase 2, migration 0029, `docs/DROPS.md`): a funded pot, one fixed prize per claimer, a
+cap, automatic payout, owner controls, and a public ledger page. It reused the campaign deposit-and-lease path
+rather than building a second money engine, which is why it moved in one session: the only genuinely new
+pieces are **attribution** (`drop_fundings` — an intent naming the funder's own wallet, matched by the same
+scanner the indexer runs) and a **cross-product token lease** (`pool_tokens`, one payout token = one live pool
+across campaigns and drops).
+
+The build found and fixed **two pre-existing money bugs** (both in `docs/DROPS.md` §7): `earn_payouts` still
+carried migration 0021's `unique (wallet_address, cycle_date)` because 0022 dropped a guessed constraint name
+that never matched — for a week the ledger capped **every wallet at one payout a day across every product**,
+and the campaign sweep read the resulting `23505` as "already served" and skipped it silently; and a crash
+between "claim paid" and "ledger row written" made a pot read too full, because `paid` summed only the ledger.
+Both were found by asserting on numbers, not by reading code — the same lesson as the two silent zeros above.
+
+**What I would do next, in order:** per-pool deposit addresses (Phase 1 §3.2 — one change that closes
+attribution, refunds #21 and the shared-address assumptions for all three products at once), then a sybil pass
+on the claim path (#22: captcha, clustering, an admin queue), then a per-drop OG card and a Drops line on
+`/transparency` — the two cheapest remaining wins, both of which change how a shared link behaves rather than
+how the money moves.

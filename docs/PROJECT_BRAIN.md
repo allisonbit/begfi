@@ -15,13 +15,14 @@ written from the actual code, not the plan's assumptions.
 
 | # | Product | Route (target) | Status |
 |---|---------|----------------|--------|
-| 1 | **Drops** (giveaways) | `/drop/<id>` | **Not built.** No schema, no routes. |
+| 1 | **Drops** (giveaways) | `/drop/<id>` | **Live.** Pots funded on-chain, one fixed prize per claimer, paid automatically by the shared sweep. Plan + record: `docs/DROPS.md`. |
 | 2 | **Pay Links** (payment gateway) | `/pay/<id>` + `/username` | **Live.** `/username` (non-custodial pay page with QR) plus fixed-amount request links at `/pay/<id>` with a memo, QR, share text and on-chain settlement. "Pay with anything" conversion is not built. |
 | 3 | **Campaigns** (Earn) | `/earn`, `/earn/<slug>` | **Live and paying automatically.** Individual + project campaigns, deposits, daily payouts, leaderboards. |
 | 4 | **Beg Pages** (original) | `/username`, `/beg/<id>`, `/begs` | **Live.** The oldest product, still the cleanest money path. |
 
 Everything shares one identity (wallet + username + linked X), one dashboard, one leaderboard, and — since
-migration 0022 — **one payout ledger for BegFi's own pool and every campaign**.
+migration 0022 — **one payout ledger for BegFi's own pool, every campaign and every drop** (0029 added
+`earn_payouts.drop_id`).
 
 ## 2. What is actually live today (verified against the code)
 
@@ -33,6 +34,16 @@ migration 0022 — **one payout ledger for BegFi's own pool and every campaign**
   (no balance, no deposit address, no `paid` flag) and settlement is DERIVED from the indexer's confirmed
   transfers in `lib/pay-links.ts`. `/dashboard/pay-links` creates, lists, copies and closes them. The public
   page shows the total received and whether the ask is met, never who paid (D-036, D-037).
+- **Drops** — migration 0029, `/drops` + `/drop/<id>` + `/dashboard/drops`. A pot of one token, a fixed prize
+  per claim and a cap on how many people can take it, funded from the funder's OWN wallet and paid out by the
+  same sweep that pays campaigns. **The first product built ON the money engine instead of beside it** (D-021,
+  implemented): same distributor wallet, same `begfi.earn_payouts` ledger (one new `drop_id` column), same lease
+  atom on `drop_claims`, same gas floor, kill switch, gas/low-balance alerting and hourly reconciliation. What
+  is genuinely new is ATTRIBUTION (`drop_fundings`: an intent naming the funder's wallet, the drop and the
+  amount, credited only when a transfer matches it) and the cross-product token lease (`begfi.pool_tokens`, one
+  payout token = one live pool across campaigns AND drops, enforced by a trigger). One prize per wallet and one
+  per VERIFIED X account, both unique indexes; device fingerprinting was deliberately not revived (D-055).
+  Details, money rules and the two pre-existing bugs the build surfaced: `docs/DROPS.md`.
 - Beg pages with goals and progress (`/beg/<id>`, `/begs`), tip receipts (`/t/[tx]` + its OG card).
 - Earn: individual campaigns and **project campaigns** with their own pools, deposits credited from
   on-chain transfers, per-UTC-day reward cycles, automatic daily payouts, a pending-verification queue,
@@ -66,14 +77,16 @@ migration 0022 — **one payout ledger for BegFi's own pool and every campaign**
   the service role — which is why public totals do not come from it (D-045).
 - Leaderboard (all-time + weekly) with levels, streaks, and weekly **Beg Battles** with a Monday 00:00 UTC reset.
 - Notifications bell (kinds: `beg`, `fees`, `launch`, `graduation`, `move`, `claim`, `digest`,
-  `earn_payout`, `campaign_payout`, `campaign_pool_low`, `payouts_paused`, `reconcile_alert`), activity feed,
+  `earn_payout`, `campaign_payout`, `campaign_pool_low`, `payouts_paused`, `reconcile_alert`, `pay_link_paid`,
+  `low_gas`, `drop_reward`, `drop_payout`, `drop_funded`), activity feed,
   watchlist. The last two are admin facts about money and go to every admin wallet (migration 0025).
 
 **The money engine (this is the part that matters)**
 - **No smart-contract escrow.** Earn and campaign pools are funded to wallets controlled by the backend and
   paid out automatically by an EOA whose key is the single server secret `DISTRIBUTOR_PRIVATE_KEY`.
-- Triggers: daily Vercel cron (`/api/cron/earn-payouts`, `/api/cron/campaign-payouts`), a funds-arrival
-  sweep fired by the indexer when a transfer to the distributor is seen, and an admin "run a sweep now" button.
+- Triggers: daily Vercel cron (`/api/cron/earn-payouts`, whose function now runs three timed slices — earn,
+  campaigns, drops), a funds-arrival sweep fired by the indexer when a transfer to the distributor is seen,
+  and an admin "run a sweep now" button. A claim fires the drop sweep itself, so a prize lands in seconds.
 - No-double-payment is enforced in two independent layers: money truth (`payout_tx IS NULL` eligibility, set
   only after on-chain confirmation) and send truth (an atomic `claimed_at` **lease** on submission rows).
 - Balance ceiling: the sweep reads the distributor's live token balance before each send and holds a native-gas
@@ -86,13 +99,15 @@ migration 0022 — **one payout ledger for BegFi's own pool and every campaign**
   `.github/workflows/reconcile.yml`, compares each token's obligations against the distributor's live balance,
   records one row per token in `begfi.reconciliation_runs`, and on a shortfall pauses payouts BEFORE it bells
   the admins (D-040–D-042). Its limits are stated in the code and in `KNOWN_ISSUES.md` #3.
-- Two active campaigns can no longer share a payout token (`campaigns_active_token_idx`), and `$BEGFI` can no
-  longer be a campaign's token — the collision in `KNOWN_ISSUES.md` #2 is now unreachable, though the shared
-  deposit address that makes it possible is still Phase 1 work (D-043).
+- Two active campaigns can no longer share a payout token, and `$BEGFI` can no longer be a campaign's token
+  — the collision in `KNOWN_ISSUES.md` #2 is now unreachable, though the shared deposit address that makes it
+  possible is still Phase 1 work (D-043). Since 0029 the lease is a TABLE (`begfi.pool_tokens`) claimed by a
+  trigger on `campaigns` **and** on `drops`, so the rule spans both products: a drop cannot take a token an
+  active campaign is paying in, and a campaign cannot take a token a live drop holds.
 
 **Infrastructure**
 - `web/` — Next.js 16 App Router, React 19, Tailwind 4, wagmi + viem + RainbowKit. Vercel Root Directory = `web`.
-- Supabase project `spgijqgogjugqtjtvunb`, schema **`begfi`** (not `public`), migrations `0001`–`0028`
+- Supabase project `spgijqgogjugqtjtvunb`, schema **`begfi`** (not `public`), migrations `0001`–`0029`
   applied with `npm run migrate` (`scripts/migrate.js`). That script re-runs EVERY file in order, so an older
   migration whose object changed type later must be edited in place — a later file that changes a view column or
   a return type aborts the whole run at the earlier one (D-047).
@@ -106,8 +121,8 @@ migration 0022 — **one payout ledger for BegFi's own pool and every campaign**
   run), so every index-driven fact — pay-link settlement and its bell included — is late by that lag.
   Measured and tracked as `KNOWN_ISSUES.md` #19; the fix is multi-window scans per run.
 - `contracts/` — BegSplitter + clone factory, Hardhat tests in `test/` (32 splitter tests).
-- Site: `begfi.io`. Counted 2026-10-16 after Pay Links and the money-safety work: 26 SQL migrations,
-  42 components, 32 lib modules, 25 API routes and 19 pages (6 of them with their own OG card).
+- Site: `begfi.io`. Counted 2026-10-16 after Drops: 29 SQL migrations, 47 components, 35 lib modules,
+  29 API routes and 23 pages (6 of them with their own OG card).
 - **Payouts are currently PAUSED**, set automatically by the first reconciliation run on 2026-10-16: the
   distributor wallet holds 0 $BEGFI while 210,000 $BEGFI is owed to approved submissions. Funding the wallet is
   what resumes them (`/dashboard/earn/payouts` → Resume).

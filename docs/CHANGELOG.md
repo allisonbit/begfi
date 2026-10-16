@@ -5,6 +5,56 @@ Format: what changed, and why it mattered.
 
 ---
 
+## 2026-10-16 (latest) — Session: Drops, the fourth product, built on the existing money engine
+
+**Shipped — Drops: a funded pot, one fixed prize per claimer, a cap, paid automatically.** `/drops` lists
+the live pots, `/drop/<id>` is the claim page (pot arithmetic, winners with their transactions, share
+buttons), and `/dashboard/drops` is the owner's: create, fund, open, close, plus a line per claim and per
+funding intent. Migration 0029 adds `drops`, `drop_fundings`, `drop_deposits`, `drop_claims` and
+`pool_tokens`. Plan and record in full: **`docs/DROPS.md`**.
+
+**Reused, not rebuilt — the point of the product.** A prize leaves the same distributor wallet that pays
+BegFi's pool and every campaign, is a row in the same `begfi.earn_payouts` ledger (one new `drop_id`
+column), takes the same lease atom on `drop_claims`, and obeys the same gas floor, global kill switch,
+frequency-limited alerting and hourly reconciliation. The daily earn-payouts cron now runs three timed
+slices in one function (earn 22s, campaigns 22s, drops 12s) rather than adding a third schedule — Vercel
+Hobby allows two. What is genuinely new is **attribution**: a campaign is credited by token alone, but a
+second product now shares the receiving wallet, so a funder registers an intent (their own wallet, the drop,
+the amount, RLS-enforced) and the scan credits only transfers that match it (D-056). The other new piece is
+the **cross-product token lease** (`pool_tokens`, claimed by a trigger on `campaigns` and on `drops`), since
+two tables cannot share a partial unique index (D-057).
+
+**Shipped — `payoutWalletReady` (`lib/payout-controls.ts`).** One implementation of "can the wallet pay
+this?" for all three products, replacing the earn submit route's private copy of the same arithmetic.
+
+**Found and fixed two pre-existing money bugs — both surfaced by drops, neither caused by them.**
+(1) `earn_payouts` still carried migration 0021's `unique (wallet_address, cycle_date)` because 0022 dropped
+a *guessed* constraint name that never matched: for a week the ledger capped every wallet at **one payout a
+day across every product**, and the campaign sweep read the resulting `23505` as "already served this
+cycle" and skipped the payout **silently**. 0029 drops it by its real name and creates the three-pool index;
+the disk-qualified `drop index` also had to be fixed, because the migration runner does not run with `begfi`
+on the search path. (2) A crash between "claim paid" and "ledger row written" made a pot read **too full** —
+`paid` summed only the ledger, so money that had already left the wallet was spendable again. `readDropPot`
+now counts a paid claim with no ledger row as gone; verified by seeding exactly that state and watching the
+page move from "Paid out: 0, Claimable: 2,000" to "Paid out: 200, Claimable: 1,800". Both were found by
+asserting on a number rather than by reading code, the same lesson as the two silent zeros of the previous
+session.
+
+**Deliberately not built, and said out loud.** No per-pool deposit addresses and **no refund for an unspent
+pot** — the remainder stays in the shared wallet, and the dashboard, the footer and `docs/DROPS.md` now say
+so instead of implying otherwise (D-062; the footer had been implying unconditional refunds with no code
+behind it). No deviceless sybil defence beyond one prize per wallet and per **verified** X account: device
+fingerprinting existed and was removed on purpose in the earn rewrite, and drops do not revive it (D-055).
+No per-drop OG card yet. Open limitations recorded as `KNOWN_ISSUES.md` #20–#23.
+
+**Verified.** `tsc --noEmit` clean; `next build` exit 0 with `/drops`, `/drop/[id]`, `/dashboard/drops` and
+the four `/api/drop/*` routes in the route table; 24 database assertions against the live schema (token
+lease across both products, the shared ledger's uniqueness, RLS on claims and intents, the partial X-handle
+index, lease release on delete) — all pass; live pages through the running dev server: `/drops` 200,
+`/drop/<id>` 200 rendering a seeded pot (200 PEPE per claim, 9 prizes left, 1/10 claimed, winners row with
+its transaction link), `/sitemap.xml` carrying `/drops`, and all four API routes answering 401 with their own
+sentence when signed out. Fixtures were removed afterwards; no test rows remain.
+
 ## 2026-10-16 (later) — Session: the payment bell, gas alerting, the audit log, and the books
 
 **Shipped — the pay-link payment bell, raised from the transfer the indexer already

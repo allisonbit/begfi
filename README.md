@@ -89,6 +89,13 @@ mistaken for `$BEGFI`. The deploy script refuses to deploy it to mainnet.
   pending-verification queue, and review actions for the allowlisted admin wallet. Two independent
   no-double-payment layers: `payout_tx IS NULL` for money truth and an atomic `claimed_at` lease for send
   truth.
+- **Drops / giveaways** — `/drops` and `/drop/<id>`: a pot of one token, a fixed prize per claim and a cap on
+  claimers, funded from the funder's own wallet, claimed with one prize per wallet **and per verified X
+  account**, and paid automatically from the same distributor that pays campaigns. It shares the payout engine
+  rather than running a second one — same ledger, same lease atom, same kill switch, same reconciliation;
+  what is new is intent-matched funding attribution and a token lease that spans both products. Pot
+  arithmetic (deposited / paid / promised / claimable), winners and their transactions are public on the
+  drop page; owners manage it at `/dashboard/drops`. Design and open gaps: `docs/DROPS.md`.
 - **`$BEGFI` is live** on Robinhood Chain (4663), launched 2026-10-14 via runitup.gg. Home-page stats (market
   cap, price, volume, liquidity, holders, fees) read from real market and on-chain sources, all keyed off the
   single pinned `TOKEN_CA`.
@@ -98,7 +105,7 @@ mistaken for `$BEGFI`. The deploy script refuses to deploy it to mainnet.
   compares each token's obligations against the distributor's live on-chain balance, records the result in
   `begfi.reconciliation_runs`, and pauses payouts automatically on a shortfall before it alerts a human.
 - **Dashboard** — a sidebar from `md` up and a tab row on phones, over Overview, Begs, Pay Links, Campaigns,
-  Activity and Profile, with Admin sections for an admin wallet only.
+  Drops, Activity and Profile, with Admin sections for an admin wallet only.
 - **Leaderboard** (all-time and weekly) with levels, streaks and weekly Beg Battles; notifications bell;
   activity feed; watchlist.
 - **Indexer** at `/api/cron/indexer`, called every 15 minutes by `.github/workflows/indexer.yml` — Vercel's
@@ -113,16 +120,18 @@ mistaken for `$BEGFI`. The deploy script refuses to deploy it to mainnet.
 
 **Not built yet**
 
-- **Drops/giveaways**, **multi-chain** (Ethereum, Base), the **rest of the admin panel** (audit log, wallet
-  monitor, moderation) and the **campaign verifier** as a swappable module. Phases and priorities:
-  `docs/ROADMAP.md`.
+- **Multi-chain** (Ethereum, Base), the **rest of the admin panel** (wallet monitor, moderation), the
+  **campaign verifier** as a swappable module, and — the two caveats a funder should know before funding
+  anything — **per-pool deposit addresses with refunds** and stronger sybil resistance on claims.
+  Phases and priorities: `docs/ROADMAP.md`.
 
 **Blocked or risky on things outside the code**
 
-1. **Held funds run through one hot key.** Earn and campaign pools are funded to a wallet controlled by the
-   backend and paid out automatically by an EOA whose key is the server secret `DISTRIBUTOR_PRIVATE_KEY`.
-   There is no escrow (the plan's §3.2 model) and no hot/cold split, so one leaked key still loses every pool
-   at once. The two controls that do not require new custody shipped on 2026-10-16 — a global kill switch and
+1. **Held funds run through one hot key.** Earn pools, campaign pools and drop pots are funded to a single
+   wallet controlled by the backend and paid out automatically by an EOA whose key is the server secret
+   `DISTRIBUTOR_PRIVATE_KEY`. There is no escrow (the plan's §3.2 model) and no hot/cold split, so one leaked
+   key still loses everything at once — and because every pool shares one address, an unspent pot cannot be
+   returned automatically (`docs/KNOWN_ISSUES.md` #21). The two controls that do not require new custody shipped on 2026-10-16 — a global kill switch and
    hourly ledger-versus-chain reconciliation — and the remaining exposure is tracked in
    `docs/KNOWN_ISSUES.md` #1 and `docs/SECURITY.md`.
 2. **The splitter is unaudited, and the Pons fee path is unfinished.** Pons V2 holds creator fees in a fee
