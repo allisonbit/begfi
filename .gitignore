@@ -28,4 +28,13 @@ typechain-types/
 # Editor / OS
 .DS_Store
 Thumbs.db
+
+# Explainer video (video/README.md). The script and the tooling are committed;
+# the rendered artefacts are minutes of video and hundreds of PNGs, and the venv
+# holds a bundled ffmpeg binary. Regenerate with the four commands in the README.
+video/.venv/
+video/shots/
+video/audio/
+video/build/
+video/begfi-explainer.mp4
 *.log

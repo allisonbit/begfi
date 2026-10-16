@@ -1,0 +1,386 @@
+{
+  "title": "BegFi — everything, explained",
+  "voice": "en-US-AndrewNeural",
+  "rate": "+8%",
+  "chapters": [
+    {
+      "id": "01",
+      "title": "What BegFi is",
+      "beats": [
+        {
+          "text": "BegFi is a crypto money-movement platform. One link, any EVM chain, in under a minute.",
+          "card": {
+            "kicker": "Welcome",
+            "title": "BegFi, explained",
+            "lead": "One link. Any chain. Under a minute.",
+            "points": ["The four products", "The money engine", "The safety controls", "And what is not built yet"]
+          }
+        },
+        {
+          "text": "It answers a question that sounds trivial and is not: how does somebody with no wallet, and no patience, receive crypto from a group chat, or send it to one?",
+          "page": "https://www.begfi.io/",
+          "zoom": "in"
+        },
+        {
+          "text": "BegFi's answer is four products sharing one identity, one dashboard, one leaderboard, and one money engine. You can beg for crypto, pay somebody with a link, run a campaign that pays people for work, or give crypto away. Everything settles on chain, and the numbers are public. This video walks through all of it, including the parts that are unfinished.",
+          "card": {
+            "kicker": "The shape",
+            "title": "Four products, one engine",
+            "points": [
+              "Beg pages — ask with a link",
+              "Pay Links — request a fixed amount",
+              "Campaigns — pay for verified work",
+              "Drops — fund a pot, first come first paid"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "02",
+      "title": "Beg pages",
+      "beats": [
+        {
+          "text": "The oldest product is the beg page, and it is still the simplest money path on the site: a profile at slash your username, with an avatar, a bio, socials, a verified X tick, a QR code and a share card.",
+          "page": "https://www.begfi.io/leooo"
+        },
+        {
+          "text": "Anyone can send the token straight to that wallet. Payment pages and tips are wallet to wallet — BegFi never holds those funds and cannot reverse a transaction. A beg is a request with a goal and a progress bar, and every tip produces a receipt at slash t slash transaction hash: a page you can post that proves money moved.",
+          "page": "https://www.begfi.io/beg/6a7919ab-d862-498e-ac53-64f278f1552a"
+        },
+        {
+          "text": "The feed at slash begs is the public wall of them, and the leaderboard ranks everyone who gives, earns and begs across the whole platform.",
+          "page": "https://www.begfi.io/begs"
+        }
+      ]
+    },
+    {
+      "id": "03",
+      "title": "Pay Links",
+      "beats": [
+        {
+          "text": "Product two is Pay Links: a request with an amount and a note. You create one in the dashboard and get a page like this, a QR code for a phone camera, share text, and its own unfurl card.",
+          "page": "https://www.begfi.io/pay/3ab71ac4-54f0-4d3d-b207-80dd8bc10eac"
+        },
+        {
+          "text": "A Pay Link is deliberately not money. The row in our database is an ask: no balance, no deposit address, no paid flag. The payer's wallet sends straight to the owner's wallet, which is why there is nothing here to lose or to freeze.",
+          "card": {
+            "kicker": "Non-custodial by construction",
+            "title": "A request is not a balance",
+            "points": [
+              "The row is an ask — no funds, no address",
+              "The payer sends wallet to wallet",
+              "Settlement is derived from the chain",
+              "A partial payment is recorded, never announced"
+            ]
+          }
+        },
+        {
+          "text": "Paid is decided by reading the chain. When the indexer confirms a transfer that covers the ask, the run that recorded it settles the request and rings the owner's notification bell. A partial payment is written down but not announced, because calling it paid would be a guess about what the payer meant.",
+          "card": {
+            "kicker": "How it settles",
+            "title": "Confirmed on chain, then a bell",
+            "points": [
+              "The 15-minute indexer confirms the transfer",
+              "The same run settles the request",
+              "The settling hash is stored on the row",
+              "No second watcher, no render-time guessing"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "04",
+      "title": "Campaigns",
+      "beats": [
+        {
+          "text": "Product three is Earn, where campaigns live. A project funds a pool, writes the rules, and pays people for verified work: posting about the project, joining it, referring it. There are individual campaigns, and project campaigns that run a daily budget over a period.",
+          "page": "https://www.begfi.io/earn"
+        },
+        {
+          "text": "Deposits are credited from confirmed on-chain transfers. Rewards are paid once per UTC day, automatically, with no manual approval in between, and posts are verified against X with a pending queue for the ones that need a human to look.",
+          "card": {
+            "kicker": "Campaigns",
+            "title": "Fund a pool, pay for work",
+            "points": [
+              "Deposits credited from confirmed transfers",
+              "Daily reward cycles, per UTC day",
+              "Automatic payouts — no approval step",
+              "Verification against X, with a review queue"
+            ]
+          }
+        },
+        {
+          "text": "Every campaign has its own leaderboard, and the site-wide one ranks everyone across all of them. It is the most built-out part of the platform, and the engine it uses is the engine everything else now shares.",
+          "page": "https://www.begfi.io/leaderboard"
+        }
+      ]
+    },
+    {
+      "id": "05",
+      "title": "Drops",
+      "beats": [
+        {
+          "text": "Product four is the newest: Drops. A drop is a pot of one token, a fixed prize per claim, and a cap on how many people can take it.",
+          "card": {
+            "kicker": "Product 4",
+            "title": "Drops",
+            "lead": "First come, first paid.",
+            "points": ["One pot", "One fixed prize", "A cap on claimers", "Paid in seconds"]
+          }
+        },
+        {
+          "text": "Someone funds the pot, sets the prize, and shares the link. The first people to open it sign in, claim, and each receives that prize in their own wallet within seconds. One prize per wallet, and one per verified X account.",
+          "page": "https://www.begfi.io/drop/DEMO_DROP_ID"
+        },
+        {
+          "text": "The page shows the pot's arithmetic in full: deposited, paid out, promised, and claimable right now. A claim is paid in full or refused — never partial, and never queued behind an empty pot.",
+          "page": "https://www.begfi.io/drops"
+        },
+        {
+          "text": "What makes Drops interesting is what it did not build. It reuses the campaign payout engine instead of running a second one: the same distributor wallet, the same ledger table, the same lease that makes a double payment impossible, the same kill switch, the same reconciliation. The only genuinely new pieces are how a pot is credited, and a lease that stops two products paying in the same token.",
+          "card": {
+            "kicker": "Reuse, not a second engine",
+            "title": "Drops runs on the campaign engine",
+            "points": [
+              "Same wallet and key",
+              "Same payout ledger, one new column",
+              "Same lease atom, gas floor, kill switch",
+              "New: intent-matched funding, cross-product token lease"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "06",
+      "title": "The money engine",
+      "beats": [
+        {
+          "text": "So how does the money actually move? There is no escrow contract and no smart-contract custody. Pools are funded to a wallet BegFi controls, and paid out automatically by a single key held by the server: the distributor private key.",
+          "card": {
+            "kicker": "The engine",
+            "title": "No escrow. One hot wallet.",
+            "points": [
+              "Funders send tokens to the payout wallet",
+              "The backend pays out from one EOA",
+              "The key is a single server secret",
+              "Simple, chain-agnostic — and a real risk"
+            ]
+          }
+        },
+        {
+          "text": "That is a deliberate trade, and the risks are written down rather than hidden: no escrow means less code to break, but one leaked key would lose everything at once, and there is no hot-cold split yet.",
+          "card": {
+            "kicker": "Stated risk",
+            "title": "One key holds the float",
+            "points": [
+              "No KMS, no rotation plan yet",
+              "No hot and cold wallet split yet",
+              "Known and tracked, not hidden",
+              "Mitigated today by stopping power, not by custody"
+            ]
+          }
+        },
+        {
+          "text": "Two independent layers stop a double payment. Money truth: a payout only counts once its transaction is confirmed on chain, and a hash is filed before anyone waits for it. And send truth: an atomic lease, claimed in the database before the send, so two runs that try to pay the same person cannot both win.",
+          "card": {
+            "kicker": "No double payments",
+            "title": "Two layers of truth",
+            "points": [
+              "Money truth — confirmed on chain, then counted",
+              "Send truth — an atomic lease written before sending",
+              "A stale lease expires after ten minutes",
+              "A failed send releases it for the next run"
+            ]
+          }
+        },
+        {
+          "text": "Everything that leaves the wallet is one row in one ledger, shared by BegFi's own reward pool, every campaign, and every drop. Each send reads the wallet's live token balance first and holds a native-gas floor, so a run stops rather than firing transactions it cannot pay for.",
+          "card": {
+            "kicker": "One ledger",
+            "title": "Three pools, one money trail",
+            "points": [
+              "Pool tokens, rewards and drop prizes in one table",
+              "Live balance read before every send",
+              "A native-gas floor blocks the run, not the transaction",
+              "One audit trail the admin console can read"
+            ]
+          }
+        },
+        {
+          "text": "Then there is attribution, which is harder than it sounds when every pool shares one address. A campaign is credited by token alone. A drop is credited by intent: the funder registers which wallet, which pot, and how much, and the scanner credits only transfers that match. A transfer that matches no intent is credited nowhere, on purpose — guessing would credit somebody else's giveaway with your money.",
+          "card": {
+            "kicker": "Attribution",
+            "title": "Credit by intent, not by hope",
+            "points": [
+              "Funder registers wallet, pot and amount",
+              "Only matching transfers are credited",
+              "An unmatched transfer waits, uncredited",
+              "The budget the funder named is the budget we honour"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "07",
+      "title": "The safety controls",
+      "beats": [
+        {
+          "text": "Four controls make that engine survivable, and all four exist because a wallet that pays people also has to be able to stop, and to be checked.",
+          "card": {
+            "kicker": "Money safety",
+            "title": "Stop, check, alert, record",
+            "points": ["A kill switch", "Hourly reconciliation", "Gas alerting", "An audit log"]
+          }
+        },
+        {
+          "text": "One: a global kill switch. It is a single row, read at the top of every payout path, and flipped from the admin console. It fails closed: if that row cannot be read, payouts stop. The moment you need a kill switch is the moment the database is misbehaving.",
+          "card": {
+            "kicker": "Control 1",
+            "title": "The kill switch fails closed",
+            "points": [
+              "One row, read at the top of every money path",
+              "Unreadable row = no payouts at all",
+              "Pausing asks for a reason, because earners read it",
+              "Resuming takes one click"
+            ]
+          }
+        },
+        {
+          "text": "Two: hourly reconciliation. Every hour, a job compares what each token is owed against the distributor's live on-chain balance, records a row per token, and pauses payouts before it alerts a human. Stopping the bleeding comes first; the notification is second.",
+          "card": {
+            "kicker": "Control 2",
+            "title": "Owed versus held, every hour",
+            "points": [
+              "One row per token, every hour",
+              "Drift pauses payouts, THEN alerts",
+              "An unreadable balance is reported as unreadable",
+              "Owed means promised — not the day's remaining budget"
+            ]
+          }
+        },
+        {
+          "text": "Three: gas alerting. The same job watches the wallet's native balance against the sweep's own floor and rings the bell while it is under — the alert that prevents a silent stall. Four: an audit log. Every switch flip, automatic pause, sweep and reconciliation writes an append-only row, written by the code that did the thing.",
+          "card": {
+            "kicker": "Controls 3 and 4",
+            "title": "Gas warning, permanent record",
+            "points": [
+              "Low gas alerts at most once an hour",
+              "Alerts — it does not pause; sending already stops",
+              "Every flip, pause and sweep is written down",
+              "The writer never blocks the money path"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "08",
+      "title": "Transparency",
+      "beats": [
+        {
+          "text": "Which brings the most unusual page on the site: slash transparency. It publishes the payout wallet's live balance, what is owed right now, all-time paid, the state of the switch and the reason a human gave for pausing it, the latest reconciliation per token, and the recent audit entries.",
+          "page": "https://www.begfi.io/transparency"
+        },
+        {
+          "text": "It renders bad news as readily as good news — a shortfall, a pause, an unreadable reading. That is the point. A transparency page that only looks good when things are good is a marketing page with a ledger in it.",
+          "card": {
+            "kicker": "The books",
+            "title": "Publish the ugly truth too",
+            "points": [
+              "Live balance and gas on hand",
+              "Owed right now, per token",
+              "Switch state and the reason for it",
+              "The last actions, in short"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "09",
+      "title": "What is not built",
+      "beats": [
+        {
+          "text": "Now the honest list, because every product video skips this part. Custody first: every pool still funds one shared address, so there are no per-pool deposit addresses, and there is no automatic refund for an unspent pot. The remainder stays in the payout wallet, and the site says so out loud instead of implying a refund that does not exist.",
+          "card": {
+            "kicker": "Not built — 1 of 4",
+            "title": "Custody, addresses, refunds",
+            "points": [
+              "One shared deposit address for every pool",
+              "No per-pool attribution by address yet",
+              "No automatic refund for an unspent pot",
+              "The site says this plainly before you fund"
+            ]
+          }
+        },
+        {
+          "text": "Second, sybil resistance. A giveaway or a campaign can be farmed by wallets that are one person without a verified X account. There is no captcha, no clustering by funding source, and no review queue yet. Device fingerprinting existed and was removed on purpose, because it punished shared phones and told honest people to come back tomorrow.",
+          "card": {
+            "kicker": "Not built — 2 of 4",
+            "title": "Sybil resistance is identity only",
+            "points": [
+              "One prize per wallet and per verified X account",
+              "No captcha, no clustering, no review queue",
+              "Device limits were removed deliberately",
+              "The honest ceiling is what the site can check"
+            ]
+          }
+        },
+        {
+          "text": "Third, the clock. The indexer is behind the chain — measured at roughly half a million blocks — so anything that depends on it, pay-link settlement and deposit crediting included, arrives late. A funder can accelerate detection by pressing check, and the fix is scanning more windows per run.",
+          "card": {
+            "kicker": "Not built — 3 of 4",
+            "title": "The indexer is behind the chain",
+            "points": [
+              "Measured ~496,000 blocks behind",
+              "Deposits and settlements arrive late",
+              "A manual check scans a recent window now",
+              "Fix: multi-window scans in one time budget"
+            ]
+          }
+        },
+        {
+          "text": "And fourth, breadth. The site runs on one chain, Robinhood Chain, so Ethereum and Base are a phase rather than a patch. There is no public API or embeddable button yet, no PWA, and no Play Store listing. Those are the next platform milestones, not repairs.",
+          "card": {
+            "kicker": "Not built — 4 of 4",
+            "title": "One chain, no API, no store",
+            "points": [
+              "Robinhood Chain only, for now",
+              "No public API or embeddable pay button yet",
+              "No PWA install, so no Play Store listing",
+              "More chains is a phase, not a patch"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "title": "Where it goes next",
+      "beats": [
+        {
+          "text": "So where does it go next? Per-pool deposit addresses, because one change closes attribution, makes refunds possible, and retires the shared-address assumption for all three funding products at once. Then a sybil pass on the claim and submit paths. Then the platform work: more chains, an admin panel that covers everything, and a public API.",
+          "card": {
+            "kicker": "Next, in order",
+            "title": "What changes first",
+            "points": [
+              "Per-pool deposit addresses",
+              "Refunds for an unspent pot",
+              "A sybil pass on claims and submissions",
+              "More chains, a fuller admin panel, an API"
+            ]
+          }
+        },
+        {
+          "text": "Everything in this video is live at begfi dot io, including the books. Nothing on the site is fake data: an unconfigured feature says it is unconfigured, and a wallet that is short says it is short. That is the whole idea — money movement that is fast, and honest about the parts it has not finished.",
+          "page": "https://www.begfi.io/",
+          "scroll": 0.55
+        }
+      ]
+    }
+  ]
+}
