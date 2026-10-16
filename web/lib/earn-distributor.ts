@@ -5,7 +5,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { robinhoodChain } from "@/lib/chains";
-import { erc20Abi } from "@/lib/erc20";
+import { erc20Abi, TOKEN_DECIMALS } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import { publishEarnerNotification } from "@/lib/notify";
@@ -491,13 +491,19 @@ async function ensurePayoutRow(
 
   if (error) {
     if (error.code === "23505") {
-      // This wallet already has a row in this cycle, from the same sweep day's
-      // earlier attempt. Attach to it; pay only if it has not already settled.
+      // This wallet already has a row in this cycle FOR BEGFI'S OWN POOL, from
+      // the same sweep day's earlier attempt. Attach to it; pay only if it has
+      // not already settled. The two `is null` filters are the scoping: since
+      // 0029 a wallet may also be paid by a campaign and by a drop on the same
+      // day, and attaching to one of THOSE rows would file this transfer
+      // against a promise it had nothing to do with.
       const { data: existing } = await admin
         .from("earn_payouts")
         .select("id, status")
         .eq("wallet_address", plan.wallet_address)
         .eq("cycle_date", cycleDate)
+        .is("campaign_id", null)
+        .is("drop_id", null)
         .maybeSingle<{ id: string; status: string }>();
       if (!existing) {
         notes.push("ledger row vanished between conflict and re-read");
@@ -527,11 +533,20 @@ async function reconcileInFlight(
   client: ReturnType<typeof createPublicClient>,
   notes: string[],
 ): Promise<void> {
+  // SCOPED TO BEGFI'S OWN POOL, and that scoping is a fix rather than a
+  // refinement: this reconciler was written when one ledger held one product,
+  // so an unscoped read would settle a CAMPAIGN's or a DROP's pending row here
+  // — confirming its chain state is fine, but then it would file its
+  // submission ids against `earn_submissions` (matching nothing) and bell the
+  // payee with BegFi's own "you earned $BEGFI" copy for a prize in another
+  // token. Each pool's in-flight rows belong to that pool's reconciler.
   const { data: inflight, error } = await admin
     .from("earn_payouts")
     .select("id, tx_hash, created_at, user_id, amount::text")
     .eq("status", "pending")
     .not("tx_hash", "is", null)
+    .is("campaign_id", null)
+    .is("drop_id", null)
     .limit(100);
   if (error) return;
 
@@ -643,6 +658,20 @@ export type PayoutRowSnapshot = {
   last_error: string | null;
   created_at: string;
   sent_at: string | null;
+  /** Which pool the row belongs to. Null campaign and drop = BegFi's own. */
+  campaign_id: string | null;
+  drop_id: string | null;
+  /**
+   * The TOKEN the row paid in, resolved from the pool it belongs to.
+   *
+   * The console used to render every ledger row as `$BEGFI` at 18 decimals,
+   * which was already wrong for campaign rows and is wronger now that a drop
+   * pays in whatever token its owner funded. A row whose token could not be
+   * resolved keeps `null` and the console says so rather than printing a
+   * number with the wrong scale under the wrong symbol.
+   */
+  token_symbol: string | null;
+  token_decimals: number | null;
 };
 
 export type DistributorSnapshot = {
@@ -650,7 +679,12 @@ export type DistributorSnapshot = {
   walletAddress: string | null;
   tokenBalance: bigint | null;
   nativeBalance: bigint | null;
+  /** Settled $BEGFI rows only — BegFi's own pool. */
   distributed: bigint;
+  /** Settled campaign payout rows, in their own tokens. */
+  campaignPayouts: number;
+  /** Settled drop prize rows, in their own tokens. */
+  dropPrizes: number;
   owed: bigint;
   owedWallets: number;
   pendingCount: number;
@@ -668,19 +702,32 @@ export async function getDistributorSnapshot(): Promise<DistributorSnapshot | nu
     return null;
   }
 
-  const [unpaidRes, sentRes, cycleRes, failedRes, recentRes] = await Promise.all([
+  const [unpaidRes, sentRes, campaignSentRes, dropSentRes, cycleRes, failedRes, recentRes] = await Promise.all([
     admin
       .from("earn_submissions")
       .select("wallet_address, reward_amount::text")
       .eq("status", "approved")
       .is("payout_tx", null)
       .limit(5_000),
-    admin.from("earn_payouts").select("amount::text").eq("status", "sent").limit(10_000),
+    // $BEGFI's own settled rows only: this figure is labelled in $BEGFI, and
+    // summing another pool's token into it would make the console's headline
+    // number a blend of currencies.
+    admin
+      .from("earn_payouts")
+      .select("amount::text")
+      .eq("status", "sent")
+      .is("campaign_id", null)
+      .is("drop_id", null)
+      .limit(10_000),
+    admin.from("earn_payouts").select("id", { count: "exact", head: true }).eq("status", "sent").not("campaign_id", "is", null),
+    admin.from("earn_payouts").select("id", { count: "exact", head: true }).eq("status", "sent").not("drop_id", "is", null),
     admin.from("earn_payouts").select("id", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("earn_payouts").select("id", { count: "exact", head: true }).eq("status", "failed"),
     admin
       .from("earn_payouts")
-      .select("cycle_date, wallet_address, username, amount::text, status, tx_hash, attempts, last_error, created_at, sent_at")
+      .select(
+        "cycle_date, wallet_address, username, amount::text, status, tx_hash, attempts, last_error, created_at, sent_at, campaign_id, drop_id, token_address",
+      )
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
@@ -694,6 +741,58 @@ export async function getDistributorSnapshot(): Promise<DistributorSnapshot | nu
 
   let distributed = 0n;
   for (const row of (sentRes.data ?? []) as { amount: string }[]) distributed += BigInt(row.amount);
+
+  // WHICH TOKEN EACH RECENT ROW PAID IN. Two small reads resolve every pool a
+  // row names, so the console renders 500 $DOGE as 500 $DOGE rather than as
+  // 0.0000000000000005 $BEGFI. A pool that cannot be found leaves the row's
+  // token null and the console shows the raw symbol-less amount.
+  type RecentRow = {
+    cycle_date: string;
+    wallet_address: string;
+    username: string | null;
+    amount: string;
+    status: string;
+    tx_hash: string | null;
+    attempts: number;
+    last_error: string | null;
+    created_at: string;
+    sent_at: string | null;
+    campaign_id: string | null;
+    drop_id: string | null;
+  };
+  const recentRows = (recentRes.data ?? []) as RecentRow[];
+  const campaignIds = [...new Set(recentRows.map((r) => r.campaign_id).filter((id): id is string => Boolean(id)))];
+  const dropIds = [...new Set(recentRows.map((r) => r.drop_id).filter((id): id is string => Boolean(id)))];
+
+  const [campaignMeta, dropMeta] = await Promise.all([
+    campaignIds.length > 0
+      ? admin
+          .from("campaigns")
+          .select("id, token_symbol, token_decimals")
+          .in("id", campaignIds)
+      : Promise.resolve({ data: [], error: null }),
+    dropIds.length > 0
+      ? admin.from("drops").select("id, token_symbol, token_decimals").in("id", dropIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const tokenByPool = new Map<string, { symbol: string; decimals: number }>();
+  for (const row of (campaignMeta.data ?? []) as { id: string; token_symbol: string; token_decimals: number }[]) {
+    tokenByPool.set(`campaign:${row.id}`, { symbol: row.token_symbol, decimals: row.token_decimals });
+  }
+  for (const row of (dropMeta.data ?? []) as { id: string; token_symbol: string; token_decimals: number }[]) {
+    tokenByPool.set(`drop:${row.id}`, { symbol: row.token_symbol, decimals: row.token_decimals });
+  }
+
+  const recent: PayoutRowSnapshot[] = recentRows.map((row) => {
+    const key = row.drop_id ? `drop:${row.drop_id}` : row.campaign_id ? `campaign:${row.campaign_id}` : null;
+    const token = key ? tokenByPool.get(key) ?? null : { symbol: "$BEGFI", decimals: TOKEN_DECIMALS };
+    return {
+      ...row,
+      token_symbol: token?.symbol ?? null,
+      token_decimals: token?.decimals ?? null,
+    };
+  });
 
   // On-chain truth, only when the key is configured (the page says so otherwise).
   let tokenBalance: bigint | null = null;
@@ -725,11 +824,13 @@ export async function getDistributorSnapshot(): Promise<DistributorSnapshot | nu
     tokenBalance,
     nativeBalance,
     distributed,
+    campaignPayouts: campaignSentRes.count ?? 0,
+    dropPrizes: dropSentRes.count ?? 0,
     owed,
     owedWallets: owedWallets.size,
     pendingCount: cycleRes.count ?? 0,
     failedCount: failedRes.count ?? 0,
-    recent: (recentRes.data ?? []) as PayoutRowSnapshot[],
+    recent,
   };
 }
 

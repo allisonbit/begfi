@@ -8,6 +8,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { TOKEN_DECIMALS } from "@/lib/erc20";
 import { readXPost, postCarriesEntry } from "@/lib/x-embed";
 
 /**
@@ -467,8 +468,19 @@ export const CampaignDraft = z.object({
 
 export type CampaignDraftInput = z.infer<typeof CampaignDraft>;
 
-/** The token's own decimals decide display math — read them from the contract. */
-async function readTokenDecimals(tokenAddress: string): Promise<number> {
+/**
+ * The token's OWN decimals, read from its contract — or null when the read failed.
+ *
+ * WHY NULL AND NOT 18. 18 is the ERC-20 default, and defaulting to it silently is
+ * how a 6-decimal token gets a prize (or a daily budget) that is a trillionth of
+ * the intended one: the number is plausible, wrong, and already stored by the
+ * time anyone notices. The failure and the answer are different facts, so they
+ * are different return values and each caller decides what it can live with.
+ *
+ * Exported because Drops need the same read (lib/drops.ts): two implementations
+ * of "this token's decimals" is one place too many for that mistake to live.
+ */
+export async function readTokenDecimals(tokenAddress: string): Promise<number | null> {
   const client = createPublicClient({ chain: robinhoodChain, transport: http() });
   try {
     const d = (await client.readContract({
@@ -476,9 +488,9 @@ async function readTokenDecimals(tokenAddress: string): Promise<number> {
       abi: [{ type: "function", name: "decimals", inputs: [], outputs: [{ type: "uint8" }], stateMutability: "view" }],
       functionName: "decimals",
     })) as unknown as number;
-    return Number.isFinite(d) ? d : 18;
+    return Number.isFinite(d) ? d : null;
   } catch {
-    return 18;
+    return null;
   }
 }
 
@@ -536,7 +548,12 @@ export async function createCampaign(ownerId: string, input: CampaignDraftInput)
     };
   }
 
-  const decimals = await readTokenDecimals(input.tokenAddress);
+  // A failed read keeps the ERC-20 default here, which is `createCampaign`'s
+  // long-standing behaviour and is visible in the campaign the owner sees:
+  // campaign budgets are whole-token numbers, so a mis-scaled default shows up
+  // immediately at the top of the campaign page. Drops refuse instead, because
+  // the same fallback would silently set a PRIZE (lib/drops.ts).
+  const decimals = (await readTokenDecimals(input.tokenAddress)) ?? TOKEN_DECIMALS;
   const unit = 10n ** BigInt(decimals);
   const budget = BigInt(input.dailyBudgetDisplay) * unit;
 

@@ -18,6 +18,7 @@ const COLUMNS = [
     links: [
       { href: "/", label: "Home" },
       { href: "/begs", label: "Begs" },
+      { href: "/drops", label: "Drops" },
       { href: "/earn", label: "Earn" },
       { href: "/leaderboard", label: "Leaderboard" },
     ],
@@ -96,8 +97,11 @@ export async function SiteFooter() {
         <p className="border-t border-beg-line pt-5 text-[12px] text-beg-dim">
           BegFi is not affiliated with Robinhood. Nothing on this site is financial advice. Payment links and
           tips are wallet to wallet — BegFi never holds those funds and cannot reverse a transaction. Campaign
-          pools are different: they are held in a BegFi wallet from the moment you fund them until they are
-          paid out to earners, and unspent pool funds are returned to the funder.
+          pools and drop pots are different: they are held in a BegFi payout wallet from the moment you fund
+          them until they are paid out to earners and claimers. There is no automated return path for an
+          unspent balance yet — it stays in that wallet rather than being sent back on a schedule, and this
+          line says so instead of implying a refund that does not exist (docs/KNOWN_ISSUES.md #21).
+          Fund only what you intend to give away.
         </p>
       </div>
     </footer>

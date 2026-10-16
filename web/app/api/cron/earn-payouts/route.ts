@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
 import { recordAudit } from "@/lib/audit";
-import { campaignBudgetMs, sweepCampaignPayouts, type SweepCampaignOutcome } from "@/lib/campaign-distributor";
-import { distributorAddress, distributorConfigured, sweepBudgetMs, sweepEarnPayouts } from "@/lib/earn-distributor";
+import { sweepCampaignPayouts, type SweepCampaignOutcome } from "@/lib/campaign-distributor";
+import { sweepDropPayouts, type DropSweepOutcome } from "@/lib/drop-distributor";
+import { distributorAddress, distributorConfigured, sweepEarnPayouts } from "@/lib/earn-distributor";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -27,9 +28,13 @@ export const maxDuration = 60;
  * CAMPAIGNS SERVICE THE SAME WINDOW. After the $BEGFI sweep (its own time
  * budget), the same cron serves `sweepCampaignPayouts` — every campaign's
  * daily budget, shared across that cycle's posters, in each campaign's own
- * token. Two sweeps, one schedule, two honest budgets that sum inside the
- * function's limit; a campaign sweep that misses the window re-fires on the
- * next deposit or the next day without anyone chasing it.
+ * token — and then `sweepDropPayouts`, which pays the prizes people already
+ * claimed from a drop. Three sweeps, one schedule, three honest budgets that
+ * sum inside the function's limit; a sweep that misses the window re-fires on
+ * the next trigger (a deposit, a claim, or tomorrow's run) without anyone
+ * chasing it. Drops get no cron entry of their own on purpose: the plan allows
+ * two, the products share one wallet and one ledger, and a third schedule would
+ * only be a second way to ask the same question.
  *
  * A run pays as many wallets as the time budget and funding allow, and leaves
  * the rest pending for the next trigger — nothing is lost by hitting the
@@ -46,11 +51,22 @@ export async function GET(request: Request) {
 
   const response: Record<string, unknown> = { ok: true };
 
+  /*
+   * THE THREE SLICES OF ONE 60-SECOND WINDOW. Explicit numbers, not each
+   * sweep's own default: every default (45s) is sized for a run that has the
+   * function to itself, and three of those do not fit. 22 + 22 + 12 = 56s,
+   * leaving room for the audit write at the end. A sweep that runs out of its
+   * slice stops cleanly and its remaining wallets wait for the next trigger.
+   */
+  const EARN_BUDGET_MS = 22_000;
+  const CAMPAIGN_BUDGET_MS = 22_000;
+  const DROP_BUDGET_MS = 12_000;
+
   // BegFi's own pool first: it is the product's own promise and the more
   // time-sensitive one.
   if (distributorConfigured()) {
     try {
-      const result = await sweepEarnPayouts("cron", { budgetMs: 25_000 });
+      const result = await sweepEarnPayouts("cron", { budgetMs: EARN_BUDGET_MS });
       response.earn = {
         cycleDate: result.cycleDate,
         sentCount: result.sentCount,
@@ -70,7 +86,7 @@ export async function GET(request: Request) {
   // Campaigns after, on the remaining slice of the same window.
   let campaignResult: SweepCampaignOutcome | null = null;
   try {
-    campaignResult = await sweepCampaignPayouts("cron", { budgetMs: 30_000 });
+    campaignResult = await sweepCampaignPayouts("cron", { budgetMs: CAMPAIGN_BUDGET_MS });
     response.campaigns = {
       cycleDate: campaignResult.cycleDate,
       campaignsServed: campaignResult.campaignsServed,
@@ -82,6 +98,29 @@ export async function GET(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     response.campaigns = { ok: false, error: message };
+  }
+
+  /*
+   * Drops last, and their budget is the SMALLEST of the three — not because a
+   * prize matters less, but because a drop sweep is the one that has already
+   * been nudged: a claim fires it, and a deposit fires it. Whatever this run
+   * finds is the residue of triggers that could not finish, so it gets the
+   * leftover of the window rather than a third of it.
+   */
+  let dropResult: DropSweepOutcome | null = null;
+  try {
+    dropResult = await sweepDropPayouts("cron", { budgetMs: DROP_BUDGET_MS });
+    response.drops = {
+      cycleDate: dropResult.cycleDate,
+      dropsServed: dropResult.dropsServed,
+      sentCount: dropResult.sentCount,
+      sentTotal: dropResult.sentTotal.toString(),
+      failedCount: dropResult.failedCount,
+      notes: dropResult.notes,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    response.drops = { ok: false, error: message };
   }
 
   /*
@@ -100,13 +139,18 @@ export async function GET(request: Request) {
       const campaignSummary = response.campaigns as
         | { sentCount?: number; failedCount?: number; campaignsServed?: number }
         | undefined;
+      const dropSummary = response.drops as
+        | { sentCount?: number; failedCount?: number; dropsServed?: number }
+        | undefined;
       await recordAudit(createAdminClient(), {
         actor,
         action: "payouts.sweep",
         subject: new Date().toISOString().slice(0, 10),
         detail: `Daily run — $BEGFI: ${earnSummary?.sentCount ?? 0} sent, ${earnSummary?.failedCount ?? 0} failed, stopped: ${
           earnSummary?.stopped ?? "nobody left to pay"
-        }; campaigns: ${campaignSummary?.sentCount ?? 0} sent across ${campaignSummary?.campaignsServed ?? 0} campaign(s).`,
+        }; campaigns: ${campaignSummary?.sentCount ?? 0} sent across ${campaignSummary?.campaignsServed ?? 0} campaign(s); drops: ${
+          dropSummary?.sentCount ?? 0
+        } prize(s) sent across ${dropSummary?.dropsServed ?? 0} drop(s).`,
       });
     } catch {
       // The sweeps already ran; the record of them is second (see lib/audit.ts).

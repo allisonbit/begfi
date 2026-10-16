@@ -32,8 +32,13 @@ export const maxDuration = 60;
  * What can be compared is:
  *
  *     OBLIGATIONS(token) = Σ over campaigns (deposits credited − payouts sent)
+ *                          + Σ over drops (deposits credited − prizes paid)
  *                          + BegFi's approved-but-unpaid rewards, for $BEGFI
  *     OBSERVED(token)    = the distributor's live balance of that token
+ *
+ * Drops are the second product on the same wallet and join the same sum, which
+ * is exactly why migration 0029 makes one token fundable by one live pool at a
+ * time: two pools on one token would make every figure here a blend of both.
  *
  * Extra float is NORMAL and not an alarm: the owner tops the wallet up ahead of
  * a sweep, and BegFi's own pool money sits there too. What is never normal is
@@ -201,7 +206,68 @@ export async function GET(request: Request) {
     add(campaign.token_address, campaign.token_symbol, campaign.token_decimals, remaining);
   }
 
-  if ((deposits?.length ?? 0) >= ROW_CAP || (payouts?.length ?? 0) >= ROW_CAP) {
+  // Drop pots: the SAME arithmetic over the same ledger — a pool's deposits
+  // minus its confirmed payouts is what the wallet still owes it. Drops add
+  // nothing new to the comparison; they are the second product on one wallet,
+  // and this job is the only place that sees them together (migration 0029's
+  // `pool_tokens` lease guarantees no token is counted twice here).
+  const { data: dropRows, error: dropError } = await admin
+    .from("drops")
+    .select("id, name, token_address, token_symbol, token_decimals, status")
+    .neq("status", "ended")
+    .limit(500);
+  if (dropError) {
+    return NextResponse.json({ error: `drop read failed: ${dropError.message}` }, { status: 500 });
+  }
+
+  const { data: dropDeposits, error: dropDepositError } = await admin
+    .from("drop_deposits")
+    .select("drop_id, amount::text")
+    .limit(ROW_CAP);
+  if (dropDepositError) {
+    return NextResponse.json({ error: `drop deposit read failed: ${dropDepositError.message}` }, { status: 500 });
+  }
+
+  const { data: dropPayouts, error: dropPayoutError } = await admin
+    .from("earn_payouts")
+    .select("drop_id, amount::text")
+    .eq("status", "sent")
+    .not("drop_id", "is", null)
+    .limit(ROW_CAP);
+  if (dropPayoutError) {
+    return NextResponse.json({ error: `drop payout read failed: ${dropPayoutError.message}` }, { status: 500 });
+  }
+
+  const dropCredited = new Map<string, bigint>();
+  for (const row of (dropDeposits ?? []) as { drop_id: string; amount: string }[]) {
+    dropCredited.set(row.drop_id, (dropCredited.get(row.drop_id) ?? 0n) + BigInt(row.amount));
+  }
+
+  const dropPaid = new Map<string, bigint>();
+  for (const row of (dropPayouts ?? []) as { drop_id: string | null; amount: string }[]) {
+    if (!row.drop_id) continue;
+    dropPaid.set(row.drop_id, (dropPaid.get(row.drop_id) ?? 0n) + BigInt(row.amount));
+  }
+
+  for (const drop of (dropRows ?? []) as {
+    id: string;
+    name: string;
+    token_address: string;
+    token_symbol: string;
+    token_decimals: number;
+  }[]) {
+    const inTotal = dropCredited.get(drop.id) ?? 0n;
+    const outTotal = dropPaid.get(drop.id) ?? 0n;
+    const remaining = inTotal > outTotal ? inTotal - outTotal : 0n;
+    add(drop.token_address, drop.token_symbol, drop.token_decimals, remaining);
+  }
+
+  if (
+    (deposits?.length ?? 0) >= ROW_CAP ||
+    (payouts?.length ?? 0) >= ROW_CAP ||
+    (dropDeposits?.length ?? 0) >= ROW_CAP ||
+    (dropPayouts?.length ?? 0) >= ROW_CAP
+  ) {
     // Snapshot the keys: `note` may insert, and mutating a Map while iterating
     // its keys is not something to leave to chance.
     for (const token of [...obligations.keys()]) {

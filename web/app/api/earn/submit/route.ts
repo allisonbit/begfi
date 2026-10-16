@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
-import { createPublicClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
-import { robinhoodChain } from "@/lib/chains";
-import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { isPostUrl, getEarnSettings } from "@/lib/earn";
-import { payoutsAllowed } from "@/lib/payout-controls";
+import { payoutWalletReady, payoutsAllowed } from "@/lib/payout-controls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getProfile } from "@/lib/session";
 
@@ -73,7 +70,9 @@ export async function POST(request: Request) {
    * refuses. This is its own state with its own message — a Retry here is
    * honest, because the pool being funded may fix it.
    */
-  const payoutReady = await payoutWalletReady(settings.rewardPerPost);
+  const payoutReady = BEG_TOKEN_ADDRESS
+    ? await payoutWalletReady(BEG_TOKEN_ADDRESS, settings.rewardPerPost)
+    : false;
   if (!payoutReady) {
     return NextResponse.json(
       { error: "Payouts are briefly offline — the pool is being funded. Try again in a moment." },
@@ -215,28 +214,9 @@ export async function POST(request: Request) {
   });
 }
 
-/**
- * Can the site actually pay right now? The distributor wallet must be
- * configured and hold both the token balance and the ETH for gas.
+/*
+ * "Can the site pay this right now?" lives in `lib/payout-controls.ts` as
+ * `payoutWalletReady`. It moved there when Drops became the second product to
+ * ask the question: two implementations of "is the payout wallet funded" is
+ * one place too many for the answer to disagree with itself.
  */
-async function payoutWalletReady(reward: bigint): Promise<boolean> {
-  if (!BEG_TOKEN_ADDRESS || !DISTRIBUTOR_PRIVATE_KEY || !/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) {
-    return false;
-  }
-  try {
-    const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
-    const client = createPublicClient({ chain: robinhoodChain, transport: http() });
-    const [balance, ethBalance] = await Promise.all([
-      client.readContract({
-        address: BEG_TOKEN_ADDRESS as `0x${string}`,
-        abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }],
-        functionName: "balanceOf",
-        args: [account.address],
-      }),
-      client.getBalance({ address: account.address }),
-    ]);
-    return balance >= reward && ethBalance > 0n;
-  } catch {
-    return false;
-  }
-}

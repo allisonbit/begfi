@@ -102,9 +102,9 @@ export default async function AutoPayoutsPage() {
           }
         />
         <Stat
-          label="Total distributed"
+          label="$BEGFI distributed"
           value={`${formatAmount(snapshot.distributed)} $BEGFI`}
-          sub={`across settled automatic payouts`}
+          sub={`BegFi's own pool only — plus ${snapshot.campaignPayouts} campaign payout(s) and ${snapshot.dropPrizes} drop prize(s) in their own tokens`}
         />
         <Stat
           label="Remaining to distribute"
@@ -139,7 +139,11 @@ export default async function AutoPayoutsPage() {
           Payout ledger ({snapshot.recent.length} recent)
         </h2>
         <p className="mb-3 text-[12px] text-beg-dim">
-          One row per wallet per cycle. &quot;sent&quot; links to the transfer that settled it; &quot;pending&quot; is a send whose confirmation hasn&apos;t returned yet (it settles itself); &quot;failed&quot; keeps the wallet unpaid and retrying.
+          One row per wallet per cycle, for all three pools. &quot;sent&quot; links to the transfer that settled it;
+          &quot;pending&quot; is a send whose confirmation hasn&apos;t returned yet (it settles itself); &quot;failed&quot;
+          keeps the wallet unpaid and retrying. Each row carries the pool it paid for, and its amount is in that
+          pool&apos;s own token — $BEGFI for BegFi&apos;s pool, a campaign&apos;s token, or a drop&apos;s prize
+          token.
         </p>
         <ul className="grid gap-2">
           {snapshot.recent.length === 0 ? (
@@ -333,11 +337,23 @@ function PayoutRow({ row }: { row: PayoutRowSnapshot }) {
         <span className="rounded-full border-2 border-beg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.04em] text-beg-ink bg-beg-card">
           cycle {row.cycle_date}
         </span>
+        <span className="rounded-full border-2 border-beg-ink px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.04em] text-beg-ink bg-beg-card">
+          {row.drop_id ? "drop" : row.campaign_id ? "campaign" : "pool"}
+        </span>
         {row.username ? <b className="text-beg-ink">@{row.username}</b> : null}
         <a href={addressUrl(row.wallet_address)} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-beg-dim underline underline-offset-2 hover:text-beg-ink">
           {shortAddress(row.wallet_address)} ↗
         </a>
-        <span className="font-bold text-beg-ink">{formatAmount(BigInt(row.amount))} $BEGFI</span>
+        {/*
+          The row's OWN token, at its own scale. A campaign paying in a
+          6-decimal token rendered through the 18-decimal default would read a
+          trillionth of its real size — and since 0029 the same ledger holds
+          prizes in arbitrary tokens, so "what did this row pay in" is a
+          question the console has to answer per row.
+        */}
+        <span className="font-bold text-beg-ink">
+          {formatAmount(BigInt(row.amount), row.token_decimals ?? 18)} {row.token_symbol ?? "tokens"}
+        </span>
         {row.attempts > 1 && <span className="text-[11px] text-beg-dim">attempt {row.attempts}</span>}
       </div>
       <div className="flex items-center gap-2">

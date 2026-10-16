@@ -42,6 +42,7 @@ import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 const STATIC_ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
   { path: "/", priority: 1, changeFrequency: "daily" },
   { path: "/begs", priority: 0.9, changeFrequency: "hourly" },
+  { path: "/drops", priority: 0.9, changeFrequency: "hourly" },
   { path: "/earn", priority: 0.9, changeFrequency: "hourly" },
   { path: "/leaderboard", priority: 0.8, changeFrequency: "daily" },
   // The books. Listed for the same reason a shop lists its licence: the crawler
@@ -61,6 +62,7 @@ const STATIC_ROUTES: { path: string; priority: number; changeFrequency: Metadata
 const MAX_PROFILES = 5_000;
 const MAX_BEGS = 2_000;
 const MAX_CAMPAIGNS = 500;
+const MAX_DROPS = 500;
 const MAX_PAY_LINKS = 1_000;
 
 /**
@@ -169,6 +171,33 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           lastModified: row.updated_at ? new Date(row.updated_at) : now,
           changeFrequency: row.status === "active" ? "daily" : "weekly",
           priority: row.status === "active" ? 0.8 : 0.4,
+        });
+      }
+    }
+  } catch {
+    // Same rule as above.
+  }
+
+  // ---- drops ---------------------------------------------------------------
+  // Live and paused drops are pages with something left to do; an ended one is
+  // history, like an ended campaign, and is left out of the crawl budget on the
+  // same reasoning — its winners are still on it, and anyone who has the link
+  // still lands on it.
+  try {
+    const { data, error } = await sb
+      .from("drops")
+      .select("id, updated_at")
+      .in("status", ["open", "paused"])
+      .order("created_at", { ascending: false })
+      .limit(MAX_DROPS);
+
+    if (!error && data) {
+      for (const row of data as { id: string; updated_at: string | null }[]) {
+        entries.push({
+          url: publicUrl(`/drop/${row.id}`),
+          lastModified: row.updated_at ? new Date(row.updated_at) : now,
+          changeFrequency: "hourly",
+          priority: 0.7,
         });
       }
     }

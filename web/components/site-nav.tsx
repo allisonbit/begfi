@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, Coins, Trophy, User } from "lucide-react";
+import { HandCoins, Coins, Gift, Trophy, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -25,12 +25,17 @@ import { useAuth } from "@/lib/auth-context";
  */
 
 /*
- * Four tabs, not five. "Explore" was removed with the launchpad (`4da54cd`
- * deleted its routes but left the tab pointing at a catalog nothing could add
- * to any more). Four wider targets also beat five narrow ones under a thumb.
+ * FIVE TABS, AND WHY THE FIFTH IS DIFFERENT FROM THE ONE THAT WAS CUT. "Explore"
+ * was removed with its launchpad (`4da54cd` deleted the routes but left the tab
+ * pointing at a catalog nothing could add to any more); a dead tab is a broken
+ * promise. Drops is the opposite of dead: a giveaway is the shortest path from
+ * a shared link to money in a stranger's wallet, and it is the one product whose
+ * users arrive with no wallet at all and leave with one. Four wide targets still
+ * beat five narrow ones — but only when the fifth has nothing behind it.
  */
 const links = [
   { href: "/begs", label: "Begs", Icon: HandCoins },
+  { href: "/drops", label: "Drops", Icon: Gift },
   { href: "/earn", label: "Earn", Icon: Coins },
   { href: "/leaderboard", label: "Board", Icon: Trophy },
   { href: "/dashboard", label: "You", Icon: User },

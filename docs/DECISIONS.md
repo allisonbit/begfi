@@ -5,6 +5,80 @@ decision made here is the one the code follows.
 
 ---
 
+## Decisions from the 2026-10-16 (later) session: Drops
+
+**D-054 — Drops are a FRONT over the existing payout engine, and the only new money-adjacent object is a
+lease table.** Same wallet, same key, same ledger (`earn_payouts` + one `drop_id` column), same lease atom,
+same gas floor, same confirm-then-record rule, same kill switch, same reconciler. Drops add four tables
+(`drops`, `drop_fundings`, `drop_deposits`, `drop_claims`), one lease table (`pool_tokens`) and one sweep.
+*(Reason: D-021 said this, and it is now implemented rather than restated. A second engine is a second way to
+double-pay, and the existing one has been verified against real chain history.)*
+
+**D-055 — A drop's caps are the wallet, the VERIFIED X account, and `max_claims`. No device fingerprint.**
+The earn rewrite (0014 → 0016 → `app/api/earn/submit`) removed device budgeting deliberately, because a
+family phone, a campus NAT or a shared exit node told honest people "come back tomorrow" for a sin someone
+else committed. *(Reason: a giveaway is the strongest argument there is for a per-device cap, and it is still
+the wrong one — this codebase already decided that punishing shared hardware costs more real users than it
+stops farmers. Stronger sybil resistance is captcha + clustering + a review queue (KNOWN_ISSUES #22), not a
+revived fingerprint.)*
+
+**D-056 — Drops are funded by INTENT, and a transfer that matches no intent is credited nowhere.** A funder
+registers `(their own wallet, the drop, the amount)`; the scan credits only transfers that match it. The
+partial unique index `drop_fundings_pending_idx` keeps at most one open intent per `(funder, token)`, which is
+what makes the match a fact instead of a coin flip; recently matched intents stay matchable for 24 hours, so a
+funder who sends in two transfers is still credited. *(Reason: every pool funds ONE address, so a deposit
+cannot be attributed by address — and money must never be attributed to a guess. The cost is stated rather
+than hidden: an unmatched transfer sits in the wallet and is credited the moment its intent is registered
+(KNOWN_ISSUES #20).)*
+
+**D-057 — One payout token, one live pool — across products, enforced by a trigger in a shared table.**
+`pool_tokens` holds one row per token; `campaigns` and `drops` both claim it on write, and a second claimer
+raises instead of overwriting. A drop holds its token from creation until it has ENDED (it accepts deposits
+while merely paused); a campaign holds it while `active`, exactly as 0025 defined. Deleting a pool releases
+the lease, because deleting a profile cascades to its pools and a row that is gone cannot fire an UPDATE.
+*(Reason: 0025's partial unique index could not span two tables, and a check in an API loses to two
+concurrent creates.)*
+
+**D-058 — The pot has ONE arithmetic, and money that LEFT counts as gone.** `readDropPot` is read by the page,
+the claim gate and the sweep; `paid` is the settled ledger rows **plus** any claim carrying a `payout_tx` that
+no ledger row accounts for. *(Reason: found by seeding the crash state — a transfer that confirmed and whose
+ledger write failed left the pot reporting money the wallet no longer held, and the claim gate would have
+spent it. Two implementations of "what is in the pot" is one place too many for that bug to live.)*
+
+**D-059 — A drop's prize, token and cap are immutable; the owner's levers are pause, resume, extend, end.**
+A claim is a promise made at a moment and the claim row carries the prize it was made for, so editing the
+number afterwards would mean paying a promise at a new number or keeping two numbers that disagree. And
+`end` does not strand anything: the sweep is driven by unpaid claims, so accepted prizes are paid whatever the
+drop's status is. *(Reason: the alternative — an editable prize — is the single most obvious way for this
+product to start lying to the people it already promised.)*
+
+**D-060 — A claim is refused when the payout wallet cannot actually send it, through one shared
+`payoutWalletReady(token, amount)`.** The earn submit path calls the same function now; it used to carry its
+own copy. *(Reason: a pot can be funded in the ledger while the wallet has no gas or the tokens have moved.
+Accepting the claim anyway is how a giveaway becomes a lie — and three products asking "is the wallet funded?"
+with three implementations is three answers that can disagree.)*
+
+**D-061 — Drops get no cron entry of their own.** The daily sweep runs earn (22s), campaigns (22s) and drops
+(12s) inside one function, and a drop sweep is additionally fired by a credited deposit and by a claim.
+*(Reason: Vercel Hobby allows two crons and both are spent; a third schedule would also be a second way to ask
+the same question. Drops get the smallest slice because a drop sweep has already been nudged — whatever the
+cron finds is the residue of triggers that ran out of time.)*
+
+**D-062 — An unspent pot is NOT refundable yet, and the site now says so instead of implying otherwise.**
+D-019 decided the remainder should be returnable; building it needs per-pool deposit addresses or a signed
+refund path, i.e. the Phase 1 custody work. Until then the drop dashboard and the footer state that the
+remainder stays in the payout wallet, and "fund only what you intend to give away" is the advice. *(Reason:
+the footer previously asserted that unspent pools are returned — a claim no code backed for campaigns either.
+Correcting an over-promise is worth more than the sentence it cost.)*
+
+**D-063 — A FIFTH dock tab, for a product with something behind it.** `site-nav`'s comment argued for four
+wider targets, and that reasoning was about a dead tab (`/explore`, whose catalog could never gain a row). A
+drop is the shortest path from a shared link to money in a stranger's wallet, and it is the only product whose
+users arrive with no wallet and leave with one, so it earns a thumb. *(Reason: the rule was never "four tabs";
+it was "no tab without a product".)*
+
+---
+
 ## Decisions from the 2026-10-16 session: Pay Links + money safety
 
 **D-036 — A pay link stores an ASK, never a payment. "Paid" is derived from confirmed transfers.**

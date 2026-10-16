@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CampaignTile } from "@/components/campaign-card";
 import { formatAmount } from "@/lib/erc20";
 import { getActiveCampaigns, getRecentCampaignPayoutTicker } from "@/lib/campaigns";
+import { getOpenDrops } from "@/lib/drops";
 import { getSiteActivity } from "@/lib/leaderboard";
 
 /**
@@ -15,14 +16,19 @@ import { getSiteActivity } from "@/lib/leaderboard";
  * seeded story.
  */
 export async function SitePulse() {
-  const [campaigns, ticker, activity] = await Promise.all([
+  const [campaigns, ticker, activity, drops] = await Promise.all([
     getActiveCampaigns(),
     getRecentCampaignPayoutTicker(5),
     getSiteActivity(6),
+    // Headline rows only (`listLimit: 0`): the front door needs to know how many
+    // drops are live, not what is in each pot — that costs three reads per card
+    // and belongs on /drops, where somebody is actually deciding to claim.
+    getOpenDrops(6, 0),
   ]);
 
   const featured = campaigns.items.slice(0, 3);
   const emptySite = campaigns.dbFailed && ticker.length === 0 && activity.dbFailed;
+  const claimableDrops = drops.items.filter((d) => d.stats.isClaimable).length;
 
   if (emptySite) {
     return null; // the homepage NEVER lies: no data, no invented pulse strip
@@ -32,9 +38,16 @@ export async function SitePulse() {
     <section className="grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-[clamp(22px,4vw,30px)] font-extrabold tracking-[-.03em]">Happening right now</h2>
-        <Link href="/earn" className="text-[13px] font-bold text-beg-dim underline underline-offset-2 hover:text-beg-ink">
-          Post & Earn →
-        </Link>
+        <span className="flex flex-wrap gap-x-4 gap-y-1">
+          {claimableDrops > 0 ? (
+            <Link href="/drops" className="text-[13px] font-bold text-beg-ink underline underline-offset-2 hover:text-beg-dim">
+              {claimableDrops} drop{claimableDrops === 1 ? "" : "s"} open to claim →
+            </Link>
+          ) : null}
+          <Link href="/earn" className="text-[13px] font-bold text-beg-dim underline underline-offset-2 hover:text-beg-ink">
+            Post &amp; Earn →
+          </Link>
+        </span>
       </div>
 
       {featured.length > 0 ? (

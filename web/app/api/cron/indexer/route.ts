@@ -18,6 +18,11 @@ import {
   shouldTriggerOnCampaignFunds,
   sweepCampaignPayouts,
 } from "@/lib/campaign-distributor";
+import {
+  creditDropDeposits,
+  shouldTriggerOnDropFunds,
+  sweepDropPayouts,
+} from "@/lib/drop-distributor";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -169,6 +174,33 @@ export async function GET(request: Request) {
       }
     }
 
+    // DROP DEPOSITS: the same window again, this time matched against FUNDING
+    // INTENTS rather than tokens — a drop is the second product on the same
+    // wallet, so a drop transfer is credited to the pot whose funder said it
+    // was coming and to no other (migration 0029). A newly credited pot means a
+    // giveaway can pay prizes NOW, so a drop sweep fires the way the campaign
+    // one does. A transfer with no intent is credited nowhere, by design.
+    const dropCredits = await creditDropDeposits(
+      admin,
+      client,
+      BigInt(transfers.rangeFrom ?? safeHead.toString()),
+      BigInt(transfers.rangeTo ?? safeHead.toString()),
+      distributorAddress(),
+    );
+    if (dropCredits.credited > 0) {
+      const triggered = await shouldTriggerOnDropFunds(admin);
+      if (triggered) {
+        after(async () => {
+          try {
+            await sweepDropPayouts("drop-funds-arrival");
+          } catch {
+            // A failed drop sweep retries on the next trigger; the deposit
+            // itself is already recorded and the claim keeps its place.
+          }
+        });
+      }
+    }
+
     // THE FUNDS-ARRIVAL TRIGGER: when the just-scanned window moved $BEGFI
     // INTO the distributor wallet, the payout sweep runs after the response
     // (`after` keeps the indexer's own 60s budget intact) — the funding goes
@@ -199,7 +231,7 @@ export async function GET(request: Request) {
     // Monday boundary.
     const battles = await freezeLastWeekBattle(admin);
 
-    return NextResponse.json({ ok: true, transfers, trades, alerts, digests, battles });
+    return NextResponse.json({ ok: true, transfers, trades, dropCredits, alerts, digests, battles });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // Cursors are deliberately NOT advanced on failure, so the next run

@@ -8,7 +8,7 @@ product that reuses the same path.**
 
 ## ⚠️ MONEY #1 — One distributor key holds every distributable token
 
-**What.** Earn and campaign pools are funded to a single EOA. Its key is one Vercel secret
+**What.** Earn and campaign pools — **and now every drop pot** — are funded to a single EOA. Its key is one Vercel secret
 (`DISTRIBUTOR_PRIVATE_KEY`). One key compromise, one bad deploy, or one leaked env dump loses every pool
 balance at once. `earn-distributor.ts` documents this honestly ("no smart contract, no escrow") but the
 operational consequence is that BegFi is a single-signature treasury.
@@ -59,6 +59,12 @@ inferred from the transfer rather than separated by address, and the guard is a 
 fix. Per-pool deposit addresses remain Phase 1 (`ROADMAP.md` §3.2). Until then a campaign that ends and a new
 one that claims its token inherits the same inference — correct, but only because the ended campaign can no
 longer be credited.
+
+**Extended by Drops, 2026-10-16.** The guard now spans BOTH products: `begfi.pool_tokens` (migration 0029)
+is a lease claimed by a trigger on `campaigns` and on `drops`, so a drop cannot take a token an active
+campaign is paying in, and a campaign cannot take a token a live drop holds. A drop's deposits are credited by
+INTENT instead of by token (D-056), which is a second, independent attribution path — it does not need the
+lease to be unambiguous, but the lease is still what keeps two pools from sharing one token's float.
 
 ## ⚠️ MONEY #3 — No reconciliation of ledger totals against on-chain balances — **FIXED 2026-10-16**
 
@@ -401,3 +407,83 @@ one given prominence (D-037).
 **Fix.** Store the settling transfer on the row at INDEX time: when a confirmed transfer meets an active
 link's ask, write the tx hash to `pay_links` (or a `pay_link_settlements` row) so "paid" is a fact read from
 one row instead of a window search. Belongs with the Phase 1 indexer pass, next to balance-delta crediting.
+
+## #20 — A drop deposit that matches no funding intent is credited nowhere
+
+**What.** A drop's money is attributed by intent (D-056): the funder registers `(their wallet, the drop, the
+amount)` and the scan credits transfers that match it. A transfer to the payout address that matches no open
+intent — never registered, or sent from a wallet other than the one the intent names — is credited to no pot.
+It sits in the wallet until the funder registers the intent for it (`drop_fundings` keeps a matched intent
+matchable for 24 hours precisely so a late registration still lands).
+
+**Why it is the design and not a bug.** With one shared deposit address there is no safe way to attribute an
+unannounced transfer: guessing would credit somebody else's giveaway with your money. The honest failure is
+"not yet credited", and the page says the pot is unfunded rather than showing a number nobody can prove.
+
+**What is missing.** Nothing TELLS the funder. A bell or dashboard line saying "a transfer from this wallet
+arrived that no pot claims — register the deposit to credit it" would close the loop, and the reconcile job
+already sees the surplus (it only alarms on a shortfall, so extra float is silent). Fix: match recent
+unattributed transfers against the funder's own wallets at funding time, and surface the surplus per token on
+`/transparency`.
+
+**Evidence.** `creditDropDeposits` (`web/lib/drop-distributor.ts`), migration 0029's header, D-056. Live
+review of the drop page with a fixture: the pot read 2,000 until the deposit row existed, then the credited
+figure appeared — the ledger never guesses.
+
+## #21 — An unspent drop pot (and an unspent campaign pool) has no automated return path
+
+**What.** A drop's pot is spent as prizes are claimed. Whatever is left when the drop ends — the cap reached,
+the window closed, or the owner simply stopped sharing it — **stays in the shared payout wallet**. There is no
+refund function, no per-pool address to sweep, and nothing that computes what a given pool's remainder is.
+Campaigns are in the same position (the footer's old claim that unspent pool funds are returned was not
+backed by any code path).
+
+**Why it is not a five-line fix.** The payout wallet holds every pool's float at one address, so "return the
+remainder" needs either per-pool deposit addresses (then each pool's float can be moved as a unit) or a signed
+refund transaction with an amount the database can prove is unspent. Both are the Phase 1 custody work
+(`ROADMAP.md` §3.2), and the second is a payment path, which is exactly what `PROJECT_BRAIN.md` §4 says needs
+a human decision.
+
+**What was done instead.** The copy stopped implying a refund: `/dashboard/drops`, the footer and
+`docs/DROPS.md` all say the remainder stays in the wallet, and D-062 records the decision. Over-promising a
+refund is worse than not offering one, because people fund differently when they expect the money back.
+
+**Evidence.** No `refund` code path anywhere (`grep -ri refund web/ supabase/`); migration 0029's header;
+D-019 (the intent, still unbuilt) vs D-062 (what the product says today).
+
+## #22 — A drop's sybil resistance is identity only: wallet + verified X + the cap
+
+**What.** One person with many wallets can take many prizes unless they are X-verified (unique per drop). The
+caps a drop has are real but narrow: unique wallet, unique verified X handle (partial index), the owner's
+`max_claims`, and the pot itself. There is no captcha, no funding-graph clustering, no behavioural signal, no
+review queue — the plan's §3.4 list.
+
+**Why the obvious lever was not pulled.** Per-device limits existed (migration 0014) and were REMOVED on
+purpose: they punished shared hardware and told honest wallets "come back tomorrow". D-055 records that drops
+do not revive them. The consequence is stated rather than hidden — a drop is farmable by a determined person
+with unverified wallets, and the honest ceiling today is what the site can actually check.
+
+**Fix.** Captcha on the claim path (env-gated like analytics), clustering wallets by funding source, and an
+admin queue for drops whose claim pattern looks like a farm. All three are Phase 6 in the plan; Drops just
+makes the need visible.
+
+**Evidence.** `drop_claims` indexes (0029: wallet, partial X), no captcha code anywhere,
+`KNOWN_ISSUES.md` #7 (the same gap for Earn).
+
+## #23 — A drop pot is credited by the indexer, which is far behind the chain
+
+**What.** A deposit is confirmed when the indexer scans the block that contains it. The indexer is measured at
+~496k blocks behind (entry #19), so the honest freshness of a credit is "the next indexer run, or the moment
+the funder presses *I've sent it — check*". The claim path has the mirror-image property: a prize is paid by a
+sweep fired on the claim, so the MONEY side is fast while the DETECTION side is as slow as the indexer.
+
+**What was built to soften it.** The funding route's `check` action runs the same matcher over a recent block
+window on demand (`checkDropFunding`), which is what makes a freshly funded drop claimable in seconds rather
+than hours. It is an accelerator, not a guarantee: a window too small to contain the transfer returns "not
+found yet" and the indexer still credits it on its next pass.
+
+**Fix.** Same as #19 — multi-window scans inside one time budget, so the indexer catches up faster than the
+chain moves. Until then, drops inherit the site's real clock.
+
+**Evidence.** `checkDropFunding` (`web/lib/drop-distributor.ts`), `FUNDING_LOOKBACK_BLOCKS`, #19's
+measurements.

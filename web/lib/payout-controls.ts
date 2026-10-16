@@ -1,5 +1,11 @@
 import "server-only";
 
+import { createPublicClient, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+
+import { robinhoodChain } from "@/lib/chains";
+import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { erc20Abi } from "@/lib/erc20";
 import { distributorAddress } from "@/lib/earn-distributor";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
@@ -145,6 +151,40 @@ export async function setPayoutsPaused(input: {
  * no client-readable policy at all (migration 0025), so this function is only
  * ever reached from a page that has already checked `isAdminWallet`.
  */
+/**
+ * CAN THE SITE ACTUALLY PAY THIS, RIGHT NOW?
+ *
+ * One function, because there are now three products that ask it and they must
+ * not each carry their own idea of "funded". The payout wallet must exist, hold
+ * at least `amount` of `tokenAddress`, and hold some native ETH for gas — a
+ * wallet with the token and no gas produces a transaction that dies, and a
+ * promise made against it is a promise the site cannot keep.
+ *
+ * It is a READ, and a read can fail: a failed read answers false, which is the
+ * refusal side. That is the right direction here for the same reason the kill
+ * switch fails closed — the cost is a claim or a submission that says "try again
+ * in a moment", and the cost of the other answer is a promise nobody can pay.
+ */
+export async function payoutWalletReady(tokenAddress: string, amount: bigint): Promise<boolean> {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) return false;
+  try {
+    const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
+    const client = createPublicClient({ chain: robinhoodChain, transport: http() });
+    const [balance, native] = await Promise.all([
+      client.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [account.address],
+      }) as unknown as Promise<bigint>,
+      client.getBalance({ address: account.address }),
+    ]);
+    return balance >= amount && native > 0n;
+  } catch {
+    return false;
+  }
+}
+
 export type ReconcileRow = {
   token_address: string;
   token_symbol: string | null;
