@@ -32,6 +32,9 @@ const DROP = args.drop ?? "DEMO_DROP_ID";
 // Cards are rendered locally and cost nothing to redo; pages are network work.
 const CARDS_ONLY = "cards-only" in args;
 const PAGES_ONLY = "pages-only" in args;
+// `--only=03-1,05-2` re-shoots just those beats, which is what a fix to one page
+// needs — the rest of the shots are already on disk and unchanged.
+const ONLY = new Set((args.only ?? "").split(",").filter(Boolean));
 
 const globalRoot = execSync("npm root -g", { encoding: "utf8" }).trim();
 const { chromium } = require(path.join(globalRoot, "playwright"));
@@ -59,6 +62,7 @@ if (!PAGES_ONLY) {
     for (const [index, beat] of chapter.beats.entries()) {
       if (!beat.card) continue;
       const id = `${chapter.id}-${index + 1}`;
+      if (ONLY.size > 0 && !ONLY.has(id)) continue;
       const element = page.locator(`#card-${id}`);
       await element.screenshot({ path: path.join(SHOTS, `${id}.png`) });
       cards += 1;
@@ -74,6 +78,7 @@ for (const chapter of CARDS_ONLY ? [] : chapters.chapters) {
   for (const [index, beat] of chapter.beats.entries()) {
     if (!beat.page) continue;
     const id = `${chapter.id}-${index + 1}`;
+    if (ONLY.size > 0 && !ONLY.has(id)) continue;
     const url = beat.page.replace("../", BASE).replace("DEMO_DROP_ID", DROP);
     const response = await page.goto(url, { waitUntil: "load", timeout: 60000 });
     const status = response ? response.status() : 0;
