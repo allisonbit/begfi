@@ -38,3 +38,10 @@ video/audio/
 video/build/
 video/begfi-explainer.mp4
 *.log
+
+# AWS KMS import ceremony (web/scripts/kms-import.mjs). The wrapped key and the
+# one-time import token are generated locally and must never be committed.
+web/scripts/kms-import/
+import-params.json
+wrapped.bin
+import-token.bin

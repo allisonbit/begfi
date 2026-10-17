@@ -131,6 +131,16 @@ and a recovery drill. KMS removes the key from the process but not the concentra
 one address. The KMS call is injected, so Google Cloud KMS could use the same module, but only
 AWS is wired.
 
+**The import ceremony is written (2026-10-17).** `web/scripts/aws-kms-setup.sh` runs in AWS
+CloudShell: it creates an `ECC_SECG_P256K1` `SIGN_VERIFY` key with `Origin=EXTERNAL`, fetches the
+RSA wrapping key and import token, and after the import signs a fixed digest.
+`web/scripts/kms-import.mjs` runs locally: it wraps the existing payout key to that RSA key and
+recovers the CloudShell signature, which must come back as `0x5400ab13…`. Importing rather than
+generating is deliberate: a new key would be a new address and would strand the funded wallet.
+Both halves were tested against a locally generated RSA key and a local secp256k1 signature.
+**Not done yet:** the key does not exist, because no AWS credentials are available in this
+environment, so nothing has been imported and Vercel has not been configured for KMS.
+
 ### 3.4 Refunds and claim modes
 
 Refund the unspent pot to the funder on end; allow percentage / random / first-N prize modes.

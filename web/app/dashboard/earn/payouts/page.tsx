@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { PayoutTrigger } from "@/components/earn-payout-trigger";
 import { PayoutSwitch } from "@/components/payout-switch";
 import { addressUrl, shortAddress, txUrl } from "@/lib/chains";
+import { distributorSignerSource } from "@/lib/distributor-signer";
 import { formatAmount } from "@/lib/erc20";
 import { getDistributorSnapshot, type PayoutRowSnapshot } from "@/lib/earn-distributor";
 import { isAdminWallet } from "@/lib/earn";
@@ -62,10 +63,23 @@ export default async function AutoPayoutsPage() {
 
   const balance = snapshot.tokenBalance; // null = chain read failed or not configured
   const failed = snapshot.recent.filter((r) => r.status === "failed");
+  const signer = distributorSignerSource();
 
   return (
     <>
       <Header />
+
+      {/*
+        Which signer is actually live, not which one the code prefers. After a
+        KMS migration this line is the difference between "configured" and
+        "running on the new path", and it reveals no secret either way.
+      */}
+      <p className="text-[12px] text-beg-dim">
+        Signer:{" "}
+        <b className="text-beg-ink">
+          {signer === "kms" ? "AWS KMS" : signer === "env-key" ? "environment private key" : "not configured"}
+        </b>
+      </p>
 
       <PayoutSwitch
         initialPaused={controls.is_paused}
