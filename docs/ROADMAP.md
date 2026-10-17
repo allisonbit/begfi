@@ -17,10 +17,10 @@ Legend: ✅ done · 🟡 partial · ❌ missing · ⚠️ risk
 | §2 | ERC-20 autodiscovery + suspicious-token warnings | 🟡 | `config.ts` validates addresses; token metadata read (`erc20.ts`, `token-stats.ts`). No fee-on-transfer / honeypot screen. |
 | §3.2 | No escrow, backend wallets | ✅ | Implemented and documented in `earn-distributor.ts` header, in detail. |
 | §3.2 | **One deposit address per pool** | ❌ ⚠️ | Every campaign deposits to **one** distributor address. Per-campaign attribution comes from the indexer reading the transfer, not from address separation. |
-| §3.2 | Keys in a KMS / encrypted store | 🟡 | Single server secret in the Vercel env, never in logs or DB. No KMS, no rotation plan. |
+| §3.2 | Keys in a KMS / encrypted store | 🟡 | **KMS signer built 2026-10-17** (`lib/distributor-signer.ts`, `lib/kms-signature.ts`): AWS KMS signs the digest, the key never enters the process, and the env key stays as a rollback fallback. Not yet exercised against a real AWS key. No rotation plan, no hot/cold split. |
 | §3.2 | Hot/cold wallet split, sweep to cold | ❌ | One hot EOA holds all distributable funds. |
 | §3.2 | Gas wallet per chain, low-gas alerts | 🟡 | Native-gas floor blocks a run rather than failing a tx. No alerting. |
-| §3.2 | Ledger first, balances computed | 🟡 | `earn_payouts` + `campaign_deposits` are a real money trail with idempotency keys. No generic `ledger` table; no deposit/payout/fee/refund kinds. |
+| §3.2 | Ledger first, balances computed | 🟡 | **`begfi.ledger` built 2026-10-17** (migration 0030): append-only, trigger-written for campaign deposits, drop deposits and confirmed payouts, reconciled every run. Campaign balances read it. `fee` and `refund` have no writer, `chain_id` is absent, and drop pots still read their source tables. |
 | §3.2 | Confirmations before credit | ✅ | Deposits credited from confirmed transfers by the indexer. |
 | §3.2 | Queue, retries, dead-letter | 🟡 | In-loop retries, attempt cap, failures stay visible. No separate queue/worker; bounded by the 60s function limit (45s budget). |
 | §3.2 | Hourly reconciliation vs on-chain | ✅ | `/api/cron/reconcile`, hourly via `.github/workflows/reconcile.yml`; one row per token in `begfi.reconciliation_runs`, rendered first on the admin payouts console. Per TOKEN not per pool (one deposit address), and it alarms only on a shortfall — stated in the code and `KNOWN_ISSUES.md` #3. |
@@ -37,8 +37,8 @@ Legend: ✅ done · 🟡 partial · ❌ missing · ⚠️ risk
 | §6.6 | Per-campaign leaderboard | ✅ | Campaign leaderboards + a global one. |
 | §7 | Beg pages upgraded (themes, goals, supporter wall) | 🟡 | Goals + progress + socials ✅. Themes ≠ done; supporter wall is the leaderboard. |
 | §8 | Full public leaderboards + live feed | ✅ | Tabs, windows, ranks, levels, streaks, battles, activity feed. |
-| §9 | Sidebar shell + mobile tab bar | ❌ | Nav is a top bar (`site-nav`) + `dashboard-nav` tabs. Not the plan's shell. |
-| §9.3 | Empty / loading / error states everywhere | 🟡 | Good on Earn/leaderboard. Not audited page-by-page. |
+| §9 | Sidebar shell + mobile tab bar | ✅ | `components/dashboard-shell.tsx`: sticky sidebar from `md` up, scrolling section row on phones, global bottom dock. Top bar now has search; no chain selector until multi-chain is real. |
+| §9.3 | Empty / loading / error states everywhere | 🟡 | Shared `loading.tsx`, `error.tsx`, `not-found.tsx` shipped 2026-10-17; every board has its own empty state. Not yet visually audited page by page. |
 | §10 | Schema as specified | 🟡 | Different but coherent: `profiles`, `campaigns`, `campaign_deposits`, `campaign_submissions`, `earn_payouts`, `earn_claims`, `earn_settings`, and since 2026-10-16 `pay_links`, `payout_controls`, `reconciliation_runs`. No generic `pools`, `ledger`, `payments`, `admin_settings` or `audit_log`. |
 | §12 | Admin panel | 🟡 | Still an allowlisted wallet, but the payout console now carries the kill switch, the reconciliation history, the failed-payout queue and the ledger with explorer links. No audit log, no wallet/gas monitor, no moderation queue. `KNOWN_ISSUES.md` #11. |
 | §13 | TOS, privacy, refund policy, audit log | 🟡 | `/terms` + `/privacy` exist. No refund/unclaimed policy text, no audit log table. |
@@ -146,7 +146,8 @@ strongest evidence yet that the engine choice was right. The remaining work is b
 - [ ] Per-X-account uniqueness alongside per-wallet.
 
 ### Phase 5 — Growth
-- [ ] Full leaderboard tabs (Top Givers, Top Campaigns, Trending) from Part A's §8 gaps.
+- [x] Full leaderboard tabs (Top Givers, Top Campaigns, Most Active) and day/week/all windows.
+      Shipped 2026-10-17; seven boards, weekly Beg Battle, live feed with creation events.
 - [ ] Badges, streaks, daily-return hooks.
 - [ ] SEO/GEO polish, Play Store listing, `DISTRIBUTION.md` execution.
 

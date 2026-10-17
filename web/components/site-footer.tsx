@@ -17,6 +17,7 @@ const COLUMNS = [
     title: "BegFi",
     links: [
       { href: "/", label: "Home" },
+      { href: "/how", label: "How it works" },
       { href: "/begs", label: "Begs" },
       { href: "/drops", label: "Drops" },
       { href: "/earn", label: "Earn" },
@@ -34,6 +35,7 @@ const COLUMNS = [
   {
     title: "Legal",
     links: [
+      { href: "/help", label: "Help" },
       { href: "/transparency", label: "The books" },
       { href: "/terms", label: "Terms" },
       { href: "/privacy", label: "Privacy" },

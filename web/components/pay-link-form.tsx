@@ -7,6 +7,9 @@ import { useState } from "react";
 import { track } from "@/lib/analytics";
 import { parseAmount } from "@/lib/erc20";
 
+/** The four asks that cover most of what a payment link is actually for. */
+const PRESETS = ["5", "20", "100", "500"] as const;
+
 /**
  * Create a pay request.
  *
@@ -77,6 +80,51 @@ export function PayLinkForm() {
     <div className="grid gap-4">
       <label className="grid gap-1.5">
         <span className="text-[13px] text-beg-dim">How much are you asking for? (optional)</span>
+        {/*
+          PRESETS ARE THE POINT OF A PAYMENT LINK. Typing a number is the slow
+          part of asking; four amounts cover most tips and the custom field
+          stays for everything else. Selecting a preset fills the SAME input
+          the person can edit, so there is one source of truth for the amount
+          and no second parser to disagree with the first.
+        */}
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Amount presets">
+          {PRESETS.map((preset) => {
+            const on = amount === preset;
+            return (
+              <button
+                key={preset}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setAmount(on ? "" : preset);
+                  setError(null);
+                }}
+                className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-[13px] font-bold transition-colors ${
+                  on
+                    ? "border-beg-ink bg-beg-lime text-beg-ink"
+                    : "border-beg-line text-beg-dim hover:border-beg-ink hover:text-beg-ink"
+                }`}
+              >
+                {preset}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={amount === ""}
+            onClick={() => {
+              setAmount("");
+              setError(null);
+            }}
+            className={`rounded-full border-[1.5px] px-3.5 py-1.5 text-[13px] font-bold transition-colors ${
+              amount === ""
+                ? "border-beg-ink bg-beg-lime text-beg-ink"
+                : "border-beg-line text-beg-dim hover:border-beg-ink hover:text-beg-ink"
+            }`}
+          >
+            Any amount
+          </button>
+        </div>
         <div className="flex items-center gap-2 rounded-2xl border-[1.5px] border-beg-line bg-beg-bg p-3 focus-within:border-beg-lime">
           <input
             value={amount}

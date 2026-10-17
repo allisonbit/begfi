@@ -66,6 +66,12 @@ migration 0022 — **one payout ledger for BegFi's own pool, every campaign and 
 - **Pay Links settle and bell at index time**: the 15-minute indexer decides from the transfers it just
   wrote whether a request was paid, records the settling transaction on the row and bells its owner (D-048).
   "Paid" is a column, not a render-time guess.
+- **`begfi.ledger` (0030)** — one append-only row per campaign deposit, drop deposit and confirmed payout,
+  written by triggers in the same transaction as the row it describes and keyed by `source_key` so a replay
+  inserts nothing. `kind` also allows `fee` and `refund`, neither of which has a writer yet. The reconcile
+  route compares it to the three source tables and audits `ledger.mismatch` on disagreement. Campaign pool
+  balances read the ledger (`lib/ledger.ts`) with a source-table fallback; drop pots keep their source reads
+  because `earn_payouts.submission_ids` carries the claim repair set.
 - **`begfi.audit_log` (0028)** — every switch flip, automatic pause, sweep and reconciliation writes a row,
   read by the admin console and published in short on `/transparency`. The writer never throws (D-052).
 - **`/transparency`** — the books, public: the payout wallet's live balance, all-time paid, what is owed now,
@@ -75,11 +81,19 @@ migration 0022 — **one payout ledger for BegFi's own pool, every campaign and 
   `public_wallet_totals` (a profile's received total and supporter count) return ONE number to anyone, granted
   to `anon`. The `profile_stats` view also exists, `security_invoker`, for the leaderboard's exact ordering with
   the service role — which is why public totals do not come from it (D-045).
-- Leaderboard (all-time + weekly) with levels, streaks, and weekly **Beg Battles** with a Monday 00:00 UTC reset.
+- **Seven public leaderboards** (`/leaderboard`): top earners, top begged, top supporters, top givers,
+  most active, top campaigns and holders. The first six filter by last 24 hours, this week (Monday 00:00
+  UTC) and all time; holders is a live snapshot. Top givers ranks wallets by distinct pools funded, not by a
+  sum across tokens, and excludes draft campaigns. Top earners reads the payout ledger; top begged reads confirmed
+  support transfers with the payout and fee wallets excluded, so earnings and begging are not the same number twice;
+  campaigns rank by distinct people paid and keep each total in its own token; holders comes from the
+  chain's explorer with the market feed's count and concentration as an honest fallback. Weekly **Beg
+  Battles** (Monday 00:00 UTC reset) and the live activity feed sit below the boards.
 - Notifications bell (kinds: `beg`, `fees`, `launch`, `graduation`, `move`, `claim`, `digest`,
   `earn_payout`, `campaign_payout`, `campaign_pool_low`, `payouts_paused`, `reconcile_alert`, `pay_link_paid`,
-  `low_gas`, `drop_reward`, `drop_payout`, `drop_funded`), activity feed,
-  watchlist. The last two are admin facts about money and go to every admin wallet (migration 0025).
+  `low_gas`, `drop_reward`, `drop_payout`, `drop_funded`), a full `/dashboard/notifications` inbox, and the
+  activity feed. The watchlist still has an API and a cron path but no surface after 2026-10-17, when the
+  launchpad remnant was removed from the Overview (`KNOWN_ISSUES.md` #16).
 
 **The money engine (this is the part that matters)**
 - **No smart-contract escrow.** Earn and campaign pools are funded to wallets controlled by the backend and
@@ -137,6 +151,12 @@ migration 0022 — **one payout ledger for BegFi's own pool, every campaign and 
 - Every address in `config.ts` resolves a bad value to `null`, and the UI must say "not configured" rather
   than render a control that cannot work.
 - Server-only secrets use no `NEXT_PUBLIC_` prefix. `.env` is refused by the pre-commit hook by name and content.
+- **The payout signer is chosen by configuration, not by import.** `lib/distributor-signer.ts` returns
+a KMS-backed account when `AWS_KMS_KEY_ID`, `AWS_REGION` and `DISTRIBUTOR_ADDRESS` are all set, else an
+account from `DISTRIBUTOR_PRIVATE_KEY`, else nothing. Every money path calls it; no route reads the key
+directly. `DISTRIBUTOR_ADDRESS` is public and is checked against each signature, so a key/address
+mismatch fails at signing rather than sending from an unfunded wallet. AWS KMS does not derive BIP32
+children: one key signs for one address, which is why per-pool deposit addresses are still open.
 
 ## 4. Guardrails for an autonomous session (from the plan, §11)
 

@@ -1,10 +1,9 @@
 import "server-only";
 
 import { createPublicClient, createWalletClient, http, parseAbiItem } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
-import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { robinhoodChain } from "@/lib/chains";
+import { distributorAccount, distributorSignerConfigured } from "@/lib/distributor-signer";
 import { erc20Abi, TOKEN_DECIMALS } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publishEarnerNotification } from "@/lib/notify";
@@ -171,8 +170,8 @@ export async function sweepCampaignPayouts(
   const cycleDate = new Date().toISOString().slice(0, 10);
   const out: SweepCampaignOutcome = { trigger, cycleDate, ran: false, campaignsServed: 0, sentCount: 0, sentTotal: 0n, failedCount: 0, notes };
 
-  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) {
-    notes.push("distributor key missing — campaign sweep parked");
+  if (!distributorSignerConfigured()) {
+    notes.push("distributor signer missing — campaign sweep parked");
     return out;
   }
   let admin: SupabaseAdmin;
@@ -190,7 +189,11 @@ export async function sweepCampaignPayouts(
     return out;
   }
 
-  const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
+  const account = distributorAccount();
+  if (!account) {
+    notes.push("distributor signer unavailable — campaign sweep parked");
+    return out;
+  }
   const client = createPublicClient({ chain: robinhoodChain, transport: http() });
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
 

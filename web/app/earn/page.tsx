@@ -6,7 +6,8 @@ import { EarnSubmitBox } from "@/components/earn-submit";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
 import { CampaignTile } from "@/components/campaign-card";
 import { getActiveCampaigns, getRecentCampaignPayoutTicker } from "@/lib/campaigns";
-import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS } from "@/lib/config";
+import { distributorSignerConfigured } from "@/lib/distributor-signer";
 import {
   earningsFromSubmissions,
   getEarnFeed,
@@ -73,7 +74,7 @@ export default async function EarnPage() {
           ? "Rewards pool is empty, check back soon."
           : null;
 
-  const payoutConfigured = Boolean(DISTRIBUTOR_PRIVATE_KEY) && Boolean(BEG_TOKEN_ADDRESS);
+  const payoutConfigured = distributorSignerConfigured() && Boolean(BEG_TOKEN_ADDRESS);
 
   const my = earningsFromSubmissions(mine.rows);
 

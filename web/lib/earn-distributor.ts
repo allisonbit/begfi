@@ -1,9 +1,13 @@
 import "server-only";
 
 import { createPublicClient, createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
-import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS } from "@/lib/config";
+import {
+  distributorAccount,
+  distributorSignerAddress,
+  distributorSignerConfigured,
+} from "@/lib/distributor-signer";
 import { robinhoodChain } from "@/lib/chains";
 import { erc20Abi, TOKEN_DECIMALS } from "@/lib/erc20";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -16,12 +20,11 @@ import { payoutsAllowed } from "@/lib/payout-controls";
  *
  * The rules this module implements, in the order they matter:
  *
- *  1. NO SMART CONTRACT, NO ESCROW. The distributor is an EOA whose key lives
- *     ONLY in a server-side secret (DISTRIBUTOR_PRIVATE_KEY — the encrypted
- *     deployment env, the same class of storage a Supabase Edge Function
- *     secret is). It is never NEXT_PUBLIC_, never in the browser bundle,
- *     never in the database, never in a log line. Only its ADDRESS (public by
- *     nature) is derived here.
+ *  1. NO SMART CONTRACT, NO ESCROW. The distributor is an EOA. Its signer is
+ *     chosen by `lib/distributor-signer.ts`: a KMS key when one is configured,
+ *     otherwise a server-side private-key secret. Either way the secret is
+ *     never NEXT_PUBLIC_, never in the browser bundle, never in the database
+ *     and never in a log line. Only the ADDRESS (public by nature) leaves it.
  *
  *  2. IT RUNS BY ITSELF. Three triggers call `sweepEarnPayouts`:
  *       - the daily cron route (/api/cron/earn-payouts, scheduled in vercel.json);
@@ -95,13 +98,12 @@ export function gasFloor(gasPrice: bigint, transfers: number): bigint {
 }
 
 export function distributorConfigured(): boolean {
-  return Boolean(BEG_TOKEN_ADDRESS) && /^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY);
+  return Boolean(BEG_TOKEN_ADDRESS) && distributorSignerConfigured();
 }
 
-/** The distributor's address, derived only on the server from the key secret. */
+/** The distributor's public address, from KMS config or the local key. */
 export function distributorAddress(): string | null {
-  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) return null;
-  return privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`)?.address.toLowerCase() ?? null;
+  return distributorSignerAddress();
 }
 
 /** The time budget a sweep inside a Vercel function must keep (60s limit). */
@@ -195,7 +197,11 @@ export async function sweepEarnPayouts(
     return { ...base, stopped: "paused" };
   }
 
-  const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
+  const account = distributorAccount();
+  if (!account) {
+    notes.push("distributor signer unavailable — earn sweep parked");
+    return { ...base, stopped: "not-configured" };
+  }
   const client = createPublicClient({ chain: robinhoodChain, transport: http() });
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
   const tokenAddress = BEG_TOKEN_ADDRESS as `0x${string}`;

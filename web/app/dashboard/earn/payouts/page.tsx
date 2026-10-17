@@ -79,8 +79,9 @@ export default async function AutoPayoutsPage() {
 
       {!snapshot.configured ? (
         <p className="notice-dashed p-5">
-          The distributor wallet key is not configured on this deployment — the sweep is parked,
-          no wallet is being paid. Set <code>DISTRIBUTOR_PRIVATE_KEY</code> (server-side secret, never public) and fund the wallet.
+          The distributor signer is not configured on this deployment — the sweep is parked,
+          no wallet is being paid. Set the KMS signer (<code>AWS_KMS_KEY_ID</code>, <code>AWS_REGION</code>,
+          <code>DISTRIBUTOR_ADDRESS</code>) or the legacy <code>DISTRIBUTOR_PRIVATE_KEY</code>, then fund the wallet.
         </p>
       ) : balance === null ? (
         <p className="notice-dashed p-5">The on-chain balance read failed — showing ledger figures only.</p>

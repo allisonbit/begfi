@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
+  Bell,
   Coins,
   ExternalLink,
   Gift,
@@ -12,7 +13,10 @@ import {
   LayoutDashboard,
   Megaphone,
   PenLine,
+  Settings,
   ShieldCheck,
+  Sparkles,
+  Trophy,
   UserCog,
   Wallet,
 } from "lucide-react";
@@ -58,12 +62,16 @@ function groups(isAdmin: boolean): NavGroup[] {
     title: "Your account",
     items: [
       { href: "/dashboard", label: "Overview", Icon: LayoutDashboard },
-      { href: "/dashboard/begs", label: "Begs", Icon: HandCoins },
+      { href: "/dashboard/begs", label: "My begs", Icon: HandCoins },
       { href: "/dashboard/pay-links", label: "Pay links", Icon: Coins },
+      { href: "/earn", label: "Earn", Icon: Sparkles },
       { href: "/dashboard/campaigns", label: "Campaigns", Icon: Megaphone },
       { href: "/dashboard/drops", label: "Drops", Icon: Gift },
       { href: "/dashboard/activity", label: "Activity", Icon: Activity },
-      { href: "/dashboard/profile", label: "Profile", Icon: UserCog },
+      { href: "/dashboard/notifications", label: "Notifications", Icon: Bell },
+      { href: "/dashboard/profile", label: "Profile & socials", Icon: UserCog },
+      { href: "/dashboard/settings", label: "Settings", Icon: Settings },
+      { href: "/leaderboard", label: "Leaderboards", Icon: Trophy },
     ],
   };
 

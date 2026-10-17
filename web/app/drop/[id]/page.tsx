@@ -31,7 +31,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
     title: `${drop.name} — a BegFi drop`,
     description,
     openGraph: { title: `${drop.name}: ${prize} per claim`, description, url: publicUrl(`/drop/${id}`) },
-    twitter: { card: "summary", title: `${drop.name}: ${prize} per claim`, description },
+    // summary_large_image is the whole point of the drop card: a thumbnail-sized
+    // prize line is unreadable in a group chat.
+    twitter: { card: "summary_large_image", title: `${drop.name}: ${prize} per claim`, description },
   };
 }
 

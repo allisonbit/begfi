@@ -5,6 +5,193 @@ Format: what changed, and why it mattered.
 
 ---
 
+## 2026-10-17 (fourth pass) — The payout key can live in AWS KMS
+
+**The signer is now pluggable.** `lib/distributor-signer.ts` chooses the payout wallet's signer
+from configuration: AWS KMS when `AWS_KMS_KEY_ID`, `AWS_REGION` and `DISTRIBUTOR_ADDRESS` are set,
+the existing `DISTRIBUTOR_PRIVATE_KEY` when they are not, and nothing when neither is configured.
+The private key stays as the fallback so a deployment does not stop paying the day this ships, and
+so the KMS path can be rolled back without a code change.
+
+**How the KMS path signs.** `lib/kms-signature.ts` is a pure module that turns a KMS ECDSA
+signature into an Ethereum transaction. KMS returns DER, which is parsed to r and s; s is
+normalised to the low half of the curve (EIP-2 rejects high s on some paths); the recovery bit is
+found by trying 0 and 1 against the configured address, which is also the check that the key and
+the address agree. It signs the EIP-1559 digest with `MessageType: DIGEST` so KMS does not hash it
+twice. The AWS SDK is imported lazily, so a deployment using the env key never loads it.
+
+**Every money path reads the signer, not the key.** `earn-distributor.ts`, `campaign-distributor.ts`
+and `drop-distributor.ts` build their account through `distributorAccount()`, their configured
+guard through `distributorSignerConfigured()`, and their public address through
+`distributorAddress()`. The claim route and the payouts console follow the same two functions.
+No route or page reads `DISTRIBUTOR_PRIVATE_KEY` any more.
+
+**Verified:** a locally generated key signed through the same code path produced a signature that
+`recoverTransactionAddress` resolved to the expected address, for both a legacy and an EIP-1559
+transaction, with low s. Typecheck and build pass with the env-key path active, which is the path
+production runs today. The KMS path itself is not yet exercised against a real AWS key, because no
+key exists in the account; that is stated rather than claimed.
+
+**Not built:** per-pool deposit addresses. One KMS key signs for one address and AWS KMS does not
+derive BIP32 children, so a pool address means one key per pool or a forwarding contract. That is
+the same custody question, one level down, and it stays open.
+
+---
+
+## 2026-10-17 (third pass) — One ledger for every movement, written by the database
+
+**`begfi.ledger`, migration 0030.** Campaign deposits, drop deposits and confirmed payouts now
+land in one append-only table, with `kind`, `pool_kind`, `pool_id`, token, amount, wallet, tx and
+a unique `source_key`. The rows are written by triggers on the three source tables, in the same
+transaction as the row they describe, so no application money path had to change and a path
+cannot be added without its movement being recorded. The migration backfilled history: 1 campaign
+deposit and 122 confirmed payouts, which is every row in the source tables.
+
+**Reconciliation now checks the copy.** Every `/api/cron/reconcile` run compares ledger totals
+per pool against `campaign_deposits`, `drop_deposits` and sent `earn_payouts`, reports
+`ledger: { rows, ok, mismatches }`, and audits a `ledger.mismatch` when they disagree. It reports
+rather than pauses: a missing ledger row does not mean the wallet is short, and stopping payouts
+would stop the writes that repair the picture.
+
+**Campaign balances now read the ledger.** `lib/ledger.ts` sums deposits and payouts per
+campaign in one query, and `lib/campaigns.ts` uses it for every card, detail page and owner view,
+falling back to the two source tables when the ledger cannot be read. One read also removes the
+chance of pairing a deposit query from one instant with a payout query from another. The live
+campaign matched exactly: 30,000 deposited, 20,000 paid, 10,000 remaining in both readings, zero
+mismatches. Drop pots were left on their source reads on purpose: their repair term needs
+`earn_payouts.submission_ids`, which maps a confirmed payout to the claims it settled and which
+the ledger does not carry.
+
+**Verified:** the migration applied to the live database; ledger counts equal the sources
+(123 = 1 + 122); trigger behaviour was exercised inside a rolled-back transaction for a deposit,
+a payout inserted already sent, and a pending payout flipped to sent, with no leftover rows.
+The ledger query ran through the same PostgREST client the app uses. Typecheck and build pass.
+No payout, wallet, key or fee code changed.
+
+---
+
+## 2026-10-17 (second pass) — The master plan against the code, and the public surfaces it was missing
+
+**Wrote `docs/IMPLEMENTATION_PLAN.md`.** It maps every master-plan section to LIVE / PARTIAL /
+MISSING / ASK-FIRST, separates the work that can ship now from the custody work, records the
+recommended money-phase order (per-pool addresses → ledger → reconciliation → refunds → keys →
+multi-chain), and lists fourteen additions beyond the plan with the reason each exists. It is
+the order of work; `ROADMAP.md` stays the longer audit.
+
+**Top Givers.** The plan's §8 asked for it and the data already existed in `campaign_deposits`
+and `drop_deposits`. Ranked by **distinct pools funded**, not by a sum: campaign and drop
+deposits can be in different tokens, so adding their amounts would be adding metres to
+kilograms. Draft campaigns are excluded, so a test deposit cannot top a public board. Right now
+the only campaign deposit in the database is a test deposit into the draft E2E campaign, so the
+board is honestly empty and says so — the empty state was verified against the real tables.
+
+**The live feed now includes creation, and a drop prize is no longer mislabelled.** New drops
+and new campaigns join payouts and transfers, and a payout row carrying a `drop_id` now says
+"won X in <drop>" with a link to the drop. Before this, the shared ledger meant every drop prize
+rendered as "earned from the BegFi pool", naming the wrong product for real money.
+
+**Search.** `/search` covers public people, campaigns and drops, reachable from a magnifier in
+the top bar. It is server-rendered, submits as a normal GET, and queries each column separately
+instead of using Supabase's `.or()` mini-language, so a name with a comma returns results rather
+than a 400. Begs, pay links and receipts are deliberately not searchable: they are not things
+people publish to be found.
+
+**A Help page.** `/help` answers the operational questions: what BegFi holds and does not,
+why a drop stopped paying, what happens to an unspent pot, what "claimable" means, what the X
+tick proves, and why a failed read says unavailable instead of zero. The FAQ JSON-LD is built
+from the same array the page renders, so a crawler cannot be told a different answer from a
+reader. Linked from the footer and the sitemap.
+
+**The drop share card.** `/drop/<id>` now has an `opengraph-image` and a matching
+`twitter-image` (one design, re-exported): prize, cap, one-per-wallet, and "paid automatically"
+at 1200×630. The open gap in `docs/DROPS.md` §6.5 closes. Verified as `image/png`, 1200×630, HTTP 200 — the
+not-found variant, because the database currently has no drops to render a real one.
+
+**Your own row.** The signed-in visitor's row carries a small "you" badge on any board they
+appear on. Rendered on the server, so no session data reaches a signed-out page.
+
+**Also:** the leaderboard copy and metadata now say seven boards rather than six; `/search`,
+`/help` and the new boards are in `BEGFI_CONTEXT.md` and the README route list.
+
+**Verified.** `npm run typecheck` and `npm run build` are clean; the contract suite is unchanged
+(32 passing). `/leaderboard?tab=givers` (all and weekly), `/search?q=ase`, `/search`
+without a query, `/help` and the drop OG route were fetched. `ase` returns the matching profile;
+the no-query state explains the minimum; the givers counts were checked against the live tables
+with a throwaway read-only script. **Unverified:** a real drop's share card (there are no drops),
+the signed-in "you" badge, the named holder list (the explorer's bot challenge blocks this
+machine), and every money flow — payouts are still paused with 210,000 $BEGFI owed and 0 held.
+No payout, wallet, key, fee or ledger code was touched.
+
+## 2026-10-17 — Session: six boards, a brief every AI can read, and the settings that were missing
+
+**Leaderboards are now six boards with a window, not one ranking with tabs.** `/leaderboard` serves top
+earners, top begged, top supporters, most active, top campaigns and holders. The first five take `w=day`
+(rolling 24 hours), `w=week` (Monday 00:00 UTC, the same boundary the Beg Battle freezes on) and `w=all`;
+holders is a live snapshot and says so. Each tab has its own source and its own empty state, and a failed
+read still renders as `dbFailed`, never as an empty board. **Top begged is a corrected number, not a renamed
+one:** it reads confirmed transfers with the payout and fee wallets excluded, so an earn payout no longer
+counts as somebody begging. That list was previously summing every transfer, which made the "top beggar"
+and "top earner" boards two views of the same fact. On today's data the honest result is that nobody has
+been *supported* yet — every confirmed transfer came from the distributor — and the board says so instead of
+showing earners twice. **Top campaigns** ranks by distinct people paid, because two campaigns can pay in two
+tokens and their totals cannot be added; each row still shows its own total in its own unit. **Most active**
+has a stated definition (begs, pay links, campaign posts, drop claims) rather than a vibe. **Holders** reads
+the explorer for the named list and the market feed for the holder count and top-ten concentration; when the
+explorer's bot challenge answers nothing, the tab shows the count and concentration and says the named list
+is unavailable, instead of printing an empty list as "no holders".
+
+**Pay Links got amount presets.** 5 / 20 / 100 / 500 or "Any amount", filling the same input a custom
+amount uses, so the request is one tap and there is still one parser. The paid state, QR and memo were
+already live and unchanged.
+
+**A context brief every AI can read.** `docs/BEGFI_CONTEXT.md` is the master brief: products and routes,
+architecture, the payout flow, removed features, custody language and tone. `AGENTS.md` and `CLAUDE.md` at
+the repo root point at it and carry the rules (read it first, keep the changelog, never reintroduce the
+launchpad, /explore or device fingerprinting, never promise a return). `docs/CONTENT_BRIEF.md` is the
+copy-paste brief for the content AI, with official wording, the CA and a "what's new" section.
+`/llms.txt` publishes the same facts to outside tools, and `/how` explains the four products and who holds
+the money to a visitor with no wallet. The footer and sitemap link `/how`.
+
+**Dashboard gaps closed, one real switch added, and two dead things removed.** The sidebar keeps the product's
+shipped name, **Drops** (the same thing the brief calls Giveaways; renaming the surface but not the routes,
+docs and page title would leave two names for one page), adds Leaderboards, Notifications and Settings, and
+calls Profile "Profile & socials". `/dashboard/notifications` is a full inbox (read through the caller's session; RLS is the
+authorisation) with mark-all-read. `/dashboard/settings` exposes `profiles.is_hidden` — the one real account
+switch the schema had and no surface showed — with its actual consequences written down: the profile page
+leaves public view, the account leaves the boards and sitemap, and pay links keep working without a name.
+
+The **Overview** was rebuilt around the money rather than around the launchpad. It now shows $BEGFI received,
+supporters, payouts paid, a real Claim button when approved pool work is unpaid, a seven-day receipts chart,
+the five most recent payouts with their campaign and token, and four next actions. Removed from that page: the
+launchpad **watchlist** (a dead product's remnant, still readable through its API but no longer the first
+thing after sign-in) and the **launch meter** — which made a factory read and then two RPC calls per catalog
+token, up to five hundred of them, on every dashboard load, for a number the page never rendered. Two indexed
+reads are what the page actually shows now.
+
+**A shared loading state, a real 404 and an error boundary.** `app/loading.tsx` gives every route a skeleton with
+the shape of the list it is about to show, `app/not-found.tsx` offers the four live products instead of a dead
+end, and `app/error.tsx` says plainly that a failed page is a failed read and does not move money, with a retry
+and the server digest. There were no loading states anywhere before this.
+
+**Two display bugs found by looking at the rendered board.** The live feed printed dust as `1e-16` because
+it divided a BigInt by `1e18` in JavaScript; it now prints the exact decimal (`0.0000000000000001`). And the
+top-campaigns board ranked a **draft** E2E test campaign — test money, in a campaign nobody can open — because
+it filtered only on the payout ledger and not on the campaign's visibility. Draft campaigns are now excluded
+from that board and from the live activity feed, after the cut rather than before it, so hiding a draft cannot
+silently shrink a board. The E2E row is gone from the rendered page; the rows themselves stay, as money facts
+must.
+
+**Verified.** `npm run typecheck` and `npm run build` are clean. `/leaderboard` was loaded in every tab and
+window against the live database and reviewed at phone and desktop widths; `/how`, `/llms.txt`,
+`/dashboard`, `/dashboard/notifications` and `/dashboard/settings` were fetched, and the holders fallback was
+watched rendering the live count instead of an empty list. The Overview's queries were run against the live
+schema with a throwaway script (profile, payouts, payout count, seven-day receipts, claimable rows) and the
+campaign fix was confirmed by watching the draft disappear from the rendered board. **Unverified:** the
+explorer's *named* holder list, because its bot challenge blocks this machine; the signed-in dashboard pages
+were compiled and fetched through the sign-in gate but not visually reviewed with a session; and no money
+path was exercised end to end (payouts are still paused, see `PROJECT_BRAIN.md`). No money path, wallet,
+key, fee or ledger code was touched.
+
 ## 2026-10-16 (evening) — Session: two money displays that lied, and the explainer video
 
 **Fixed — a missing `::text` made the pay page print, and PREFILL, a truncated amount.** A `numeric(78,0)`

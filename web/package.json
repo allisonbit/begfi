@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit",
     "indexer:ws": "node scripts/indexer-ws.mjs"
   },
-
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.1152.0",
     "@coinbase/cdp-sdk": "^1.57.1",
     "@metamask/connect-evm": "^2.1.1",
     "@rainbow-me/rainbowkit": "^2.2.11",
@@ -35,7 +35,6 @@
     "ws": "^8.22.0",
     "zod": "^4.6.5"
   },
-
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.4.1",

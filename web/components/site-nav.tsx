@@ -3,7 +3,7 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, Coins, Gift, Trophy, User } from "lucide-react";
+import { HandCoins, Coins, Gift, Search, Trophy, User } from "lucide-react";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignInButton } from "@/components/sign-in-button";
 import { RobinhoodFeather } from "@/components/robinhood-feather";
@@ -139,6 +139,13 @@ export function SiteNav() {
       <div className="safe-x mx-auto flex max-w-[1000px] items-center justify-between py-3">
         <Brand />
         <div className="flex items-center gap-2">
+          <Link
+            href="/search"
+            aria-label="Search BegFi"
+            className="grid size-10 place-items-center rounded-full border-[1.5px] border-beg-line text-beg-dim transition-colors hover:border-beg-ink hover:text-beg-ink"
+          >
+            <Search size={18} strokeWidth={2.2} aria-hidden />
+          </Link>
           <AccountAction />
         </div>
       </div>

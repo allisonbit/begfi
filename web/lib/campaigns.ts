@@ -1,13 +1,14 @@
 import "server-only";
 
 import { createPublicClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { distributorSignerAddress } from "@/lib/distributor-signer";
 import { z } from "zod";
 
 import { robinhoodChain } from "@/lib/chains";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCampaignPoolTotals } from "@/lib/ledger";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
-import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS } from "@/lib/config";
 import { TOKEN_DECIMALS } from "@/lib/erc20";
 import { readXPost, postCarriesEntry } from "@/lib/x-embed";
 
@@ -118,10 +119,32 @@ export function campaignPayoutSchedule(label?: string): { hourUtc: number; minut
 
 /**
  * POOL MATH, FROM THE LEDGER: deposits in minus payouts out, per campaign.
- * Two aggregate reads feed every campaign card, so the grid and the page can
- * never disagree.
+ * One read feeds every campaign card, so the grid and the page cannot see
+ * different instants of the pool.
+ *
+ * Falls back to the two source tables when the ledger cannot be read.
+ *
+ * The ledger is written by triggers on those same tables (migration 0030), so
+ * the figures are equal by construction. The fallback exists for the case where
+ * the ledger cannot be read at all: a missing table must not turn every
+ * campaign into an unfunded one. A successful but incomplete ledger read is not
+ * distinguishable here; `/api/cron/reconcile` is the job that compares the two
+ * and audits a mismatch.
  */
 async function poolTotals(campaignId: string | null): Promise<{ deposited: Map<string, bigint>; paid: Map<string, bigint> }> {
+  const fromLedger = await getCampaignPoolTotals();
+  if (fromLedger) {
+    if (!campaignId) return fromLedger;
+    return {
+      deposited: new Map([[campaignId, fromLedger.deposited.get(campaignId) ?? 0n]]),
+      paid: new Map([[campaignId, fromLedger.paid.get(campaignId) ?? 0n]]),
+    };
+  }
+  return poolTotalsFromSources(campaignId);
+}
+
+/** The pre-0030 reads, kept as the fallback rather than deleted. */
+async function poolTotalsFromSources(campaignId: string | null): Promise<{ deposited: Map<string, bigint>; paid: Map<string, bigint> }> {
   const admin = createAdminClient();
   const deposited = new Map<string, bigint>();
   const paid = new Map<string, bigint>();
@@ -807,7 +830,5 @@ export async function getRecentCampaignPayoutTicker(limit = 12): Promise<
 
 /** Where the money arrives: the distributor wallet is the ONE address every campaign tops up. */
 export function distributorAddressPublic(): string | null {
-  return /^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)
-    ? privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`).address.toLowerCase()
-    : null;
+  return distributorSignerAddress();
 }

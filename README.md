@@ -8,9 +8,12 @@ exact amount with a link that carries the memo (`/pay/<id>` — the payer's wall
 can write a "beg" that generates its own shareable page, and a project can fund a pool that pays people
 automatically for posting about it.
 
-**`docs/` is the source of truth for what this product is and where it is going.** Read
-[`docs/PROJECT_BRAIN.md`](docs/PROJECT_BRAIN.md) first — it is written from the code rather than from this
-file, and it is updated when the code changes. The other brain files are
+**`docs/` is the source of truth for what this product is and where it is going.** If you are an AI or a
+new contributor, read [`docs/BEGFI_CONTEXT.md`](docs/BEGFI_CONTEXT.md) first — it is the master brief, and
+[`AGENTS.md`](AGENTS.md) carries the rules. [`docs/PROJECT_BRAIN.md`](docs/PROJECT_BRAIN.md) is the longer
+operational record, written from the code rather than from this file and updated when the code changes. The
+other brain files are
+[`IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md) (the order of work and the money gates),
 [`ROADMAP.md`](docs/ROADMAP.md) (phases and the audit), [`DECISIONS.md`](docs/DECISIONS.md),
 [`CHANGELOG.md`](docs/CHANGELOG.md), [`KNOWN_ISSUES.md`](docs/KNOWN_ISSUES.md), [`SECURITY.md`](docs/SECURITY.md)
 and [`DISTRIBUTION.md`](docs/DISTRIBUTION.md).
@@ -24,7 +27,9 @@ and [`DISTRIBUTION.md`](docs/DISTRIBUTION.md).
 ```
 web/                     Next.js 16 app — Vercel Root Directory points here
   app/                   pages: /, /[username], /begs, /beg/[id], /pay/[id], /earn, /earn/[slug],
-                         /leaderboard, /t/[tx], /dashboard/*, /terms, /privacy
+                         /leaderboard, /t/[tx], /how, /help, /search, /dashboard/*,
+                         /terms, /privacy, /llms.txt
+                         dashboard: notifications, settings, profile, pay-links, drops
                          api: admin, auth, beg, campaign, cron, earn, message, notifications,
                               pay, profile, qr, username, watchlist
   components/            the UI, incl. dashboard-shell (sidebar + phone tabs)
@@ -106,7 +111,9 @@ mistaken for `$BEGFI`. The deploy script refuses to deploy it to mainnet.
   `begfi.reconciliation_runs`, and pauses payouts automatically on a shortfall before it alerts a human.
 - **Dashboard** — a sidebar from `md` up and a tab row on phones, over Overview, Begs, Pay Links, Campaigns,
   Drops, Activity and Profile, with Admin sections for an admin wallet only.
-- **Leaderboard** (all-time and weekly) with levels, streaks and weekly Beg Battles; notifications bell;
+- **Leaderboards** (six boards — earners, begged, supporters, most active, campaigns, holders — with
+today / this week / all-time windows, plus weekly Beg Battles and a live feed); notifications bell and full
+  notifications page; profile visibility settings;
   activity feed; watchlist.
 - **Indexer** at `/api/cron/indexer`, called every 15 minutes by `.github/workflows/indexer.yml` — Vercel's
   Hobby plan allows one cron a day, so the workflow is the honest workaround and the site's copy says so.

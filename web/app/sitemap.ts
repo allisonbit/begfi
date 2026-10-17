@@ -41,6 +41,8 @@ import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
  */
 const STATIC_ROUTES: { path: string; priority: number; changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"] }[] = [
   { path: "/", priority: 1, changeFrequency: "daily" },
+  { path: "/how", priority: 0.9, changeFrequency: "monthly" },
+  { path: "/help", priority: 0.6, changeFrequency: "monthly" },
   { path: "/begs", priority: 0.9, changeFrequency: "hourly" },
   { path: "/drops", priority: 0.9, changeFrequency: "hourly" },
   { path: "/earn", priority: 0.9, changeFrequency: "hourly" },

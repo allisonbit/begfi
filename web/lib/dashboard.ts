@@ -5,6 +5,7 @@ import { robinhoodChain } from "@/lib/chains";
 import { formatEth, ponsCurveAbi, pricePerToken } from "@/lib/curve";
 import { TOKEN_DECIMALS, formatAmount } from "@/lib/erc20";
 import { LAUNCH_CONFIG_ID, PONS_FACTORY, ponsFactoryAbi } from "@/lib/pons";
+import { getApprovedUnclaimed } from "@/lib/earn";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SUPABASE_CONFIGURED } from "@/lib/supabase/shared";
 
@@ -390,41 +391,33 @@ export async function getOwnBegs(username: string, limit = 20): Promise<{
 }
 
 /**
- * Overview aggregates that the client components cannot read themselves:
- * supporter count from confirmed transfers, and the BegFi meter — pooled ETH
- * across every catalog token divided by the sum of graduation thresholds.
+ * Overview aggregates the client components cannot read themselves.
+ *
+ * THE LAUNCH METER IS GONE FROM THIS PATH, deliberately. This function used to
+ * read the factory config and then two RPC calls per launched token — up to
+ * five hundred of them — on every dashboard load, to compute a meter the
+ * Overview never rendered. The launchpad was removed months ago; carrying its
+ * arithmetic here made the first screen after sign-in wait on a product that no
+ * longer exists. Two indexed reads are what the page actually shows.
  */
 export async function getOverview(wallet: string): Promise<{
   supporters: number;
-  meterPooledWei: string | null;
-  meterThresholdWei: string | null;
   totalReceived: string;
   dbFailed: boolean;
 }> {
-  if (!SUPABASE_CONFIGURED) {
-    return { supporters: 0, meterPooledWei: null, meterThresholdWei: null, totalReceived: "0", dbFailed: true };
-  }
+  if (!SUPABASE_CONFIGURED) return { supporters: 0, totalReceived: "0", dbFailed: true };
 
   let admin;
   try {
     admin = createAdminClient();
   } catch {
-    return { supporters: 0, meterPooledWei: null, meterThresholdWei: null, totalReceived: "0", dbFailed: true };
+    return { supporters: 0, totalReceived: "0", dbFailed: true };
   }
   const w = wallet.toLowerCase();
 
-  const [received, supporters, launchRows] = await Promise.all([
-    admin
-      .from("transfers")
-      .select("amount")
-      .eq("to_address", w)
-      .limit(10_000),
-    admin
-      .from("transfers")
-      .select("from_address")
-      .eq("to_address", w)
-      .limit(10_000),
-    admin.from("launches").select("token_address").limit(500),
+  const [received, supporters] = await Promise.all([
+    admin.from("transfers").select("amount").eq("to_address", w).limit(10_000),
+    admin.from("transfers").select("from_address").eq("to_address", w).limit(10_000),
   ]);
 
   let totalReceived = 0n;
@@ -433,60 +426,111 @@ export async function getOverview(wallet: string): Promise<{
   const supporterSet = new Set<string>();
   for (const row of supporters.data ?? []) supporterSet.add(row.from_address.toLowerCase());
 
-  /*
-   * The meter: pooled ETH across catalog tokens, over the summed graduation
-   * thresholds of the same tokens. Read straight from the curves; a token
-   * whose read fails contributes nothing rather than a guess.
-   */
-  let pooled = 0n;
-  let thresholds = 0n;
-  let phantom = 0n;
-  let configOk = false;
-  try {
-    const config = await client.readContract({
-      abi: ponsFactoryAbi,
-      address: PONS_FACTORY,
-      functionName: "getLaunchConfig",
-      args: [LAUNCH_CONFIG_ID],
-    });
-    phantom = config[2];
-    thresholds = config[3] * BigInt((launchRows.data ?? []).length || 0);
-    configOk = (launchRows.data ?? []).length > 0;
-  } catch {
-    configOk = false;
-  }
-
-  if (configOk) {
-    await Promise.all(
-      (launchRows.data ?? []).map(async (row) => {
-        try {
-          const record = await client.readContract({
-            abi: ponsFactoryAbi,
-            address: PONS_FACTORY,
-            functionName: "getLaunchedToken",
-            args: [row.token_address as `0x${string}`],
-          });
-          if (record.phase !== 0) return;
-          const reserves = await client.readContract({
-            abi: ponsCurveAbi,
-            address: record.curve,
-            functionName: "getReserves",
-          });
-          const quoteReserve = reserves[0];
-          pooled += quoteReserve > phantom ? quoteReserve - phantom : 0n;
-        } catch {
-          /* contributes nothing */
-        }
-      }),
-    );
-  }
-
   return {
     supporters: supporterSet.size,
-    meterPooledWei: configOk ? pooled.toString() : null,
-    meterThresholdWei: configOk ? thresholds.toString() : null,
     totalReceived: totalReceived.toString(),
     dbFailed: Boolean(received.error || supporters.error),
+  };
+}
+
+export type OverviewPayout = {
+  amount: string;
+  token_symbol: string;
+  token_decimals: number;
+  campaign_name: string | null;
+  campaign_slug: string | null;
+  at: string;
+};
+
+export type OverviewExtras = {
+  /** Approved, unpaid $BEGFI from the original pool — the one manual claim. */
+  claimable: string;
+  payoutCount: number;
+  payouts: OverviewPayout[];
+  /** $BEGFI received per UTC day for the last seven days, oldest first. */
+  days: { date: string; amount: string }[];
+  dbFailed: boolean;
+};
+
+/**
+ * The Overview's second read: what was earned, what can still be claimed, and
+ * the last seven days of receipts.
+ *
+ * ONE FAILURE DOES NOT EMPTY THE PAGE. Each part is read independently and a
+ * failure marks `dbFailed` while the other parts still render — the same rule
+ * the money pages follow, where one dark stat is one dark stat. Claimable comes
+ * from `earn_submissions` (the legacy pool's manual claim); campaign and drop
+ * payouts are automatic and already carry a transaction, so they are shown as
+ * history rather than as something to press.
+ */
+export async function getOverviewExtras(profileId: string, wallet: string): Promise<OverviewExtras> {
+  const empty: OverviewExtras = { claimable: "0", payoutCount: 0, payouts: [], days: [], dbFailed: true };
+  if (!SUPABASE_CONFIGURED) return empty;
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return empty;
+  }
+  const w = wallet.toLowerCase();
+  const since = new Date(Date.now() - 7 * 24 * 3600_000);
+
+  const [unclaimed, payouts, payoutCount, receipts] = await Promise.all([
+    getApprovedUnclaimed(profileId).catch(() => ({ ids: [] as string[], total: 0n })),
+    admin
+      .from("earn_payouts")
+      .select("amount::text, created_at, campaign_id, token_address, campaigns(name, slug, token_symbol, token_decimals)")
+      .eq("wallet_address", w)
+      .eq("status", "sent")
+      .order("created_at", { ascending: false })
+      .limit(5),
+    admin
+      .from("earn_payouts")
+      .select("id", { count: "exact", head: true })
+      .eq("wallet_address", w)
+      .eq("status", "sent"),
+    admin
+      .from("transfers")
+      .select("amount, block_time")
+      .eq("to_address", w)
+      .gte("block_time", since.toISOString())
+      .limit(20_000),
+  ]);
+
+  const byDay = new Map<string, bigint>();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 3600_000).toISOString().slice(0, 10);
+    byDay.set(d, 0n);
+  }
+  for (const row of (receipts.data ?? []) as { amount: string; block_time: string }[]) {
+    const day = row.block_time.slice(0, 10);
+    if (!byDay.has(day)) continue;
+    byDay.set(day, (byDay.get(day) ?? 0n) + BigInt(row.amount));
+  }
+
+  const payoutRows = (payouts.data ?? []) as unknown as {
+    amount: string;
+    created_at: string;
+    campaign_id: string | null;
+    campaigns: { name: string; slug: string; token_symbol: string; token_decimals: number }[] | null;
+  }[];
+
+  return {
+    claimable: unclaimed.total.toString(),
+    payoutCount: payoutCount.count ?? 0,
+    payouts: payoutRows.map((row) => {
+      const c = row.campaigns?.[0];
+      return {
+        amount: row.amount,
+        token_symbol: c?.token_symbol ?? "BEGFI",
+        token_decimals: c?.token_decimals ?? 18,
+        campaign_name: c?.name ?? null,
+        campaign_slug: c?.slug ?? null,
+        at: row.created_at,
+      };
+    }),
+    days: [...byDay.entries()].map(([date, amount]) => ({ date, amount: amount.toString() })),
+    dbFailed: Boolean(payouts.error || receipts.error),
   };
 }
 

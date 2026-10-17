@@ -133,8 +133,9 @@ campaigns).
    no pot" alert is the fix. `KNOWN_ISSUES.md` #20.
 4. **The pot's freshness depends on the indexer** unless the funder presses "check". `KNOWN_ISSUES.md` #19
    (the indexer's block lag) is the ceiling on how live a credit is.
-5. **No per-drop OG image** — the page has metadata (title, description) but no generated card, so a shared
-   link unfurls as text. `/beg/[id]` and `/earn/[slug]` both have cards; this is a known gap, not a decision.
+5. ~~**No per-drop OG image**~~ — **fixed 2026-10-17**: `/drop/[id]` has an `opengraph-image` and a
+   matching `twitter-image`, 1200×630, with the prize, cap and the automatic-payout line. Verified as a PNG;
+   the real drop variant awaits the first live drop in the database.
 6. **No admin console view of drops** as their own section. The payout ledger now labels each row's pool and
    renders it in the row's own token, so drop rows are visible and correct there; a per-drop admin view is a
    nice-to-have.
@@ -187,6 +188,6 @@ campaigns).
 2. **Refunds for an unspent pot** once addresses are separated; until then the dashboard's copy is the honest
    position and D-019 stays open.
 3. **A sybil pass** (#22): captcha on claim, clustering by funding source, an admin queue for suspicious drops.
-4. **Drop branding**: a per-drop OG card, and a `Drops` line on `/transparency`.
+4. **Drop branding**: ~~a per-drop OG card~~ (shipped 2026-10-17), and a `Drops` line on `/transparency`.
 5. **Richer drop shapes** the schema already allows but nothing builds: allowlist/whitelist claims, "first
    claimer takes all", recurring drops. Add them as explicit modes, never as a mutated prize.

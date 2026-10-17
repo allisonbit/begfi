@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
 import { robinhoodChain } from "@/lib/chains";
-import { BEG_TOKEN_ADDRESS, DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+import { BEG_TOKEN_ADDRESS } from "@/lib/config";
+import { distributorAccount, distributorSignerConfigured } from "@/lib/distributor-signer";
 import { getApprovedUnclaimed, leaseClaim, recordPayout, releaseClaim } from "@/lib/earn";
 import { erc20Abi } from "@/lib/erc20";
 import { payoutsAllowed } from "@/lib/payout-controls";
@@ -40,13 +40,14 @@ export async function POST() {
   if (!BEG_TOKEN_ADDRESS) {
     return NextResponse.json({ error: "$BEGFI sends are not live yet." }, { status: 503 });
   }
-  if (!DISTRIBUTOR_PRIVATE_KEY) {
+  if (!distributorSignerConfigured()) {
     return NextResponse.json(
       { error: "Claim is not wired yet — the payout wallet is not configured." },
       { status: 503 },
     );
   }
-  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) {
+  const account = distributorAccount();
+  if (!account) {
     return NextResponse.json({ error: "Payout wallet is misconfigured." }, { status: 503 });
   }
 
@@ -66,7 +67,6 @@ export async function POST() {
     return NextResponse.json({ error: "Nothing to claim yet." }, { status: 400 });
   }
 
-  const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
   const publicClient = createPublicClient({ chain: robinhoodChain, transport: http() });
 

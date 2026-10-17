@@ -1,10 +1,10 @@
 import "server-only";
 
 import { createPublicClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { distributorSignerAddress, distributorSignerConfigured } from "@/lib/distributor-signer";
 
 import { robinhoodChain } from "@/lib/chains";
-import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
+
 import { erc20Abi } from "@/lib/erc20";
 import { distributorAddress } from "@/lib/earn-distributor";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -166,18 +166,18 @@ export async function setPayoutsPaused(input: {
  * in a moment", and the cost of the other answer is a promise nobody can pay.
  */
 export async function payoutWalletReady(tokenAddress: string, amount: bigint): Promise<boolean> {
-  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) return false;
+  const address = distributorSignerAddress();
+  if (!distributorSignerConfigured() || !address) return false;
   try {
-    const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
     const client = createPublicClient({ chain: robinhoodChain, transport: http() });
     const [balance, native] = await Promise.all([
       client.readContract({
         address: tokenAddress as `0x${string}`,
         abi: erc20Abi,
         functionName: "balanceOf",
-        args: [account.address],
+        args: [address as `0x${string}`],
       }) as unknown as Promise<bigint>,
-      client.getBalance({ address: account.address }),
+      client.getBalance({ address: address as `0x${string}` }),
     ]);
     return balance >= amount && native > 0n;
   } catch {

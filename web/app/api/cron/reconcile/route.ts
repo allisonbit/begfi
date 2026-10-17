@@ -178,7 +178,7 @@ export async function GET(request: Request) {
 
   const { data: payouts, error: payoutError } = await admin
     .from("earn_payouts")
-    .select("campaign_id, amount::text")
+    .select("campaign_id, drop_id, amount::text")
     .eq("status", "sent")
     .limit(ROW_CAP);
 
@@ -272,6 +272,75 @@ export async function GET(request: Request) {
     // its keys is not something to leave to chance.
     for (const token of [...obligations.keys()]) {
       note(token, `row cap of ${ROW_CAP} reached — the sum may be incomplete`);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // The ledger agrees with the tables it mirrors
+  // ---------------------------------------------------------------------
+  // Migration 0030 writes every deposit and confirmed payout into
+  // begfi.ledger from triggers, in the same transaction. That makes the two
+  // copies equal by construction; this check is here for the day construction
+  // is wrong (a trigger dropped by a restore, a manual insert, a payout marked
+  // sent by a path that bypassed the row). It REPORTS rather than pauses: a
+  // missing ledger row does not mean the wallet is short, and pausing payouts
+  // for it would stop the very writes that would repair the picture.
+  const ledgerMismatch: string[] = [];
+  let ledgerRowsRead = 0;
+  {
+    const { data: ledgerRows, error: ledgerError } = await admin
+      .from("ledger")
+      .select("kind, pool_kind, pool_id, amount::text")
+      .limit(50_000);
+
+    if (ledgerError) {
+      ledgerMismatch.push(`ledger read failed: ${ledgerError.message}`);
+    } else {
+      ledgerRowsRead = ledgerRows?.length ?? 0;
+      const ledgerIn = new Map<string, bigint>();
+      const ledgerOut = new Map<string, bigint>();
+      for (const row of (ledgerRows ?? []) as {
+        kind: string;
+        pool_kind: string;
+        pool_id: string | null;
+        amount: string;
+      }[]) {
+        const key = `${row.pool_kind}:${row.pool_id ?? ""}`;
+        const target = row.kind === "deposit" ? ledgerIn : row.kind === "payout" ? ledgerOut : null;
+        if (!target) continue;
+        target.set(key, (target.get(key) ?? 0n) + BigInt(row.amount));
+      }
+
+      const comparePool = (label: string, key: string, source: bigint, ledger: Map<string, bigint>) => {
+        const mirrored = ledger.get(key) ?? 0n;
+        if (mirrored !== source) {
+          const id = key.slice(key.indexOf(":") + 1);
+          ledgerMismatch.push(
+            `${label}${id ? ` ${id.slice(0, 8)}` : ""}: table ${source} vs ledger ${mirrored}`,
+          );
+        }
+      };
+
+      for (const [id, amount] of credited) comparePool("campaign deposit", `campaign:${id}`, amount, ledgerIn);
+      for (const [id, amount] of paid) comparePool("campaign payout", `campaign:${id}`, amount, ledgerOut);
+      for (const [id, amount] of dropCredited) comparePool("drop deposit", `drop:${id}`, amount, ledgerIn);
+      for (const [id, amount] of dropPaid) comparePool("drop payout", `drop:${id}`, amount, ledgerOut);
+
+      // `campaign_id IS NULL` alone is not "the pool": drop prizes carry a
+      // null campaign_id too. Both nulls is the pool, and only both nulls.
+      let poolSent = 0n;
+      for (const row of (payouts ?? []) as {
+        campaign_id: string | null;
+        drop_id: string | null;
+        amount: string;
+      }[]) {
+        if (!row.campaign_id && !row.drop_id) poolSent += BigInt(row.amount);
+      }
+      comparePool("pool payout", "pool:", poolSent, ledgerOut);
+    }
+
+    if (ledgerRowsRead >= 50_000) {
+      ledgerMismatch.push("ledger row cap reached — the comparison may be incomplete");
     }
   }
 
@@ -576,10 +645,23 @@ export async function GET(request: Request) {
     }
   }
 
+  if (ledgerMismatch.length > 0) {
+    await recordAudit(admin, {
+      actor: distributor,
+      action: "ledger.mismatch",
+      detail: ledgerMismatch.slice(0, 5).join(" · "),
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     distributor,
     checked: results.length,
+    ledger: {
+      rows: ledgerRowsRead,
+      ok: ledgerMismatch.length === 0,
+      mismatches: ledgerMismatch.slice(0, 20),
+    },
     pausedByIncident: drifting.length > 0 && paused === true,
     // How many humans were told. Zero on a drifting run is a configuration hole,
     // not a quiet success.

@@ -1,10 +1,9 @@
 import "server-only";
 
 import { createPublicClient, createWalletClient, http, parseAbiItem } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
-import { DISTRIBUTOR_PRIVATE_KEY } from "@/lib/config";
 import { robinhoodChain } from "@/lib/chains";
+import { distributorAccount, distributorSignerConfigured } from "@/lib/distributor-signer";
 import { readDropPot } from "@/lib/drops";
 import { erc20Abi } from "@/lib/erc20";
 import { publishNotification } from "@/lib/notify";
@@ -18,7 +17,7 @@ import { distributorAddress } from "@/lib/earn-distributor";
  * WHAT IS SHARED WITH CAMPAIGNS, EXACTLY. This file is a FRONT over the payout
  * engine, not a second engine. It shares, unchanged:
  *
- *   * THE WALLET AND KEY — `DISTRIBUTOR_PRIVATE_KEY`, one EOA, derived
+ *   * THE WALLET AND SIGNER — one EOA, signed by KMS or the env key, shared
  *     server-side only. A drop's prize and a campaign's budget leave the same
  *     address.
  *   * THE LEDGER — `begfi.earn_payouts`, the table BegFi's own pool pays from.
@@ -423,8 +422,8 @@ export async function sweepDropPayouts(
     notes,
   };
 
-  if (!/^0x[0-9a-fA-F]{64}$/.test(DISTRIBUTOR_PRIVATE_KEY)) {
-    notes.push("distributor key missing — drop sweep parked");
+  if (!distributorSignerConfigured()) {
+    notes.push("distributor signer missing — drop sweep parked");
     return out;
   }
   let admin: SupabaseAdmin;
@@ -441,7 +440,11 @@ export async function sweepDropPayouts(
     return out;
   }
 
-  const account = privateKeyToAccount(DISTRIBUTOR_PRIVATE_KEY as `0x${string}`);
+  const account = distributorAccount();
+  if (!account) {
+    notes.push("distributor signer unavailable — drop sweep parked");
+    return out;
+  }
   const client = createPublicClient({ chain: robinhoodChain, transport: http() });
   const walletClient = createWalletClient({ account, chain: robinhoodChain, transport: http() });
 
